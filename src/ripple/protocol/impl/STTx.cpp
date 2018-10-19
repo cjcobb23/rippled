@@ -165,7 +165,7 @@ Blob STTx::getSignature () const
 
 SeqOrTicket STTx::getSeqOrTicket () const
 {
-    std::uint32_t const seq = {getSequence()};
+    std::uint32_t const seq {getFieldU32 (sfSequence)};
     if (seq != 0)
         return SeqOrTicket {SeqOrTicket::seq, seq};
 
@@ -265,7 +265,8 @@ STTx::getMetaSQL (Serializer rawTxn,
     return str (boost::format (bfTrans)
                 % to_string (getTransactionID ()) % format->getName ()
                 % toBase58(getAccountID(sfAccount))
-                % getSequence () % inLedger % status % rTxn % escapedMetaData);
+                % getFieldU32 (sfSequence) % inLedger
+                % status % rTxn % escapedMetaData);
 }
 
 std::pair<bool, std::string>

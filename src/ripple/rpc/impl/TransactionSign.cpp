@@ -430,20 +430,8 @@ transactionPreProcessImpl (
 
                 return rpcError (rpcSRC_ACT_NOT_FOUND);
             }
-
-            auto seq = (*sle)[sfSequence];
-            auto const queued = app.getTxQ().getAccountTxs(srcAddressID,
-                *ledger);
-            // If the account has any txs in the TxQ, skip those sequence
-            // numbers (accounting for possible gaps).
-            for(auto const& tx : queued)
-            {
-                if (tx.sequence == seq)
-                    ++seq;
-                else if (tx.sequence > seq)
-                    break;
-            }
-            tx_json[jss::Sequence] = seq;
+            tx_json[jss::Sequence] = app.getTxQ().nextQueuableSeq (
+                *ledger, srcAddressID, (*sle)[sfSequence]).value();
         }
 
         if (!tx_json.isMember (jss::Flags))

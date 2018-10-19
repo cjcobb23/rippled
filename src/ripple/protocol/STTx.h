@@ -105,15 +105,6 @@ public:
         return getFieldVL (sfSigningPubKey);
     }
 
-    std::uint32_t getSequence () const
-    {
-        return getFieldU32 (sfSequence);
-    }
-    void setSequence (std::uint32_t seq)
-    {
-        return setFieldU32 (sfSequence, seq);
-    }
-
     SeqOrTicket getSeqOrTicket () const;
 
     boost::container::flat_set<AccountID>

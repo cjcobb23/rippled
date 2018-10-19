@@ -258,6 +258,7 @@ JSS ( have_header );                // out: InboundLedger
 JSS ( have_state );                 // out: InboundLedger
 JSS ( have_transactions );          // out: InboundLedger
 JSS ( highest_sequence );           // out: AccountInfo
+JSS ( highest_ticket );             // out: AccountInfo
 JSS ( historical_perminute );       // historical_perminute.
 JSS ( hostid );                     // out: NetworkOPs
 JSS ( hotwallet );                  // in: GatewayBalances
@@ -269,7 +270,6 @@ JSS ( inbound );                    // out: PeerImp
 JSS ( index );                      // in: LedgerEntry, DownloadShard
                                     // out: STLedgerEntry,
                                     //      LedgerEntry, TxHistory, LedgerData
-                                    // field
 JSS ( info );                       // out: ServerInfo, ConsensusInfo, FetchInfo
 JSS ( internal_command );           // in: Internal
 JSS ( invalid_API_version );        // out: Many, when a request has an invalid
@@ -335,6 +335,7 @@ JSS ( local );                      // out: resource/Logic.h
 JSS ( local_txs );                  // out: GetCounts
 JSS ( local_static_keys );          // out: ValidatorList
 JSS ( lowest_sequence );            // out: AccountInfo
+JSS ( lowest_ticket );              // out: AccountInfo
 JSS ( majority );                   // out: RPC feature
 JSS ( manifest );                   // out: ValidatorInfo, Manifest
 JSS ( marker );                     // in/out: AccountTx, AccountOffers,
@@ -470,6 +471,7 @@ JSS ( seq );                        // in: LedgerEntry;
                                     // out: NetworkOPs, RPCSub, AccountOffers,
                                     //      ValidatorList, ValidatorInfo, Manifest
 JSS ( seqNum );                     // out: LedgerToJson
+JSS ( sequence_count );             // out: AccountInfo
 JSS ( server_state );               // out: NetworkOPs
 JSS ( server_state_duration_us );   // out: NetworkOPs
 JSS ( server_status );              // out: NetworkOPs
@@ -511,6 +513,7 @@ JSS ( taker_pays );                 // in: Subscribe, Unsubscribe, BookOffers
 JSS ( taker_pays_funded );          // out: NetworkOPs
 JSS ( threshold );                  // in: Blacklist
 JSS ( ticket );                     // in: AccountObjects
+JSS ( ticket_count );               // out: AccountInfo
 JSS ( time );
 JSS ( timeouts );                   // out: InboundLedger
 JSS ( traffic );                    // out: Overlay

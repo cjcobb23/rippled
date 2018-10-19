@@ -64,7 +64,7 @@ public:
         , m_expire (index + holdLedgers)
         , m_id (txn->getTransactionID ())
         , m_account (txn->getAccountID(sfAccount))
-        , m_seq (txn->getSequence())
+        , m_seqOrT (txn->getSeqOrTicket())
     {
         if (txn->isFieldPresent (sfLastLedgerSequence))
             m_expire = std::min (m_expire, txn->getFieldU32 (sfLastLedgerSequence) + 1);
@@ -75,9 +75,9 @@ public:
         return m_id;
     }
 
-    std::uint32_t getSeq () const
+    SeqOrTicket getSeqOrTicket () const
     {
-        return m_seq;
+        return m_seqOrT;
     }
 
     bool isExpired (LedgerIndex i) const
@@ -98,10 +98,10 @@ public:
 private:
 
     std::shared_ptr<STTx const> m_txn;
-    LedgerIndex                    m_expire;
-    uint256                        m_id;
-    AccountID                      m_account;
-    std::uint32_t                  m_seq;
+    LedgerIndex                 m_expire;
+    uint256                     m_id;
+    AccountID                   m_account;
+    SeqOrTicket                 m_seqOrT;
 };
 
 //------------------------------------------------------------------------------
@@ -133,7 +133,6 @@ public:
             for (auto const& it : m_txns)
                 tset.insert (it.getTX());
         }
-
         return tset;
     }
 
@@ -148,14 +147,30 @@ public:
         {
             if (txn.isExpired (view.info().seq))
                 return true;
-            if (view.txExists(txn.getID()))
+            if (view.txExists (txn.getID()))
                 return true;
 
-            std::shared_ptr<SLE const> sle = view.read(
-                 keylet::account(txn.getAccount()));
-            if (! sle)
+            AccountID const acctID = txn.getAccount();
+            auto const sleAcct = view.read (keylet::account (acctID));
+
+            if (! sleAcct)
                 return false;
-            return sle->getFieldU32 (sfSequence) > txn.getSeq ();
+
+            std::uint32_t const acctSeq = {sleAcct->getFieldU32 (sfSequence)};
+            SeqOrTicket const seqOrT = txn.getSeqOrTicket();
+
+            if (seqOrT.isSeq())
+                return acctSeq > seqOrT.value(); // Remove tefPAST_SEQ
+
+            if (seqOrT.isTicket() && acctSeq <= seqOrT.value())
+                // Keep ticket from the future.  Note, however, that the
+                // transaction will not be held indefinitely since LocalTxs
+                // will only hold a transaction for a maximum of 5 ledgers.
+                return false;
+
+            // Ticket should have been created by now.  Remove if ticket
+            // does not exist.
+            return !view.exists(keylet::ticket (acctID, seqOrT.value()));
         });
     }
 

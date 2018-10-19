@@ -63,6 +63,7 @@ preflight1 (PreflightContext const& ctx)
         return temMALFORMED;
     }
 
+
     auto const ret = preflight0(ctx);
     if (!isTesSuccess(ret))
         return ret;
@@ -286,13 +287,35 @@ Transactor::checkSeqOrTicket (
         }
     }
 
-    if (tx.isFieldPresent (sfAccountTxnID) &&
-            (sle->getFieldH256 (sfAccountTxnID) != tx.getFieldH256 (sfAccountTxnID)))
+    return tesSUCCESS;
+}
+
+NotTEC
+Transactor::checkPriorTxAndLastLedger (PreclaimContext const& ctx)
+{
+    auto const id = ctx.tx.getAccountID(sfAccount);
+
+    auto const sle = ctx.view.read(keylet::account(id));
+
+    if (!sle)
+    {
+        JLOG(ctx.j.trace()) <<
+            "applyTransaction: delay: source account does not exist " <<
+            toBase58(ctx.tx.getAccountID(sfAccount));
+        return terNO_ACCOUNT;
+    }
+
+    if (ctx.tx.isFieldPresent (sfAccountTxnID) &&
+            (sle->getFieldH256 (sfAccountTxnID) !=
+                ctx.tx.getFieldH256 (sfAccountTxnID)))
         return tefWRONG_PRIOR;
 
-    if (tx.isFieldPresent (sfLastLedgerSequence) &&
-            (view.seq() > tx.getFieldU32 (sfLastLedgerSequence)))
+    if (ctx.tx.isFieldPresent (sfLastLedgerSequence) &&
+            (ctx.view.seq() > ctx.tx.getFieldU32 (sfLastLedgerSequence)))
         return tefMAX_LEDGER;
+
+    if (ctx.view.txExists(ctx.tx.getTransactionID ()))
+        return tefALREADY;
 
     return tesSUCCESS;
 }
@@ -664,7 +687,7 @@ void removeUnfundedOffers (ApplyView& view, std::vector<uint256> const& offers, 
 }
 
 /** Reset the context, discarding any changes made and adjust the fee */
-XRPAmount
+std::pair<TER, XRPAmount>
 Transactor::reset(XRPAmount fee)
 {
     ctx_.discard();
@@ -674,7 +697,7 @@ Transactor::reset(XRPAmount fee)
     if (! txnAcct)
         // The account should never be missing from the ledger.  But if it
         // is missing then we can't very well charge it a fee, can we?
-        return beast::zero;
+        return {tefFAILURE, beast::zero};
 
     auto const balance = txnAcct->getFieldAmount (sfBalance).xrp ();
 
@@ -688,12 +711,18 @@ Transactor::reset(XRPAmount fee)
 
     // Since we reset the context, we need to charge the fee and update
     // the account's sequence number (or consume the Ticket) again.
+    //
+    // If for some reason we are unable to consume the ticket or sequence
+    // then the ledger is corrupted.  Rather than make things worse we
+    // reject the transaction.
     txnAcct->setFieldAmount (sfBalance, balance - fee);
-    consumeSeqOrTicket (txnAcct);
+    TER const ter {consumeSeqOrTicket (txnAcct)};
+    assert (isTesSuccess (ter));
 
-    view().update (txnAcct);
+    if (isTesSuccess (ter))
+        view().update (txnAcct);
 
-    return fee;
+    return {ter, fee};
 }
 
 //------------------------------------------------------------------------------
@@ -775,14 +804,21 @@ Transactor::operator()()
                 });
         }
 
-        // Reset the context, potentially adjusting the fee
-        fee = reset(fee);
+        // Reset the context, potentially adjusting the fee.
+        {
+            auto const resetResult = reset(fee);
+            if (! isTesSuccess (resetResult.first))
+                result = resetResult.first;
+
+            fee = resetResult.second;
+        }
 
         // If necessary, remove any offers found unfunded during processing
         if ((result == tecOVERSIZE) || (result == tecKILLED))
             removeUnfundedOffers (view(), removedOffers, ctx_.app.journal ("View"));
 
-        applied = true;
+        if (isTecClaim (result))
+            applied = true;
     }
 
     if (applied)
@@ -795,11 +831,16 @@ Transactor::operator()()
         {
             // if invariants checking failed again, reset the context and
             // attempt to only claim a fee.
-            fee = reset(fee);
+            auto const resetResult = reset(fee);
+            if (! isTesSuccess (resetResult.first))
+                result = resetResult.first;
+
+            fee = resetResult.second;
 
             // Check invariants again to ensure the fee claiming doesn't
             // violate invariants.
-            result = ctx_.checkInvariants(result, fee);
+            if (isTesSuccess (result) || isTecClaim (result))
+                result = ctx_.checkInvariants(result, fee);
         }
 
         // We ran through the invariant checker, which can, in some cases,

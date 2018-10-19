@@ -58,7 +58,8 @@ Change::preflight (PreflightContext const& ctx)
         return {temBAD_SIGNATURE, conseq};
     }
 
-    if (ctx.tx.getSequence () != 0 || ctx.tx.isFieldPresent (sfPreviousTxnID))
+    if (ctx.tx.getFieldU32 (sfSequence) != 0 ||
+        ctx.tx.isFieldPresent (sfPreviousTxnID))
     {
         JLOG(ctx.j.warn()) << "Change: Bad sequence";
         return {temBAD_SEQUENCE, conseq};

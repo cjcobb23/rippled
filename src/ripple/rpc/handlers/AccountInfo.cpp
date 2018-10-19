@@ -126,19 +126,35 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                 auto& jvQueueTx = jvQueueData[jss::transactions];
                 jvQueueTx = Json::arrayValue;
 
+                std::uint32_t seqCount = {0};
+                std::uint32_t ticketCount = {0};
                 boost::optional<std::uint32_t> lowestSeq;
                 boost::optional<std::uint32_t> highestSeq;
-                bool anyAuthChanged(false);
+                boost::optional<std::uint32_t> lowestTicket;
+                boost::optional<std::uint32_t> highestTicket;
+                bool anyAuthChanged = {false};
                 XRPAmount totalSpend(0);
 
                 for (auto const& tx : txs)
                 {
                     Json::Value jvTx = Json::objectValue;
 
-                    jvTx[jss::seq] = tx.sequence;
-                    if (!lowestSeq)
-                        lowestSeq = tx.sequence;
-                    highestSeq = tx.sequence;
+                    if (tx.seqOrT.isSeq())
+                    {
+                        jvTx[jss::seq] = tx.seqOrT.value();
+                        seqCount += 1;
+                        if (!lowestSeq)
+                            lowestSeq = tx.seqOrT.value();
+                        highestSeq = tx.seqOrT.value();
+                    }
+                    else
+                    {
+                        jvTx[jss::ticket] = tx.seqOrT.value();
+                        ticketCount += 1;
+                        if (!lowestTicket)
+                            lowestTicket = tx.seqOrT.value();
+                        highestTicket = tx.seqOrT.value();
+                    }
 
                     jvTx[jss::fee_level] = to_string(tx.feeLevel);
                     if (tx.lastValid)
@@ -157,10 +173,18 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                     jvQueueTx.append(std::move(jvTx));
                 }
 
+                if (seqCount)
+                    jvQueueData[jss::sequence_count] = seqCount;
+                if (ticketCount)
+                    jvQueueData[jss::ticket_count] = ticketCount;
                 if (lowestSeq)
                     jvQueueData[jss::lowest_sequence] = *lowestSeq;
                 if (highestSeq)
                     jvQueueData[jss::highest_sequence] = *highestSeq;
+                if (lowestTicket)
+                    jvQueueData[jss::lowest_ticket] = *lowestTicket;
+                if (highestTicket)
+                    jvQueueData[jss::highest_ticket] = *highestTicket;
 
                 jvQueueData[jss::auth_change_queued] = anyAuthChanged;
                 jvQueueData[jss::max_spend_drops_total] = to_string(totalSpend);

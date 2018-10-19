@@ -663,13 +663,11 @@ class Ticket_test : public beast::unit_test::suite
         env.close();
 
         // Now create the ticket.  The retry will consume the new ticket.
-        //
-        // Un-comment this part of the test after the TxQ understands Tickets.
-//        env (ticket::create (alice, 1));
-//        checkTicketCreateMeta (env);
-//        env.close();
-//        env.require (owners (alice, 1), tickets (alice, 0));
-//        BEAST_EXPECT (ticketSeq_F + 1 == env.seq (alice));
+        env (ticket::create (alice, 1));
+        checkTicketCreateMeta (env);
+        env.close();
+        env.require (owners (alice, 1), tickets (alice, 0));
+        BEAST_EXPECT (ticketSeq_F + 1 == env.seq (alice));
     }
 
     void testTransactionDatabaseWithTickets()
