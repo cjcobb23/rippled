@@ -374,6 +374,9 @@ extern SF_U32 const sfCancelAfter;
 extern SF_U32 const sfFinishAfter;
 extern SF_U32 const sfSignerListID;
 extern SF_U32 const sfSettleDelay;
+extern SF_U32 const sfCount;
+extern SF_U32 const sfTicketSequence;
+extern SF_U32 const sfTicketCount;
 
 // 64-bit integers
 extern SF_U64 const sfIndexNext;
@@ -413,7 +416,6 @@ extern SF_U256 const sfBookDirectory;
 extern SF_U256 const sfInvoiceID;
 extern SF_U256 const sfNickname;
 extern SF_U256 const sfAmendment;
-extern SF_U256 const sfTicketID;
 extern SF_U256 const sfDigest;
 extern SF_U256 const sfPayChannel;
 extern SF_U256 const sfConsensusHash;

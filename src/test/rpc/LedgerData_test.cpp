@@ -271,9 +271,7 @@ public:
         // Put a bunch of different LedgerEntryTypes into a ledger
         using namespace test::jtx;
         using namespace std::chrono;
-        Env env{*this,
-                envconfig(validator, ""),
-                supported_amendments().set(featureTickets)};
+        Env env{*this, envconfig(validator, "")};
 
         Account const gw { "gateway" };
         auto const USD = gw["USD"];
@@ -299,7 +297,7 @@ public:
         }
         env(signers(Account{"bob0"}, 1,
                 {{Account{"bob1"}, 1}, {Account{"bob2"}, 1}}));
-        env(ticket::create(env.master));
+        env(ticket::create(env.master, 1));
 
         {
             Json::Value jv;

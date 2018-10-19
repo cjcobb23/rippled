@@ -93,7 +93,6 @@ JSS ( SigningPubKey );              // field.
 JSS ( TakerGets );                  // field.
 JSS ( TakerPays );                  // field.
 JSS ( Ticket );                     // ledger type.
-JSS ( TicketCancel );               // transaction type.
 JSS ( TicketCreate );               // transaction type.
 JSS ( TxnSignature );               // field.
 JSS ( TransactionType );            // in: TransactionSign.

@@ -139,12 +139,12 @@ getQuality (uint256 const& uBase)
 }
 
 uint256
-getTicketIndex (AccountID const& account, std::uint32_t uSequence)
+getTicketIndex (AccountID const& account, std::uint32_t ticketSeq)
 {
     return sha512Half(
         std::uint16_t(spaceTicket),
         account,
-        std::uint32_t(uSequence));
+        std::uint32_t(ticketSeq));
 }
 
 uint256

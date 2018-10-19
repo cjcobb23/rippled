@@ -93,7 +93,7 @@ detail::supportedAmendments ()
     static std::vector<std::string> const supported
     {
         "MultiSign",                   // Unconditionally supported.
-//        "Tickets",
+        "Tickets",       // Looks unused, but do not remove; Servers will be amendment blocked.
         "TrustSetAuth",                // Unconditionally supported.
         "FeeEscalation",               // Unconditionally supported.
 //        "OwnerPaysFee",
@@ -130,6 +130,7 @@ detail::supportedAmendments ()
         "DeletableAccounts",
         "fixQualityUpperBound",
         "RequireFullyCanonicalSig",
+        "TicketBatch",
     };
     return supported;
 }
@@ -189,5 +190,6 @@ uint256 const fixPayChanRecipientOwnerDir = *getRegisteredFeature("fixPayChanRec
 uint256 const featureDeletableAccounts = *getRegisteredFeature("DeletableAccounts");
 uint256 const fixQualityUpperBound = *getRegisteredFeature("fixQualityUpperBound");
 uint256 const featureRequireFullyCanonicalSig = *getRegisteredFeature("RequireFullyCanonicalSig");
+uint256 const featureTicketBatch = *getRegisteredFeature("TicketBatch");
 
 } // ripple

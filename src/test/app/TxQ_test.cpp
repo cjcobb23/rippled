@@ -1752,7 +1752,7 @@ public:
     {
         using namespace jtx;
         using namespace std::chrono;
-        Env env(*this, supported_amendments().set(featureTickets));
+        Env env(*this, supported_amendments().set(featureTicketBatch));
         auto const alice = Account("alice");
         env.memoize(alice);
         env.memoize("bob");
@@ -1788,23 +1788,7 @@ public:
         }
 
         {
-            auto const jtx = env.jt(ticket::create(alice, "bob", 60),
-                seq(1), fee(10));
-            auto const pf = preflight(env.app(), env.current()->rules(),
-                *jtx.stx, tapNONE, env.journal);
-            BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
-        }
-
-        {
-            Json::Value cancelTicket;
-            cancelTicket[jss::Account] = alice.human();
-            cancelTicket["TicketID"] = to_string(uint256());
-            cancelTicket[jss::TransactionType] = jss::TicketCancel;
-            auto const jtx = env.jt(cancelTicket,
+            auto const jtx = env.jt(ticket::create(alice, 1),
                 seq(1), fee(10));
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
