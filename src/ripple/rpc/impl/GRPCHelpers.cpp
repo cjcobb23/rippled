@@ -1637,19 +1637,35 @@ convert(
     {
         to.set_txn_count(from.size());
 
+        std::uint32_t seqCount = {0};
+        std::uint32_t ticketCount = {0};
         boost::optional<std::uint32_t> lowestSeq;
         boost::optional<std::uint32_t> highestSeq;
+        boost::optional<std::uint32_t> lowestTicket;
+        boost::optional<std::uint32_t> highestTicket;
         bool anyAuthChanged = {false};
-        XRPAmount totalSpend (0);
+        XRPAmount totalSpend(0);
 
         for (auto const& tx : from)
         {
             org::xrpl::rpc::v1::QueuedTransaction& qt = *to.add_transactions();
 
-            qt.mutable_sequence()->set_value (tx.sequence);
-            if (!lowestSeq)
-                lowestSeq = tx.sequence;
-            highestSeq = tx.sequence;
+            if (tx.seqOrT.isSeq())
+            {
+                qt.mutable_sequence()->set_value (tx.seqOrT.value());
+                seqCount += 1;
+                if (!lowestSeq)
+                    lowestSeq = tx.seqOrT.value();
+                highestSeq = tx.seqOrT.value();
+            }
+            else
+            {
+                qt.mutable_ticket()->set_value (tx.seqOrT.value());
+                ticketCount += 1;
+                if (!lowestTicket)
+                    lowestTicket = tx.seqOrT.value();
+                highestTicket = tx.seqOrT.value();
+            }
 
             qt.set_fee_level(tx.feeLevel.fee());
             if (tx.lastValid)
@@ -1666,10 +1682,18 @@ convert(
             qt.set_auth_change(authChanged);
         }
 
+        if (seqCount)
+            to.set_sequence_count(seqCount);
+        if (ticketCount)
+            to.set_ticket_count(ticketCount);
         if (lowestSeq)
             to.set_lowest_sequence(*lowestSeq);
         if (highestSeq)
             to.set_highest_sequence(*highestSeq);
+        if (lowestTicket)
+            to.set_lowest_ticket(*lowestTicket);
+        if (highestTicket)
+            to.set_highest_ticket(*highestTicket);
 
         to.set_auth_change_queued(anyAuthChanged);
         to.mutable_max_spend_drops_total()->set_drops(totalSpend.drops());

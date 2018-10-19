@@ -27,6 +27,7 @@ namespace ripple {
 
 class Application;
 class STTx;
+class TxQ;
 
 /** Return true if the transaction can claim a fee (tec),
     and the `ApplyFlags` do not allow soft failures.
@@ -135,10 +136,6 @@ public:
     // Could nextSeqOrT immediately follow this?
     NotTEC couldBeNext (SeqOrTicket nextSeqOrT) const
     {
-        // If this is a blocker then no transaction can be next.
-        if (isBlocker())
-            return telCAN_NOT_QUEUE_BLOCKED;
-
         // A Ticket can follow any Sequence or a smaller Ticket.
         // Also Tickets allow gaps.
         if (nextSeqOrT.isTicket())
@@ -305,6 +302,26 @@ preflight(Application& app, Rules const& rules,
 PreclaimResult
 preclaim(PreflightResult const& preflightResult,
     Application& app, OpenView const& view);
+
+// This is a special entry point intended only for use by TxQ.  To help
+// enforce that, the TxQ must pass itself in.  The TxQ argument is otherwise
+// unused.
+//
+// The entry point runs all of the preclaim checks with the lone exception of
+// verifying Sequence or Ticket validity.  This allows the TxQ to perform its
+// own similar checks without needing to construct a bogus view.
+PreclaimResult
+preclaimWithoutSeqCheck(TxQ const&, PreflightResult const& preflightResult,
+    Application& app, OpenView const& view);
+
+// This is a special entry point intended only for use by TxQ.  To help
+// enforce that, the TxQ must pass itself in.  The TxQ argument is otherwise
+// unused.
+//
+// Checks the sequence number explicitly.  Used in the case where the preclaim
+// sequence number check was skipped earlier.
+TER
+seqCheck(TxQ const&, OpenView& view, STTx const& tx, beast::Journal j);
 
 /** Compute only the expected base fee for a transaction.
 

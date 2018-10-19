@@ -169,6 +169,11 @@ message TickSize
 	uint32 value = 1;
 }
 
+message Ticket
+{
+    uint32 value = 1;
+}
+
 message TicketCount
 {
     uint32 value = 1;

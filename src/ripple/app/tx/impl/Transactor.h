@@ -121,6 +121,10 @@ public:
     checkSeqOrTicket (ReadView const& view, STTx const& tx, beast::Journal j);
 
     static
+    NotTEC
+    checkPriorTxAndLastLedger (PreclaimContext const& ctx);
+
+    static
     TER
     checkFee (PreclaimContext const& ctx, FeeUnit64 baseFee);
 
@@ -177,7 +181,7 @@ protected:
         Fees const& fees, ApplyFlags flags);
 
 private:
-    XRPAmount reset(XRPAmount fee);
+    std::pair<TER, XRPAmount> reset(XRPAmount fee);
 
     TER consumeSeqOrTicket (SLE::pointer const& sleAccount);
     TER payFee ();
