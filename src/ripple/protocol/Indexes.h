@@ -76,7 +76,7 @@ std::uint64_t
 getQuality (uint256 const& uBase);
 
 uint256
-getTicketIndex (AccountID const& account, std::uint32_t uSequence);
+getTicketIndex (AccountID const& account, std::uint32_t ticketSeq);
 
 uint256
 getRippleStateIndex (AccountID const& a, AccountID const& b, Currency const& currency);
@@ -215,7 +215,7 @@ struct ticket_t
     explicit ticket_t() = default;
 
     Keylet operator()(AccountID const& id,
-        std::uint32_t seq) const;
+        std::uint32_t ticketSeq) const;
 
     Keylet operator()(uint256 const& key) const
     {

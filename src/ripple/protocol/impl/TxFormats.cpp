@@ -144,14 +144,7 @@ TxFormats::TxFormats ()
 
     add (jss::TicketCreate, ttTICKET_CREATE,
         {
-            { sfTarget,              soeOPTIONAL },
-            { sfExpiration,          soeOPTIONAL },
-        },
-        commonFields);
-
-    add (jss::TicketCancel, ttTICKET_CANCEL,
-        {
-            { sfTicketID,            soeREQUIRED },
+            { sfCount,               soeREQUIRED },
         },
         commonFields);
 

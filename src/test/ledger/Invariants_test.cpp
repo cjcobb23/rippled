@@ -208,7 +208,8 @@ class Invariants_test : public beast::unit_test::suite
                 auto const sle = ac.view().peek (keylet::account(A1.id()));
                 if(! sle)
                     return false;
-                auto sleNew = std::make_shared<SLE> (ltTICKET, sle->key());
+                auto sleNew =
+                    std::make_shared<SLE> (ltTICKET, sle->key());
                 ac.rawView().rawReplace (sleNew);
                 return true;
             });

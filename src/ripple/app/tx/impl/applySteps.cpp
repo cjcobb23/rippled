@@ -21,7 +21,6 @@
 #include <ripple/app/tx/impl/ApplyContext.h>
 #include <ripple/app/tx/impl/CancelCheck.h>
 #include <ripple/app/tx/impl/CancelOffer.h>
-#include <ripple/app/tx/impl/CancelTicket.h>
 #include <ripple/app/tx/impl/CashCheck.h>
 #include <ripple/app/tx/impl/Change.h>
 #include <ripple/app/tx/impl/CreateCheck.h>
@@ -61,7 +60,6 @@ invoke_preflight (PreflightContext const& ctx)
     case ttPAYMENT:              return Payment           ::preflight(ctx);
     case ttREGULAR_KEY_SET:      return SetRegularKey     ::preflight(ctx);
     case ttSIGNER_LIST_SET:      return SetSignerList     ::preflight(ctx);
-    case ttTICKET_CANCEL:        return CancelTicket      ::preflight(ctx);
     case ttTICKET_CREATE:        return CreateTicket      ::preflight(ctx);
     case ttTRUST_SET:            return SetTrust          ::preflight(ctx);
     case ttACCOUNT_DELETE:       return DeleteAccount     ::preflight(ctx);
@@ -131,7 +129,6 @@ invoke_preclaim (PreclaimContext const& ctx)
     case ttPAYMENT:              return invoke_preclaim<Payment>(ctx);
     case ttREGULAR_KEY_SET:      return invoke_preclaim<SetRegularKey>(ctx);
     case ttSIGNER_LIST_SET:      return invoke_preclaim<SetSignerList>(ctx);
-    case ttTICKET_CANCEL:        return invoke_preclaim<CancelTicket>(ctx);
     case ttTICKET_CREATE:        return invoke_preclaim<CreateTicket>(ctx);
     case ttTRUST_SET:            return invoke_preclaim<SetTrust>(ctx);
     case ttACCOUNT_DELETE:       return invoke_preclaim<DeleteAccount>(ctx);
@@ -167,7 +164,6 @@ invoke_calculateBaseFee(
     case ttPAYMENT:              return Payment::calculateBaseFee(view, tx);
     case ttREGULAR_KEY_SET:      return SetRegularKey::calculateBaseFee(view, tx);
     case ttSIGNER_LIST_SET:      return SetSignerList::calculateBaseFee(view, tx);
-    case ttTICKET_CANCEL:        return CancelTicket::calculateBaseFee(view, tx);
     case ttTICKET_CREATE:        return CreateTicket::calculateBaseFee(view, tx);
     case ttTRUST_SET:            return SetTrust::calculateBaseFee(view, tx);
     case ttACCOUNT_DELETE:       return DeleteAccount::calculateBaseFee(view, tx);
@@ -214,7 +210,6 @@ invoke_calculateConsequences(STTx const& tx)
     case ttPAYMENT:              return invoke_calculateConsequences<Payment>(tx);
     case ttREGULAR_KEY_SET:      return invoke_calculateConsequences<SetRegularKey>(tx);
     case ttSIGNER_LIST_SET:      return invoke_calculateConsequences<SetSignerList>(tx);
-    case ttTICKET_CANCEL:        return invoke_calculateConsequences<CancelTicket>(tx);
     case ttTICKET_CREATE:        return invoke_calculateConsequences<CreateTicket>(tx);
     case ttTRUST_SET:            return invoke_calculateConsequences<SetTrust>(tx);
     case ttACCOUNT_DELETE:       return invoke_calculateConsequences<DeleteAccount>(tx);
@@ -248,9 +243,8 @@ invoke_apply (ApplyContext& ctx)
     case ttPAYCHAN_CREATE:       { PayChanCreate      p(ctx); return p(); }
     case ttPAYCHAN_FUND:         { PayChanFund        p(ctx); return p(); }
     case ttPAYMENT:              { Payment            p(ctx); return p(); }
-    case ttREGULAR_KEY_SET :     { SetRegularKey      p(ctx); return p(); }
-    case ttSIGNER_LIST_SET :     { SetSignerList      p(ctx); return p(); }
-    case ttTICKET_CANCEL:        { CancelTicket       p(ctx); return p(); }
+    case ttREGULAR_KEY_SET:      { SetRegularKey      p(ctx); return p(); }
+    case ttSIGNER_LIST_SET:      { SetSignerList      p(ctx); return p(); }
     case ttTICKET_CREATE:        { CreateTicket       p(ctx); return p(); }
     case ttTRUST_SET:            { SetTrust           p(ctx); return p(); }
     case ttACCOUNT_DELETE:       { DeleteAccount      p(ctx); return p(); }

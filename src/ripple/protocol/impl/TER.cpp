@@ -146,6 +146,7 @@ transResults()
         { temBAD_TICK_SIZE,          { "temBAD_TICK_SIZE",         "Malformed: Tick size out of range."                                            } },
         { temINVALID_ACCOUNT_ID,     { "temINVALID_ACCOUNT_ID",    "Malformed: A field contains an invalid account ID."                            } },
         { temCANNOT_PREAUTH_SELF,    { "temCANNOT_PREAUTH_SELF",   "Malformed: An account may not preauthorize itself."                            } },
+        { temINVALID_COUNT,          { "temINVALID_COUNT",         "Malformed: Count field outside valid range."                                   } },
 
         { terRETRY,                  { "terRETRY",                 "Retry transaction."                                                            } },
         { terFUNDS_SPENT,            { "terFUNDS_SPENT",           "Can't set password, password set funds already spent."                         } },

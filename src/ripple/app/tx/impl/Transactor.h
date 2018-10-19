@@ -81,7 +81,7 @@ protected:
     ApplyContext& ctx_;
     beast::Journal const j_;
 
-    AccountID     account_;
+    AccountID     const account_;
     XRPAmount     mPriorBalance;  // Balance before fees.
     XRPAmount     mSourceBalance; // Balance after fees.
 

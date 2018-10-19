@@ -98,7 +98,6 @@ Change::doApply()
 void
 Change::preCompute()
 {
-    account_ = ctx_.tx.getAccountID(sfAccount);
     assert(account_ == beast::zero);
 }
 

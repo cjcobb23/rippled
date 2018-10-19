@@ -119,6 +119,7 @@ Transactor::Transactor(
     ApplyContext& ctx)
     : ctx_ (ctx)
     , j_ (ctx.journal)
+    , account_ (ctx.tx.getAccountID(sfAccount))
 {
 }
 
@@ -294,7 +295,7 @@ Transactor::setSeq ()
 // check stuff before you bother to lock the ledger
 void Transactor::preCompute ()
 {
-    account_ = ctx_.tx.getAccountID(sfAccount);
+    // TODO: Can preCompute() be moved entirely into the ctor?
     assert(account_ != beast::zero);
 }
 

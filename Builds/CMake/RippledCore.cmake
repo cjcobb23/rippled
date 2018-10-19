@@ -403,7 +403,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/BookTip.cpp
   src/ripple/app/tx/impl/CancelCheck.cpp
   src/ripple/app/tx/impl/CancelOffer.cpp
-  src/ripple/app/tx/impl/CancelTicket.cpp
   src/ripple/app/tx/impl/CashCheck.cpp
   src/ripple/app/tx/impl/Change.cpp
   src/ripple/app/tx/impl/CreateCheck.cpp

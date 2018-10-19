@@ -809,7 +809,7 @@ chooseLedgerEntryType(Json::Value const& params)
             { jss::signer_list,     ltSIGNER_LIST },
             { jss::state,           ltRIPPLE_STATE },
             { jss::ticket,          ltTICKET }
-            } };
+        } };
 
         auto const& p = params[jss::type];
         if (!p.isString())
