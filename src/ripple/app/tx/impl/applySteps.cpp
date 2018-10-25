@@ -86,7 +86,7 @@ invoke_preclaim(PreclaimContext const& ctx)
 
     if (id != beast::zero)
     {
-        TER result = T::checkSeq(ctx);
+        TER result = T::checkSeqOrTicket (ctx);
 
         if (result != tesSUCCESS)
             return result;

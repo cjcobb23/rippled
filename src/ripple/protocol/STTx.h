@@ -22,10 +22,10 @@
 
 #include <ripple/protocol/PublicKey.h>
 #include <ripple/protocol/SecretKey.h>
+#include <ripple/protocol/SeqOrTicket.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/TxFormats.h>
 #include <boost/container/flat_set.hpp>
-#include <boost/logic/tribool.hpp>
 #include <functional>
 
 namespace ripple {
@@ -113,6 +113,8 @@ public:
     {
         return setFieldU32 (sfSequence, seq);
     }
+
+    SeqOrTicket getSeqOrTicket () const;
 
     boost::container::flat_set<AccountID>
     getMentionedAccounts() const;

@@ -55,6 +55,15 @@ preflight0(PreflightContext const& ctx)
 NotTEC
 preflight1 (PreflightContext const& ctx)
 {
+    // This is inappropriate in preflight0, because only Change transactions
+    // skip this function, and those do not allow an sfTicketSequence field.
+    if (ctx.tx.getSeqOrTicket().isTicket() &&
+        !ctx.rules.enabled (featureTicketBatch))
+    {
+        // If it's a ticket, and tickets are not yet enabled, it's malformed.
+        return temMALFORMED;
+    }
+
     auto const ret = preflight0(ctx);
     if (!isTesSuccess(ret))
         return ret;
@@ -230,12 +239,11 @@ TER Transactor::payFee ()
 }
 
 NotTEC
-Transactor::checkSeq (PreclaimContext const& ctx)
+Transactor::checkSeqOrTicket (PreclaimContext const& ctx)
 {
     auto const id = ctx.tx.getAccountID(sfAccount);
 
-    auto const sle = ctx.view.read(
-        keylet::account(id));
+    auto const sle = ctx.view.read(keylet::account(id));
 
     if (!sle)
     {
@@ -245,25 +253,46 @@ Transactor::checkSeq (PreclaimContext const& ctx)
         return terNO_ACCOUNT;
     }
 
-    std::uint32_t const t_seq = ctx.tx.getSequence ();
+    SeqOrTicket const t_seqOrT = ctx.tx.getSeqOrTicket ();
     std::uint32_t const a_seq = sle->getFieldU32 (sfSequence);
 
-    if (t_seq != a_seq)
+    if (t_seqOrT.isSeq() && t_seqOrT.value() != a_seq)
     {
-        if (a_seq < t_seq)
+        if (a_seq < t_seqOrT.value())
         {
             JLOG(ctx.j.trace()) <<
                 "applyTransaction: has future sequence number " <<
-                "a_seq=" << a_seq << " t_seq=" << t_seq;
+                "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
             return terPRE_SEQ;
         }
-
-        if (ctx.view.txExists(ctx.tx.getTransactionID ()))
-            return tefALREADY;
-
-        JLOG(ctx.j.trace()) << "applyTransaction: has past sequence number " <<
-            "a_seq=" << a_seq << " t_seq=" << t_seq;
+        // It's an already-used sequence number.
+        JLOG(ctx.j.trace()) <<
+            "applyTransaction: has past sequence number " <<
+            "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
         return tefPAST_SEQ;
+    }
+    else if (t_seqOrT.isTicket())
+    {
+        if (a_seq  <= t_seqOrT.value())
+        {
+            // If the Ticket number is greater than or equal to the
+            // account sequence there's the possibility that the
+            // transaction to create the Ticket has not hit the ledger
+            // yet.  Allow a retry.
+            JLOG(ctx.j.trace()) <<
+                "applyTransaction: has future ticket id " <<
+                "a_seq=" << a_seq << " ticket=" << t_seqOrT.value();
+            return terPRE_TICKET;
+        }
+
+        // Transaction can never succeed if the Ticket is not in the ledger.
+        if (! ctx.view.exists (keylet::ticket (id, t_seqOrT.value())))
+        {
+            JLOG(ctx.j.trace()) <<
+                "applyTransaction: ticket already used or never created " <<
+                "a_seq=" << a_seq << "ticket=" << t_seqOrT.value();
+            return tefNO_TICKET;
+        }
     }
 
     if (ctx.tx.isFieldPresent (sfAccountTxnID) &&
@@ -277,19 +306,56 @@ Transactor::checkSeq (PreclaimContext const& ctx)
     return tesSUCCESS;
 }
 
-void
-Transactor::setSeq ()
+TER Transactor::consumeSeqOrTicket (SLE::pointer const& sleAccount)
 {
-    auto const sle = view().peek(keylet::account(account_));
-    if (! sle)
-        return;
+    SeqOrTicket const seqOrT = ctx_.tx.getSeqOrTicket();
+    if (seqOrT.isSeq())
+    {
+        sleAccount->setFieldU32 (sfSequence, seqOrT.value() + 1);
+    }
+    else
+    {
+        // Delete the Ticket, adjust the account root ticket count, and
+        // reduce the owner count.
+        uint256 const ticketIndex =
+            {getTicketIndex (account_, seqOrT.value())};
 
-    std::uint32_t const t_seq = ctx_.tx.getSequence ();
+        SLE::pointer const sleTicket = view().peek (
+            keylet::ticket (ticketIndex));
+        if (! sleTicket)
+        {
+            JLOG(j_.fatal()) << "Ticket disappeared from ledger.";
+            return tefBAD_LEDGER;
+        }
 
-    sle->setFieldU32 (sfSequence, t_seq + 1);
+        std::uint64_t const page = {(*sleTicket)[sfOwnerNode]};
+        if (! view().dirRemove (
+            keylet::ownerDir (account_), page, ticketIndex, true))
+        {
+            JLOG(j_.fatal()) << "Unable to delete Ticket from owner.";
+            return tefBAD_LEDGER;
+        }
 
-    if (sle->isFieldPresent (sfAccountTxnID))
-        sle->setFieldH256 (sfAccountTxnID, ctx_.tx.getTransactionID ());
+        // If we succeeded, update the account root's TicketCount.  If
+        // the ticket count drops to zero remove the (optional) field.
+        auto const priorTicketCount = (*sleAccount)[~sfTicketCount];
+        if (! priorTicketCount)
+        {
+            JLOG(j_.fatal()) << "TicketCount field missing from account root.";
+            return tefBAD_LEDGER;
+        }
+        if (*priorTicketCount == 1)
+            sleAccount->makeFieldAbsent (sfTicketCount);
+        else
+            (*sleAccount)[sfTicketCount] = *priorTicketCount - 1;
+
+        // Update the Ticket owner's reserve.
+        adjustOwnerCount (view(), sleAccount, -1, j_);
+
+        // Remove Ticket from ledger.
+        view().erase (sleTicket);
+    }
+    return tesSUCCESS;
 }
 
 // check stuff before you bother to lock the ledger
@@ -313,15 +379,19 @@ TER Transactor::apply ()
 
     if (sle)
     {
-        mPriorBalance   = STAmount ((*sle)[sfBalance]).xrp ();
+        mPriorBalance   = STAmount {(*sle)[sfBalance]}.xrp ();
         mSourceBalance  = mPriorBalance;
 
-        setSeq();
-
-        auto result = payFee ();
-
-        if (result  != tesSUCCESS)
+        TER result = consumeSeqOrTicket (sle);
+        if (result != tesSUCCESS)
             return result;
+
+        result = payFee();
+        if (result != tesSUCCESS)
+            return result;
+
+        if (sle->isFieldPresent (sfAccountTxnID))
+            sle->setFieldH256 (sfAccountTxnID, ctx_.tx.getTransactionID ());
 
         view().update (sle);
     }
@@ -617,9 +687,9 @@ Transactor::reset(XRPAmount fee)
         fee = balance;
 
     // Since we reset the context, we need to charge the fee and update
-    // the account's sequence number again.
+    // the account's sequence number (or consume the Ticket) again.
     txnAcct->setFieldAmount (sfBalance, balance - fee);
-    txnAcct->setFieldU32 (sfSequence, ctx_.tx.getSequence() + 1);
+    consumeSeqOrTicket (txnAcct);
 
     view().update (txnAcct);
 
