@@ -118,7 +118,7 @@ public:
 
     static
     NotTEC
-    checkSeq (PreclaimContext const& ctx);
+    checkSeqOrTicket (PreclaimContext const& ctx);
 
     static
     TER
@@ -188,7 +188,7 @@ protected:
 private:
     XRPAmount reset(XRPAmount fee);
 
-    void setSeq ();
+    TER consumeSeqOrTicket (SLE::pointer const& sleAccount);
     TER payFee ();
     static NotTEC checkSingleSign (PreclaimContext const& ctx);
     static NotTEC checkMultiSign (PreclaimContext const& ctx);

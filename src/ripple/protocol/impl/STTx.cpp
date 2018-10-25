@@ -163,6 +163,20 @@ Blob STTx::getSignature () const
     }
 }
 
+SeqOrTicket STTx::getSeqOrTicket () const
+{
+    std::uint32_t const seq = {getSequence()};
+    if (seq != 0)
+        return SeqOrTicket {SeqOrTicket::seq, seq};
+
+    boost::optional<std::uint32_t> const ticketSeq {
+        operator[](~sfTicketSequence)};
+    if (!ticketSeq)
+        return SeqOrTicket {SeqOrTicket::seq, seq};
+
+    return SeqOrTicket {SeqOrTicket::ticket, *ticketSeq};
+}
+
 void STTx::sign (
     PublicKey const& publicKey,
     SecretKey const& secretKey)

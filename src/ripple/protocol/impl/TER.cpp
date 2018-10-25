@@ -96,6 +96,7 @@ transResults()
         { tefBAD_AUTH_MASTER,        { "tefBAD_AUTH_MASTER",       "Auth for unclaimed account needs correct master key."                          } },
         { tefINVARIANT_FAILED,       { "tefINVARIANT_FAILED",      "Fee claim violated invariants for the transaction."                            } },
         { tefTOO_BIG,                { "tefTOO_BIG",               "Transaction affects too many items."                                           } },
+        { tefNO_TICKET,              { "tefNO_TICKET",             "Ticket was never created or has already been used."                            } },
 
         { telLOCAL_ERROR,            { "telLOCAL_ERROR",           "Local failure."                                                                } },
         { telBAD_DOMAIN,             { "telBAD_DOMAIN",            "Domain too long."                                                              } },
@@ -159,6 +160,7 @@ transResults()
         { terPRE_SEQ,                { "terPRE_SEQ",               "Missing/inapplicable prior transaction."                                       } },
         { terOWNERS,                 { "terOWNERS",                "Non-zero owner count."                                                         } },
         { terQUEUED,                 { "terQUEUED",                "Held until escalated fee drops."                                               } },
+        { terPRE_TICKET,             { "terPRE_TICKET",            "Ticket is not yet in ledger."                                                  } },
 
         { tesSUCCESS,                { "tesSUCCESS",               "The transaction was applied. Only final in a validated ledger."                } },
     };

@@ -282,10 +282,10 @@ Keylet next_t::operator()(Keylet const& k) const
 }
 
 Keylet ticket_t::operator()(AccountID const& id,
-    std::uint32_t seq) const
+    std::uint32_t ticketSeq) const
 {
     return { ltTICKET,
-        getTicketIndex(id, seq) };
+        getTicketIndex(id, ticketSeq) };
 }
 
 Keylet signers_t::operator()(AccountID const& id) const
