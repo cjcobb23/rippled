@@ -500,13 +500,13 @@ LedgerMaster::applyHeldTransactions ()
         app_.openLedger().current()->info().parentHash);
 }
 
-std::vector<std::shared_ptr<STTx const>>
-LedgerMaster::pruneHeldTransactions(AccountID const& account,
-    std::uint32_t const seq)
+std::shared_ptr<STTx const>
+LedgerMaster::nextAcctTransaction (AccountID const& account,
+    SeqOrTicket seqOrT)
 {
     std::lock_guard sl(m_mutex);
 
-    return mHeldTransactions.prune(account, seq);
+    return mHeldTransactions.nextAcctTransaction (account, seqOrT);
 }
 
 LedgerIndex

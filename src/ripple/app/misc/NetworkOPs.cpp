@@ -1213,12 +1213,13 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
                     << "Transaction is now included in open ledger";
                 e.transaction->setStatus (INCLUDED);
 
-                auto txCur = e.transaction->getSTransaction();
-                for (auto const& tx : m_ledgerMaster.pruneHeldTransactions(
-                    txCur->getAccountID(sfAccount), txCur->getSequence() + 1))
+                auto const& txCur = e.transaction->getSTransaction();
+                auto const txNext = m_ledgerMaster.nextAcctTransaction (
+                    txCur->getAccountID(sfAccount), txCur->getSeqOrTicket());
+                if (txNext)
                 {
                     std::string reason;
-                    auto const trans = sterilize(*tx);
+                    auto const trans = sterilize(*txNext);
                     auto t = std::make_shared<Transaction>(
                         trans, reason, app_);
                     submit_held.emplace_back(

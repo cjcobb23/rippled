@@ -18,60 +18,20 @@
 //==============================================================================
 
 #include <ripple/app/misc/CanonicalTXSet.h>
-#include <boost/range/adaptor/transformed.hpp>
 
 namespace ripple {
 
-bool CanonicalTXSet::Key::operator< (Key const& rhs) const
+bool operator< (CanonicalTXSet::Key const& lhs, CanonicalTXSet::Key const& rhs)
 {
-    if (mAccount < rhs.mAccount) return true;
+    if (lhs.account_ < rhs.account_) return true;
 
-    if (mAccount > rhs.mAccount) return false;
+    if (lhs.account_ > rhs.account_) return false;
 
-    if (mSeq < rhs.mSeq) return true;
+    if (lhs.seqOrT_ < rhs.seqOrT_) return true;
 
-    if (mSeq > rhs.mSeq) return false;
+    if (lhs.seqOrT_ > rhs.seqOrT_) return false;
 
-    return mTXid < rhs.mTXid;
-}
-
-bool CanonicalTXSet::Key::operator> (Key const& rhs) const
-{
-    if (mAccount > rhs.mAccount) return true;
-
-    if (mAccount < rhs.mAccount) return false;
-
-    if (mSeq > rhs.mSeq) return true;
-
-    if (mSeq < rhs.mSeq) return false;
-
-    return mTXid > rhs.mTXid;
-}
-
-bool CanonicalTXSet::Key::operator<= (Key const& rhs) const
-{
-    if (mAccount < rhs.mAccount) return true;
-
-    if (mAccount > rhs.mAccount) return false;
-
-    if (mSeq < rhs.mSeq) return true;
-
-    if (mSeq > rhs.mSeq) return false;
-
-    return mTXid <= rhs.mTXid;
-}
-
-bool CanonicalTXSet::Key::operator>= (Key const& rhs)const
-{
-    if (mAccount > rhs.mAccount) return true;
-
-    if (mAccount < rhs.mAccount) return false;
-
-    if (mSeq > rhs.mSeq) return true;
-
-    if (mSeq < rhs.mSeq) return false;
-
-    return mTXid >= rhs.mTXid;
+    return lhs.txId_ < rhs.txId_;
 }
 
 uint256 CanonicalTXSet::accountKey (AccountID const& account)
@@ -91,30 +51,38 @@ void CanonicalTXSet::insert (std::shared_ptr<STTx const> const& txn)
         std::make_pair (
             Key (
                 accountKey (txn->getAccountID(sfAccount)),
-                txn->getSequence (),
+                txn->getSeqOrTicket (),
                 txn->getTransactionID ()),
             txn));
 }
 
-std::vector<std::shared_ptr<STTx const>>
-CanonicalTXSet::prune(AccountID const& account,
-    std::uint32_t const seq)
+std::shared_ptr<STTx const>
+CanonicalTXSet::nextAcctTransaction (AccountID const& account,
+    SeqOrTicket seqOrT)
 {
-    auto effectiveAccount = accountKey (account);
+    // Determining the next viable transaction for an account with Tickets:
+    //
+    //  1. Prioritize transactions with Sequences over transactions with
+    //     Tickets.  Since Tickets must be created using Sequences, this
+    //     allows us to create the Tickets before they would be used.
+    //
+    //  2. Don't worry about consecutive Sequence numbers.  Creating Tickets
+    //     can introduce a discontinuity in Sequence numbers.
+    //
+    //  3. After handling all transactions with Sequences, return Tickets
+    //     with the lowest Ticket ID first.
+    std::shared_ptr<STTx const> result;
+    uint256 const effectiveAccount {accountKey (account)};
 
-    Key keyLow(effectiveAccount, seq, beast::zero);
-    Key keyHigh(effectiveAccount, seq+1, beast::zero);
+    Key const after (effectiveAccount, seqOrT, beast::zero);
+    auto const itrNext {map_.lower_bound (after)};
+    if (itrNext != map_.end() &&
+        itrNext->first.getAccount() == effectiveAccount)
+    {
+        result = std::move (itrNext->second);
+        map_.erase (itrNext);
+    }
 
-    auto range = boost::make_iterator_range(
-        map_.lower_bound(keyLow),
-        map_.lower_bound(keyHigh));
-    auto txRange = boost::adaptors::transform(range,
-        [](auto const& p) { return p.second; });
-
-    std::vector<std::shared_ptr<STTx const>> result(
-        txRange.begin(), txRange.end());
-
-    map_.erase(range.begin(), range.end());
     return result;
 }
 

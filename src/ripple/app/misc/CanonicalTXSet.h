@@ -21,6 +21,7 @@
 #define RIPPLE_APP_MISC_CANONICALTXSET_H_INCLUDED
 
 #include <ripple/protocol/RippleLedgerHash.h>
+#include <ripple/protocol/SeqOrTicket.h>
 #include <ripple/protocol/STTx.h>
 
 namespace ripple {
@@ -39,37 +40,57 @@ private:
     class Key
     {
     public:
-        Key (uint256 const& account, std::uint32_t seq, uint256 const& id)
-            : mAccount (account)
-            , mTXid (id)
-            , mSeq (seq)
+        Key (uint256 const& account, SeqOrTicket seqOrT, uint256 const& id)
+            : account_ (account)
+            , txId_ (id)
+            , seqOrT_ (seqOrT)
         {
         }
 
-        bool operator<  (Key const& rhs) const;
-        bool operator>  (Key const& rhs) const;
-        bool operator<= (Key const& rhs) const;
-        bool operator>= (Key const& rhs) const;
+        friend bool operator< (Key const& lhs, Key const& rhs);
 
-        bool operator== (Key const& rhs) const
+        inline friend bool operator> (Key const& lhs, Key const& rhs)
         {
-            return mTXid == rhs.mTXid;
-        }
-        bool operator!= (Key const& rhs) const
-        {
-            return mTXid != rhs.mTXid;
+            return rhs < lhs;
         }
 
-        uint256 const& getTXID () const
+        inline friend bool operator<= (Key const& lhs, Key const& rhs)
         {
-            return mTXid;
+            return ! (lhs > rhs);
+        }
+
+        inline friend bool operator>= (Key const& lhs, Key const& rhs)
+        {
+            return ! (lhs < rhs);
+        }
+
+        inline friend bool operator== (Key const& lhs, Key const& rhs)
+        {
+            return lhs.txId_ == rhs.txId_;
+        }
+
+        inline friend bool operator!= (Key const& lhs, Key const& rhs)
+        {
+            return ! (lhs == rhs);
+        }
+
+        uint256 const& getAccount() const
+        {
+            return account_;
+        }
+
+        uint256 const& getTXID() const
+        {
+            return txId_;
         }
 
     private:
-        uint256 mAccount;
-        uint256 mTXid;
-        std::uint32_t mSeq;
+        uint256 account_;
+        uint256 txId_;
+        SeqOrTicket seqOrT_;
     };
+
+    friend bool operator< (Key const& lhs, Key const& rhs);
 
     // Calculate the salted key for the given account
     uint256 accountKey (AccountID const& account);
@@ -85,10 +106,16 @@ public:
 
     void insert (std::shared_ptr<STTx const> const& txn);
 
-    std::vector<std::shared_ptr<STTx const>>
-    prune(AccountID const& account, std::uint32_t const seq);
+    // Returns the next transaction on account that follows seqOrT in the
+    // sort order.  Normally called when a transaction is successfully
+    // applied to the open ledger so the next transaction can be resubmitted
+    // without waiting for ledger close.
+    //
+    // The return value is often null, when an account has no more
+    // transactions.
+    std::shared_ptr<STTx const>
+    nextAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
 
-    // VFALCO TODO remove this function
     void reset (LedgerHash const& salt)
     {
         salt_ = salt;
@@ -100,7 +127,7 @@ public:
         return map_.erase(it);
     }
 
-    const_iterator begin () const
+    const_iterator begin()  const
     {
         return map_.begin();
     }
@@ -110,11 +137,11 @@ public:
         return map_.end();
     }
 
-    size_t size () const
+    size_t size() const
     {
         return map_.size ();
     }
-    bool empty () const
+    bool empty() const
     {
         return map_.empty ();
     }
