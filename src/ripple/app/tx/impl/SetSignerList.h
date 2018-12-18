@@ -70,8 +70,8 @@ public:
     // Interface used by DeleteAccount
     static
     TER
-    removeFromLedger (
-        Application& app, ApplyView& view, AccountID const& account);
+    removeFromLedger (Application& app,
+        ApplyView& view, AccountID const& account, beast::Journal j);
 
 private:
     static

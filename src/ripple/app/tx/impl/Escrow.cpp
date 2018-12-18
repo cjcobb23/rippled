@@ -230,9 +230,10 @@ EscrowCreate::doApply()
             return tecNO_TARGET;
     }
 
-    // Create escrow in ledger
+    // Create escrow in ledger.  Note that we we use the value from the
+    // sequence or ticket.  For more explanation see comments in SeqOrTicket.h.
     auto const slep = std::make_shared<SLE>(
-        keylet::escrow(account, (*sle)[sfSequence] - 1));
+        keylet::escrow(account, ctx_.tx.getSeqOrTicket().value()));
     (*slep)[sfAmount] = ctx_.tx[sfAmount];
     (*slep)[sfAccount] = account;
     (*slep)[~sfCondition] = ctx_.tx[~sfCondition];
@@ -483,6 +484,7 @@ EscrowFinish::doApply()
         if (! ctx_.view().dirRemove(
                 keylet::ownerDir(account), page, k.key, true))
         {
+            JLOG(j_.fatal()) << "Unable to delete Escrow from owner.";
             return tefBAD_LEDGER;
         }
     }
@@ -493,6 +495,7 @@ EscrowFinish::doApply()
         auto const page = (*slep)[sfDestinationNode];
         if (! ctx_.view().dirRemove(keylet::ownerDir(destID), page, k.key, true))
         {
+            JLOG(j_.fatal()) << "Unable to delete Escrow from recipient.";
             return tefBAD_LEDGER;
         }
     }
@@ -568,6 +571,7 @@ EscrowCancel::doApply()
         if (! ctx_.view().dirRemove(
                 keylet::ownerDir(account), page, k.key, true))
         {
+            JLOG(j_.fatal()) << "Unable to delete Escrow from owner.";
             return tefBAD_LEDGER;
         }
     }
@@ -579,6 +583,7 @@ EscrowCancel::doApply()
         if (! ctx_.view().dirRemove(
                 keylet::ownerDir((*slep)[sfDestination]), page, k.key, true))
         {
+            JLOG(j_.fatal()) << "Unable to delete Escrow from recipient.";
             return tefBAD_LEDGER;
         }
     }

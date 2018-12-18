@@ -429,6 +429,41 @@ struct DepositPreauth_test : public beast::unit_test::suite
             env.require (owners (alice, 0));
             env.require (owners (becky, 0));
         }
+        {
+            // Verify that an account can be preauthorized and unauthorized
+            // using tickets.
+            Env env (*this);
+            env.fund (XRP (10000), alice, becky);
+            env.close();
+
+            // If featureTicketBatch is not enabled expect massive failures.
+            BEAST_EXPECT (supported_amendments()[featureTicketBatch]);
+
+            env (ticket::create (alice, 2));
+            std::uint32_t const aliceSeq {env.seq (alice)};
+            env.close();
+            env.require (tickets (alice, 2));
+
+            // Consume the tickets from biggest seq to smallest 'cuz we can.
+            std::uint32_t aliceTicketSeq {env.seq (alice)};
+
+            // Add a DepositPreauth to alice.
+            env (deposit::auth (alice, becky), ticket::use (--aliceTicketSeq));
+            env.close();
+            // Becky uses a ticket but gains a preauth entry.
+            env.require (tickets (alice, 1));
+            env.require (owners (alice, 2));
+            BEAST_EXPECT (env.seq (alice) == aliceSeq);
+            env.require (owners (becky, 0));
+
+            // Remove a DepositPreauth from alice.
+            env (deposit::unauth (alice, becky), ticket::use (--aliceTicketSeq));
+            env.close();
+            env.require (tickets (alice, 0));
+            env.require (owners (alice, 0));
+            BEAST_EXPECT (env.seq (alice) == aliceSeq);
+            env.require (owners (becky, 0));
+        }
     }
 
     void testInvalid()

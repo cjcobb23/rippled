@@ -36,6 +36,14 @@ create (Account const& account, std::uint32_t count)
     return jv;
 }
 
+void
+use::operator()(Env&, JTx& jt) const
+{
+    jt.fill_seq = false;
+    jt[sfSequence.jsonName] = 0u;
+    jt[sfTicketSequence.jsonName] = ticketSeq_;
+}
+
 } // ticket
 
 } // jtx

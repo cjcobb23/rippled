@@ -42,6 +42,21 @@ namespace ticket {
 /** Create one of more tickets */
 Json::Value create (Account const& account, std::uint32_t count);
 
+/** Set a ticket sequence on a JTx. */
+class use
+{
+private:
+    std::uint32_t ticketSeq_;
+
+public:
+    use (std::uint32_t ticketSeq)
+    : ticketSeq_ {ticketSeq}
+    { }
+
+    void
+    operator()(Env&, JTx& jt) const;
+};
+
 } // ticket
 
 /** Match the number of tickets on the account. */
