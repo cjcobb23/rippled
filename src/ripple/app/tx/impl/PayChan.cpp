@@ -247,9 +247,12 @@ PayChanCreate::doApply()
 
     auto const dst = ctx_.tx[sfDestination];
 
-    // Create PayChan in ledger
+    // Create PayChan in ledger.
+    //
+    // Note that we we use the value from the sequence or ticket as the
+    // payChan sequence.  For more explanation see comments in SeqOrTicket.h.
     auto const slep = std::make_shared<SLE> (
-        keylet::payChan (account, dst, (*sle)[sfSequence] - 1));
+        keylet::payChan (account, dst, ctx_.tx.getSeqOrTicket().value()));
     // Funds held in this channel
     (*slep)[sfAmount] = ctx_.tx[sfAmount];
     // Amount channel has already paid

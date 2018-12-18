@@ -312,49 +312,58 @@ TER Transactor::consumeSeqOrTicket (SLE::pointer const& sleAccount)
     if (seqOrT.isSeq())
     {
         sleAccount->setFieldU32 (sfSequence, seqOrT.value() + 1);
+        return tesSUCCESS;
     }
-    else
+    return ticketDelete (
+        view(), account_, getTicketIndex (account_, seqOrT.value()), j_);
+}
+
+// Remove a single Ticket from the ledger.
+TER Transactor::ticketDelete (ApplyView& view,
+    AccountID const& account, uint256 const& ticketIndex, beast::Journal j)
+{
+    // Delete the Ticket, adjust the account root ticket count, and
+    // reduce the owner count.
+    SLE::pointer const sleTicket = view.peek (keylet::ticket (ticketIndex));
+    if (! sleTicket)
     {
-        // Delete the Ticket, adjust the account root ticket count, and
-        // reduce the owner count.
-        uint256 const ticketIndex =
-            {getTicketIndex (account_, seqOrT.value())};
-
-        SLE::pointer const sleTicket = view().peek (
-            keylet::ticket (ticketIndex));
-        if (! sleTicket)
-        {
-            JLOG(j_.fatal()) << "Ticket disappeared from ledger.";
-            return tefBAD_LEDGER;
-        }
-
-        std::uint64_t const page = {(*sleTicket)[sfOwnerNode]};
-        if (! view().dirRemove (
-            keylet::ownerDir (account_), page, ticketIndex, true))
-        {
-            JLOG(j_.fatal()) << "Unable to delete Ticket from owner.";
-            return tefBAD_LEDGER;
-        }
-
-        // If we succeeded, update the account root's TicketCount.  If
-        // the ticket count drops to zero remove the (optional) field.
-        auto const priorTicketCount = (*sleAccount)[~sfTicketCount];
-        if (! priorTicketCount)
-        {
-            JLOG(j_.fatal()) << "TicketCount field missing from account root.";
-            return tefBAD_LEDGER;
-        }
-        if (*priorTicketCount == 1)
-            sleAccount->makeFieldAbsent (sfTicketCount);
-        else
-            (*sleAccount)[sfTicketCount] = *priorTicketCount - 1;
-
-        // Update the Ticket owner's reserve.
-        adjustOwnerCount (view(), sleAccount, -1, j_);
-
-        // Remove Ticket from ledger.
-        view().erase (sleTicket);
+        JLOG(j.fatal()) << "Ticket disappeared from ledger.";
+        return tefBAD_LEDGER;
     }
+
+    std::uint64_t const page {(*sleTicket)[sfOwnerNode]};
+    if (! view.dirRemove (
+        keylet::ownerDir (account), page, ticketIndex, true))
+    {
+        JLOG(j.fatal()) << "Unable to delete Ticket from owner.";
+        return tefBAD_LEDGER;
+    }
+
+    // Update the account root's TicketCount.  If the ticket count drops to
+    // zero remove the (optional) field.
+    auto sleAccount = view.peek (keylet::account(account));
+    if (!sleAccount)
+    {
+        JLOG(j.fatal()) << "Could not find Ticket owner account root.";
+        return tefBAD_LEDGER;
+    }
+
+    auto const priorTicketCount = (*sleAccount)[~sfTicketCount];
+    if (! priorTicketCount)
+    {
+        JLOG(j.fatal()) << "TicketCount field missing from account root.";
+        return tefBAD_LEDGER;
+    }
+    if (*priorTicketCount == 1)
+        sleAccount->makeFieldAbsent (sfTicketCount);
+    else
+        (*sleAccount)[sfTicketCount] = *priorTicketCount - 1;
+
+    // Update the Ticket owner's reserve.
+    adjustOwnerCount (view, sleAccount, -1, j);
+
+    // Remove Ticket from ledger.
+    view.erase (sleTicket);
     return tesSUCCESS;
 }
 

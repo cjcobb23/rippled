@@ -1180,6 +1180,31 @@ struct Flow_test : public beast::unit_test::suite
             ter(temBAD_PATH));
     }
 
+    void
+    testTicketPay(FeatureBitset features)
+    {
+        testcase("Payment with ticket");
+        using namespace jtx;
+
+        auto const alice = Account("alice");
+        auto const bob = Account("bob");
+
+        Env env(*this, features);
+        BEAST_EXPECT (features[featureTicketBatch]);
+
+        env.fund(XRP(10000), alice);
+
+        // alice creates a ticket for the payment.
+        std::uint32_t const ticketSeq {env.seq (alice) + 1};
+        env (ticket::create (alice, 1));
+
+        // Make a payment using the ticket.
+        env(pay(alice, bob, XRP(1000)), ticket::use (ticketSeq));
+        env.close();
+        env.require (balance (bob, XRP(1000)));
+        env.require (balance (alice, XRP(9000) - drops(20)));
+    }
+
     void testWithFeats(FeatureBitset features)
     {
         using namespace jtx;
@@ -1199,6 +1224,7 @@ struct Flow_test : public beast::unit_test::suite
         testUnfundedOffer(features);
         testReexecuteDirectStep(features | fix1368);
         testSelfPayLowQualityOffer(features);
+        testTicketPay(features);
     }
 
     void run() override

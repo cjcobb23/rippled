@@ -59,8 +59,16 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
     auto const optTicketCount {(*sleAccountRoot)[~sfTicketCount]};
     std::uint32_t const curTicketCount = {optTicketCount.value_or (0u)};
     std::uint32_t const addedTickets = {ctx.tx[sfCount]};
+    std::uint32_t const consumedTickets =
+        {ctx.tx.getSeqOrTicket().isTicket() ? 1u : 0u};
 
-    if (curTicketCount + addedTickets > maxTicketThreshold)
+    // Note that unsigned integer underflow can't currently happen because
+    //  o curTicketCount   >= 0
+    //  o addedTickets     >= 1
+    //  o consumedTickets  <= 1
+    // So in the worst case addedTickets == consumedTickets and the
+    // computation yields curTicketCount.
+    if (curTicketCount + addedTickets - consumedTickets > maxTicketThreshold)
         return tecDIR_FULL;
 
     return tesSUCCESS;

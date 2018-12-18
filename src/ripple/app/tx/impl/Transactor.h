@@ -160,6 +160,12 @@ public:
     }
     /////////////////////////////////////////////////////
 
+    // Interface used by DeleteAccount
+    static
+    TER
+    ticketDelete (ApplyView& view,
+        AccountID const& account, uint256 const& ticketIndex, beast::Journal j);
+
 protected:
     TER
     apply();

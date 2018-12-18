@@ -108,7 +108,7 @@ CancelCheck::doApply ()
         std::uint64_t const page {(*sleCheck)[sfDestinationNode]};
         if (! view().dirRemove (keylet::ownerDir(dstId), page, checkId, true))
         {
-            JLOG(j_.warn()) << "Unable to delete check from destination.";
+            JLOG(j_.fatal()) << "Unable to delete check from destination.";
             return tefBAD_LEDGER;
         }
     }
@@ -116,7 +116,7 @@ CancelCheck::doApply ()
         std::uint64_t const page {(*sleCheck)[sfOwnerNode]};
         if (! view().dirRemove (keylet::ownerDir(srcId), page, checkId, true))
         {
-            JLOG(j_.warn()) << "Unable to delete check from owner.";
+            JLOG(j_.fatal()) << "Unable to delete check from owner.";
             return tefBAD_LEDGER;
         }
     }

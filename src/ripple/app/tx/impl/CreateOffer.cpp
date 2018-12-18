@@ -1099,10 +1099,9 @@ CreateOffer::applyGuts (Sandbox& sb, Sandbox& sbCancel)
 
     auto const cancelSequence = ctx_.tx[~sfOfferSequence];
 
-    // FIXME understand why we use SequenceNext instead of current transaction
-    //       sequence to determine the transaction. Why is the offer sequence
-    //       number insufficient?
-    auto const uSequence = ctx_.tx.getSequence ();
+    // Note that we we use the value from the sequence or ticket as the
+    // offer sequence.  For more explanation see comments in SeqOrTicket.h.
+    auto const offerSequence = ctx_.tx.getSeqOrTicket().value();
 
     // This is the original rate of the offer, and is the rate at which
     // it will be placed, even if crossing offers change the amounts that
@@ -1338,7 +1337,7 @@ CreateOffer::applyGuts (Sandbox& sb, Sandbox& sbCancel)
     }
 
     // We need to place the remainder of the offer into its order book.
-    auto const offer_index = getOfferIndex (account_, uSequence);
+    auto const offer_index = getOfferIndex (account_, offerSequence);
 
     // Add offer to owner's directory.
     auto const ownerNode = dirAdd(sb, keylet::ownerDir (account_),
@@ -1388,7 +1387,7 @@ CreateOffer::applyGuts (Sandbox& sb, Sandbox& sbCancel)
 
     auto sleOffer = std::make_shared<SLE>(ltOFFER, offer_index);
     sleOffer->setAccountID (sfAccount, account_);
-    sleOffer->setFieldU32 (sfSequence, uSequence);
+    sleOffer->setFieldU32 (sfSequence, offerSequence);
     sleOffer->setFieldH256 (sfBookDirectory, dir.key);
     sleOffer->setFieldAmount (sfTakerPays, saTakerPays);
     sleOffer->setFieldAmount (sfTakerGets, saTakerGets);
