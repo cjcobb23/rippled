@@ -38,6 +38,138 @@ isTecClaimHardFail(TER ter, ApplyFlags flags)
     return isTecClaim(ter) && !(flags & tapRETRY);
 }
 
+/** Class describing the consequences to the account
+    of applying a transaction if the transaction consumes
+    the maximum XRP allowed.
+*/
+class TxConsequences
+{
+public:
+    /// Describes how the transaction affects subsequent
+    /// transactions
+    enum Category
+    {
+        /// Moves currency around, creates offers, etc.
+        normal = 0,
+        /// Affects the ability of subsequent transactions
+        /// to claim a fee. Eg. `SetRegularKey`
+        blocker
+    };
+
+private:
+    /// Describes how the transaction affects subsequent
+    /// transactions
+    Category category_;
+    /// Transaction fee
+    XRPAmount fee_;
+    /// Does NOT include the fee.
+    XRPAmount potentialSpend_;
+    /// SeqOrTicket or transaction.
+    SeqOrTicket seqOrT_;
+    /// Number of sequences consumed.
+    std::uint32_t sequencesConsumed_;
+
+public:
+    /// Constructor if the STTx has no notable consequences for the TxQ.
+    explicit TxConsequences (STTx const& tx);
+
+    /// Constructor for a blocker.
+    TxConsequences (STTx const& tx, Category category);
+
+    /// Constructor for an STTx that may consume more XRP than the fee.
+    TxConsequences (STTx const& tx, XRPAmount potentialSpend);
+
+    /// Constructor for an STTx that consumes more than the usual sequences.
+    TxConsequences (STTx const& tx, std::uint32_t sequencesConsumed);
+
+    TxConsequences(Category const category,
+        XRPAmount const fee, XRPAmount const spend,
+        SeqOrTicket seqOrT, std::uint32_t sequencesConsumed)
+        : category_ {category}
+        , fee_ {fee}
+        , potentialSpend_ {spend}
+        , seqOrT_ {seqOrT}
+        , sequencesConsumed_ {sequencesConsumed}
+    {
+    }
+
+    /// Copy constructor
+    TxConsequences(TxConsequences const&) = default;
+    /// Copy assignment operator
+    TxConsequences& operator=(TxConsequences const&) = default;
+    /// Move constructor
+    TxConsequences(TxConsequences&&) = default;
+    /// Move assignment operator
+    TxConsequences& operator=(TxConsequences&&) = default;
+
+    /// Fee
+    XRPAmount const& fee() const
+    {
+        return fee_;
+    }
+
+    /// Potential Spend
+    XRPAmount const& potentialSpend() const
+    {
+        return potentialSpend_;
+    }
+
+    /// SeqOrTicket
+    SeqOrTicket seqOrT() const
+    {
+        return seqOrT_;
+    }
+
+    /// Sequences consumed
+    std::uint32_t sequencesConsumed () const
+    {
+        return sequencesConsumed_;
+    }
+
+    /// Returns true if the transaction is a blocker.
+    bool isBlocker () const
+    {
+        return category_ == blocker;
+    }
+
+    // Could nextSeqOrT immediately follow this?
+    NotTEC couldBeNext (SeqOrTicket nextSeqOrT) const
+    {
+        // If this is a blocker then no transaction can be next.
+        if (isBlocker())
+            return telCAN_NOT_QUEUE_BLOCKED;
+
+        // A Ticket can follow any Sequence or a smaller Ticket.
+        // Also Tickets allow gaps.
+        if (nextSeqOrT.isTicket())
+            return (seqOrT_ < nextSeqOrT) ?
+                NotTEC {tesSUCCESS} : NotTEC {telCAN_NOT_QUEUE};
+
+        // If this has a ticket and nextSeqOrT has a sequence then no way.
+        if (seqOrT_.isTicket())
+            return telCAN_NOT_QUEUE;
+
+        // Both this and nextSeqOrT have sequence numbers.  Requires an
+        // exact match of the expected value.  No gaps in sequence numbers
+        // allowed except when Tickets are created.
+        SeqOrTicket const expectSeq = followingSeq();
+        if (nextSeqOrT < expectSeq)
+            return tefPAST_SEQ;
+        if (nextSeqOrT > expectSeq)
+            return terPRE_SEQ;
+        return tesSUCCESS;
+    }
+
+    // Return the SeqOrTicket that would follow this.
+    SeqOrTicket followingSeq () const
+    {
+        return SeqOrTicket {
+            seqOrT_.isSeq() ? SeqOrTicket::seq : SeqOrTicket::ticket,
+            seqOrT_.value() + sequencesConsumed()
+        };
+    }
+};
+
 /** Describes the results of the `preflight` check
 
     @note All members are const to make it more difficult
@@ -51,6 +183,8 @@ public:
     STTx const& tx;
     /// From the input - the rules
     Rules const rules;
+    /// Consequences of the transaction
+    TxConsequences const consequences;
     /// From the input - the flags
     ApplyFlags const flags;
     /// From the input - the journal
@@ -62,12 +196,13 @@ public:
     /// Constructor
     template<class Context>
     PreflightResult(Context const& ctx_,
-        NotTEC ter_)
+        std::pair<NotTEC, TxConsequences> const& result)
         : tx(ctx_.tx)
         , rules(ctx_.rules)
+        , consequences(result.second)
         , flags(ctx_.flags)
         , j(ctx_.j)
-        , ter(ter_)
+        , ter(result.first)
     {
     }
 
@@ -116,53 +251,6 @@ public:
     PreclaimResult(PreclaimResult const&) = default;
     /// Deleted copy assignment operator
     PreclaimResult& operator=(PreclaimResult const&) = delete;
-};
-
-/** Structure describing the consequences to the account
-    of applying a transaction if the transaction consumes
-    the maximum XRP allowed.
-
-    @see calculateConsequences
-*/
-struct TxConsequences
-{
-    /// Describes how the transaction affects subsequent
-    /// transactions
-    enum ConsequenceCategory
-    {
-        /// Moves currency around, creates offers, etc.
-        normal = 0,
-        /// Affects the ability of subsequent transactions
-        /// to claim a fee. Eg. `SetRegularKey`
-        blocker
-    };
-
-    /// Describes how the transaction affects subsequent
-    /// transactions
-    ConsequenceCategory const category;
-    /// Transaction fee
-    XRPAmount const fee;
-    /// Does NOT include the fee.
-    XRPAmount const potentialSpend;
-
-    /// Constructor
-    TxConsequences(ConsequenceCategory const category_,
-        XRPAmount const fee_, XRPAmount const spend_)
-        : category(category_)
-        , fee(fee_)
-        , potentialSpend(spend_)
-    {
-    }
-
-    /// Constructor
-    TxConsequences(TxConsequences const&) = default;
-    /// Deleted copy assignment operator
-    TxConsequences& operator=(TxConsequences const&) = delete;
-    /// Constructor
-    TxConsequences(TxConsequences&&) = default;
-    /// Deleted copy assignment operator
-    TxConsequences& operator=(TxConsequences&&) = delete;
-
 };
 
 /** Gate a transaction based on static information.
@@ -237,24 +325,6 @@ preclaim(PreflightResult const& preflightResult,
 FeeUnit64
 calculateBaseFee(ReadView const& view,
     STTx const& tx);
-
-/** Determine the XRP balance consequences if a transaction
-    consumes the maximum XRP allowed.
-
-    @pre The transaction has been checked
-    and validated using `preflight`
-
-    @param preflightResult The result of a previous
-    call to `preflight` for the transaction.
-
-    @return A `TxConsequences` object containing the "worst
-        case" consequences of applying this transaction to
-        a ledger.
-
-    @see TxConsequences
-*/
-TxConsequences
-calculateConsequences(PreflightResult const& preflightResult);
 
 /** Apply a prechecked transaction to an OpenView.
 

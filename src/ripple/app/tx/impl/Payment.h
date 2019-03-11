@@ -45,11 +45,7 @@ public:
     }
 
     static
-    XRPAmount
-    calculateMaxSpend(STTx const& tx);
-
-    static
-    NotTEC
+    std::pair<NotTEC, TxConsequences>
     preflight (PreflightContext const& ctx);
 
     static
@@ -57,6 +53,12 @@ public:
     preclaim(PreclaimContext const& ctx);
 
     TER doApply () override;
+
+private:
+    // Support for TxConsequences.
+    static
+    XRPAmount
+    calculateMaxXRPSpend(STTx const& tx);
 };
 
 } // ripple

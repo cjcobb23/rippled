@@ -39,7 +39,7 @@
 namespace ripple {
 
 static
-NotTEC
+std::pair<NotTEC, TxConsequences>
 invoke_preflight (PreflightContext const& ctx)
 {
     switch(ctx.tx.getTxnType())
@@ -67,7 +67,7 @@ invoke_preflight (PreflightContext const& ctx)
     case ttFEE:                  return Change            ::preflight(ctx);
     default:
         assert(false);
-        return temUNKNOWN;
+        return {temUNKNOWN, TxConsequences {ctx.tx}};
     }
 }
 
@@ -86,7 +86,7 @@ invoke_preclaim(PreclaimContext const& ctx)
 
     if (id != beast::zero)
     {
-        TER result = T::checkSeqOrTicket (ctx);
+        TER result {T::checkSeqOrTicket (ctx.view, ctx.tx, ctx.j)};
 
         if (result != tesSUCCESS)
             return result;
@@ -101,7 +101,6 @@ invoke_preclaim(PreclaimContext const& ctx)
 
         if (result != tesSUCCESS)
             return result;
-
     }
 
     return T::preclaim(ctx);
@@ -175,52 +174,33 @@ invoke_calculateBaseFee(
     }
 }
 
-template<class T>
-static
-TxConsequences
-invoke_calculateConsequences(STTx const& tx)
-{
-    auto const category = T::affectsSubsequentTransactionAuth(tx) ?
-        TxConsequences::blocker : TxConsequences::normal;
-    auto const feePaid = T::calculateFeePaid(tx);
-    auto const maxSpend = T::calculateMaxSpend(tx);
 
-    return{ category, feePaid, maxSpend };
+TxConsequences::TxConsequences (STTx const& tx)
+: category_ (TxConsequences::normal)
+, fee_ (
+    tx[sfFee].native() && !tx[sfFee].negative() ? tx[sfFee].xrp() : beast::zero)
+, potentialSpend_ (beast::zero)
+, seqOrT_ (tx.getSeqOrTicket())
+, sequencesConsumed_ (tx.getSeqOrTicket().isSeq() ? 1 : 0)
+{
 }
 
-static
-TxConsequences
-invoke_calculateConsequences(STTx const& tx)
+TxConsequences::TxConsequences (STTx const& tx, Category category)
+: TxConsequences (tx)
 {
-    switch (tx.getTxnType())
-    {
-    case ttACCOUNT_SET:          return invoke_calculateConsequences<SetAccount>(tx);
-    case ttCHECK_CANCEL:         return invoke_calculateConsequences<CancelCheck>(tx);
-    case ttCHECK_CASH:           return invoke_calculateConsequences<CashCheck>(tx);
-    case ttCHECK_CREATE:         return invoke_calculateConsequences<CreateCheck>(tx);
-    case ttDEPOSIT_PREAUTH:      return invoke_calculateConsequences<DepositPreauth>(tx);
-    case ttOFFER_CANCEL:         return invoke_calculateConsequences<CancelOffer>(tx);
-    case ttOFFER_CREATE:         return invoke_calculateConsequences<CreateOffer>(tx);
-    case ttESCROW_CREATE:        return invoke_calculateConsequences<EscrowCreate>(tx);
-    case ttESCROW_FINISH:        return invoke_calculateConsequences<EscrowFinish>(tx);
-    case ttESCROW_CANCEL:        return invoke_calculateConsequences<EscrowCancel>(tx);
-    case ttPAYCHAN_CLAIM:        return invoke_calculateConsequences<PayChanClaim>(tx);
-    case ttPAYCHAN_CREATE:       return invoke_calculateConsequences<PayChanCreate>(tx);
-    case ttPAYCHAN_FUND:         return invoke_calculateConsequences<PayChanFund>(tx);
-    case ttPAYMENT:              return invoke_calculateConsequences<Payment>(tx);
-    case ttREGULAR_KEY_SET:      return invoke_calculateConsequences<SetRegularKey>(tx);
-    case ttSIGNER_LIST_SET:      return invoke_calculateConsequences<SetSignerList>(tx);
-    case ttTICKET_CREATE:        return invoke_calculateConsequences<CreateTicket>(tx);
-    case ttTRUST_SET:            return invoke_calculateConsequences<SetTrust>(tx);
-    case ttACCOUNT_DELETE:       return invoke_calculateConsequences<DeleteAccount>(tx);
-    case ttAMENDMENT:
-    case ttFEE:
-        [[fallthrough]];
-    default:
-        assert(false);
-        return { TxConsequences::blocker, Transactor::calculateFeePaid(tx),
-            beast::zero };
-    }
+    category_ = category;
+}
+
+TxConsequences::TxConsequences (STTx const& tx, XRPAmount potentialSpend)
+: TxConsequences (tx)
+{
+    potentialSpend_ = potentialSpend;
+}
+
+TxConsequences::TxConsequences (STTx const& tx, std::uint32_t sequencesConsumed)
+: TxConsequences (tx)
+{
+    sequencesConsumed_ = sequencesConsumed;
 }
 
 static
@@ -271,7 +251,7 @@ preflight(Application& app, Rules const& rules,
     {
         JLOG(j.fatal()) <<
             "apply: " << e.what();
-        return{ pfctx, tefEXCEPTION };
+        return{ pfctx, {tefEXCEPTION, TxConsequences {tx} } };
     }
 }
 
@@ -315,17 +295,6 @@ calculateBaseFee(ReadView const& view,
     return invoke_calculateBaseFee(view, tx);
 }
 
-TxConsequences
-calculateConsequences(PreflightResult const& preflightResult)
-{
-    assert(preflightResult.ter == tesSUCCESS);
-    if (preflightResult.ter != tesSUCCESS)
-        return{ TxConsequences::blocker,
-            Transactor::calculateFeePaid(preflightResult.tx),
-                beast::zero };
-    return invoke_calculateConsequences(preflightResult.tx);
-}
-
 std::pair<TER, bool>
 doApply(PreclaimResult const& preclaimResult,
     Application& app, OpenView& view)
@@ -355,4 +324,3 @@ doApply(PreclaimResult const& preclaimResult,
 }
 
 } // ripple
-

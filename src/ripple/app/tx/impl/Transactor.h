@@ -72,7 +72,7 @@ public:
     PreclaimContext& operator=(PreclaimContext const&) = delete;
 };
 
-struct TxConsequences;
+class TxConsequences;
 struct PreflightResult;
 
 class Transactor
@@ -118,7 +118,7 @@ public:
 
     static
     NotTEC
-    checkSeqOrTicket (PreclaimContext const& ctx);
+    checkSeqOrTicket (ReadView const& view, STTx const& tx, beast::Journal j);
 
     static
     TER
@@ -134,21 +134,6 @@ public:
     calculateBaseFee (
         ReadView const& view,
         STTx const& tx);
-
-    static
-    bool
-    affectsSubsequentTransactionAuth(STTx const& tx)
-    {
-        return false;
-    }
-
-    static
-    XRPAmount
-    calculateFeePaid(STTx const& tx);
-
-    static
-    XRPAmount
-    calculateMaxSpend(STTx const& tx);
 
     static
     TER

@@ -120,55 +120,50 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                 accountID, *ledger);
             if (!txs.empty())
             {
-                jvQueueData[jss::txn_count] = static_cast<Json::UInt>(txs.size());
-                jvQueueData[jss::lowest_sequence] = txs.begin()->first;
-                jvQueueData[jss::highest_sequence] = txs.rbegin()->first;
+                jvQueueData[jss::txn_count] =
+                    static_cast<Json::UInt>(txs.size());
 
                 auto& jvQueueTx = jvQueueData[jss::transactions];
                 jvQueueTx = Json::arrayValue;
 
-                boost::optional<bool> anyAuthChanged(false);
-                boost::optional<XRPAmount> totalSpend(0);
+                boost::optional<std::uint32_t> lowestSeq;
+                boost::optional<std::uint32_t> highestSeq;
+                bool anyAuthChanged(false);
+                XRPAmount totalSpend(0);
 
-                for (auto const& [txSeq, txDetails] : txs)
+                for (auto const& tx : txs)
                 {
                     Json::Value jvTx = Json::objectValue;
 
-                    jvTx[jss::seq] = txSeq;
-                    jvTx[jss::fee_level] = to_string(txDetails.feeLevel);
-                    if (txDetails.lastValid)
-                        jvTx[jss::LastLedgerSequence] = *txDetails.lastValid;
-                    if (txDetails.consequences)
-                    {
-                        jvTx[jss::fee] = to_string(
-                            txDetails.consequences->fee);
-                        auto spend = txDetails.consequences->potentialSpend +
-                            txDetails.consequences->fee;
-                        jvTx[jss::max_spend_drops] = to_string(spend);
-                        if (totalSpend)
-                            *totalSpend += spend;
-                        auto authChanged = txDetails.consequences->category ==
-                            TxConsequences::blocker;
-                        if (authChanged)
-                            anyAuthChanged.emplace(authChanged);
-                        jvTx[jss::auth_change] = authChanged;
-                    }
-                    else
-                    {
-                        if (anyAuthChanged && !*anyAuthChanged)
-                            anyAuthChanged.reset();
-                        totalSpend.reset();
-                    }
+                    jvTx[jss::seq] = tx.sequence;
+                    if (!lowestSeq)
+                        lowestSeq = tx.sequence;
+                    highestSeq = tx.sequence;
+
+                    jvTx[jss::fee_level] = to_string(tx.feeLevel);
+                    if (tx.lastValid)
+                        jvTx[jss::LastLedgerSequence] = *tx.lastValid;
+
+                    jvTx[jss::fee] = to_string (tx.consequences.fee());
+                    auto const spend = tx.consequences.potentialSpend() +
+                        tx.consequences.fee();
+                    jvTx[jss::max_spend_drops] = to_string (spend);
+                    totalSpend += spend;
+                    bool const authChanged = tx.consequences.isBlocker();
+                    if (authChanged)
+                        anyAuthChanged = authChanged;
+                    jvTx[jss::auth_change] = authChanged;
 
                     jvQueueTx.append(std::move(jvTx));
                 }
 
-                if (anyAuthChanged)
-                    jvQueueData[jss::auth_change_queued] =
-                        *anyAuthChanged;
-                if (totalSpend)
-                    jvQueueData[jss::max_spend_drops_total] =
-                        to_string(*totalSpend);
+                if (lowestSeq)
+                    jvQueueData[jss::lowest_sequence] = *lowestSeq;
+                if (highestSeq)
+                    jvQueueData[jss::highest_sequence] = *highestSeq;
+
+                jvQueueData[jss::auth_change_queued] = anyAuthChanged;
+                jvQueueData[jss::max_spend_drops_total] = to_string(totalSpend);
             }
             else
                 jvQueueData[jss::txn_count] = 0u;
@@ -258,7 +253,7 @@ doAccountInfoGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>& c
                     "requested queue but ledger is not open"};
                 return {result, errorStatus};
             }
-            auto const txs =
+            std::vector<TxQ::TxDetails> const txs =
                 context.app.getTxQ().getAccountTxs(accountID, *ledger);
             org::xrpl::rpc::v1::QueueData& queueData = *result.mutable_queue_data();
             RPC::convert(queueData, txs);

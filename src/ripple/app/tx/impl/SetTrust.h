@@ -38,7 +38,7 @@ public:
     }
 
     static
-    NotTEC
+    std::pair<NotTEC, TxConsequences>
     preflight (PreflightContext const& ctx);
 
     static

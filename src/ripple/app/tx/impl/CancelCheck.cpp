@@ -30,24 +30,25 @@
 
 namespace ripple {
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 CancelCheck::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled (featureChecks))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     NotTEC const ret {preflight1 (ctx)};
     if (! isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     if (ctx.tx.getFlags() & tfUniversalMask)
     {
         // There are no flags (other than universal) for CreateCheck yet.
         JLOG(ctx.j.warn()) << "Malformed transaction: Invalid flags set.";
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

@@ -90,39 +90,42 @@ static inline bool after (NetClock::time_point now, std::uint32_t mark)
 }
 
 XRPAmount
-EscrowCreate::calculateMaxSpend(STTx const& tx)
+EscrowCreate::calculateMaxXRPSpend(STTx const& tx)
 {
-    return tx[sfAmount].xrp();
+    auto const& amount {tx[sfAmount]};
+    return amount.native() && !amount.negative() ?
+        amount.xrp() : beast::zero;
 }
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 EscrowCreate::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     if (! ctx.rules.enabled(featureEscrow))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     if (ctx.rules.enabled(fix1543) && ctx.tx.getFlags() & tfUniversalMask)
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     if (! isXRP(ctx.tx[sfAmount]))
-        return temBAD_AMOUNT;
+        return {temBAD_AMOUNT, conseq};
 
     if (ctx.tx[sfAmount] <= beast::zero)
-        return temBAD_AMOUNT;
+        return {temBAD_AMOUNT, conseq};
 
     // We must specify at least one timeout value
     if (! ctx.tx[~sfCancelAfter] && ! ctx.tx[~sfFinishAfter])
-            return temBAD_EXPIRATION;
+            return {temBAD_EXPIRATION, conseq};
 
     // If both finish and cancel times are specified then the cancel time must
     // be strictly after the finish time.
     if (ctx.tx[~sfCancelAfter] && ctx.tx[~sfFinishAfter] &&
             ctx.tx[sfCancelAfter] <= ctx.tx[sfFinishAfter])
-        return temBAD_EXPIRATION;
+        return {temBAD_EXPIRATION, conseq};
 
     if (ctx.rules.enabled(fix1571))
     {
@@ -131,7 +134,7 @@ EscrowCreate::preflight (PreflightContext const& ctx)
         // we want to ensure that either a FinishAfter time is explicitly
         // specified or a completion condition is attached.
         if (! ctx.tx[~sfFinishAfter] && ! ctx.tx[~sfCondition])
-            return temMALFORMED;
+            return {temMALFORMED, conseq};
     }
 
     if (auto const cb = ctx.tx[~sfCondition])
@@ -145,17 +148,17 @@ EscrowCreate::preflight (PreflightContext const& ctx)
         {
             JLOG(ctx.j.debug()) <<
                 "Malformed condition during escrow creation: " << ec.message();
-            return temMALFORMED;
+            return {temMALFORMED, conseq};
         }
 
         // Conditions other than PrefixSha256 require the
         // "CryptoConditionsSuite" amendment:
         if (condition->type != Type::preimageSha256 &&
                 !ctx.rules.enabled(featureCryptoConditionsSuite))
-            return temDISABLED;
+            return {temDISABLED, conseq};
     }
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER
@@ -298,19 +301,20 @@ checkCondition (Slice f, Slice c)
     return validate (*fulfillment, *condition);
 }
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 EscrowFinish::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled(featureEscrow))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     if (ctx.rules.enabled(fix1543) && ctx.tx.getFlags() & tfUniversalMask)
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
 
     {
         auto const ret = preflight1 (ctx);
         if (!isTesSuccess (ret))
-            return ret;
+            return {ret, conseq};
     }
 
     auto const cb = ctx.tx[~sfCondition];
@@ -319,14 +323,14 @@ EscrowFinish::preflight (PreflightContext const& ctx)
     // If you specify a condition, then you must also specify
     // a fulfillment.
     if (static_cast<bool>(cb) != static_cast<bool>(fb))
-        return temMALFORMED;
+        return {temMALFORMED, conseq};
 
     // Verify the transaction signature. If it doesn't work
     // then don't do any more work.
     {
         auto const ret = preflight2 (ctx);
         if (!isTesSuccess (ret))
-            return ret;
+            return {ret, conseq};
     }
 
     if (cb && fb)
@@ -348,7 +352,7 @@ EscrowFinish::preflight (PreflightContext const& ctx)
         }
     }
 
-    return tesSUCCESS;
+    return {tesSUCCESS, conseq};
 }
 
 FeeUnit64
@@ -518,20 +522,21 @@ EscrowFinish::doApply()
 
 //------------------------------------------------------------------------------
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 EscrowCancel::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled(featureEscrow))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     if (ctx.rules.enabled(fix1543) && ctx.tx.getFlags() & tfUniversalMask)
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

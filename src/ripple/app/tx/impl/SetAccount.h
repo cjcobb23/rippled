@@ -40,12 +40,8 @@ public:
     {
     }
 
-    static
-    bool
-    affectsSubsequentTransactionAuth(STTx const& tx);
-
-    static
-    NotTEC
+   static
+    std::pair<NotTEC, TxConsequences>
     preflight (PreflightContext const& ctx);
 
     static
@@ -53,6 +49,12 @@ public:
     preclaim(PreclaimContext const& ctx);
 
     TER doApply () override;
+
+private:
+    // Support for TxConsequences.
+    static
+    TxConsequences::Category
+    getTxConsequencesCategory(STTx const& tx);
 };
 
 } // ripple

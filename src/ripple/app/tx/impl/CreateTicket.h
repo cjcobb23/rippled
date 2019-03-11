@@ -69,7 +69,7 @@ public:
 
     /** Enforce constraints beyond those of the Transactor base class. */
     static
-    NotTEC
+    std::pair<NotTEC, TxConsequences>
     preflight (PreflightContext const& ctx);
 
     /** Enforce constraints beyond those of the Transactor base class. */
@@ -79,6 +79,12 @@ public:
 
     /** Precondition: fee collection is likely.  Attempt to create ticket(s). */
     TER doApply () override;
+
+private:
+    // Support for TxConsequences.
+    static
+    std::uint32_t
+    calculateSequencesConsumed (STTx const& tx);
 };
 
 }

@@ -496,18 +496,17 @@ public:
             auto& txQ = env.app().getTxQ();
             auto aliceStat = txQ.getAccountTxs(alice.id(), *env.current());
             BEAST_EXPECT(aliceStat.size() == 1);
-            BEAST_EXPECT(aliceStat.begin()->second.feeLevel ==
-                FeeLevel64{ 256 });
-            BEAST_EXPECT(aliceStat.begin()->second.lastValid &&
-                *aliceStat.begin()->second.lastValid == 8);
-            BEAST_EXPECT(!aliceStat.begin()->second.consequences);
+            BEAST_EXPECT(aliceStat.begin()->feeLevel == FeeLevel64{ 256 });
+            BEAST_EXPECT(aliceStat.begin()->lastValid &&
+                *aliceStat.begin()->lastValid == 8);
+            BEAST_EXPECT(!aliceStat.begin()->consequences.isBlocker());
 
             auto bobStat = txQ.getAccountTxs(bob.id(), *env.current());
             BEAST_EXPECT(bobStat.size() == 1);
-            BEAST_EXPECT(bobStat.begin()->second.feeLevel ==
+            BEAST_EXPECT(bobStat.begin()->feeLevel ==
                 FeeLevel64{ 7000 * 256 / 10 });
-            BEAST_EXPECT(!bobStat.begin()->second.lastValid);
-            BEAST_EXPECT(!bobStat.begin()->second.consequences);
+            BEAST_EXPECT(!bobStat.begin()->lastValid);
+            BEAST_EXPECT(!bobStat.begin()->consequences.isBlocker());
 
             auto noStat = txQ.getAccountTxs(Account::master.id(),
                 *env.current());
@@ -841,16 +840,16 @@ public:
             auto const& baseFee = env.current()->fees().base;
             auto seq = env.seq(alice);
             BEAST_EXPECT(aliceStat.size() == 7);
-            for (auto const& [txSeq, details] : aliceStat)
+            for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(txSeq == seq);
-                BEAST_EXPECT(details.feeLevel == toFeeLevel(fee, baseFee).second);
-                BEAST_EXPECT(details.lastValid);
-                BEAST_EXPECT((details.consequences &&
-                    details.consequences->fee == drops(fee) &&
-                    details.consequences->potentialSpend == drops(0) &&
-                    details.consequences->category == TxConsequences::normal) ||
-                    txSeq == env.seq(alice) + 6);
+                BEAST_EXPECT(tx.sequence == seq);
+                BEAST_EXPECT(tx.feeLevel == toFeeLevel(fee, baseFee).second);
+                BEAST_EXPECT(tx.lastValid);
+                BEAST_EXPECT((
+                    tx.consequences.fee() == drops(fee) &&
+                    tx.consequences.potentialSpend() == drops(0) &&
+                    !tx.consequences.isBlocker()) ||
+                    tx.sequence == env.seq(alice) + 6);
                 ++seq;
             }
         }
@@ -1767,10 +1766,9 @@ public:
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(0));
         }
 
         {
@@ -1781,10 +1779,9 @@ public:
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(0));
         }
 
         {
@@ -1793,10 +1790,9 @@ public:
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(0));
         }
     }
 
@@ -1932,8 +1928,7 @@ public:
         env(fset(alice, asfAccountTxnID), seq(aliceSeq + 1), ter(terQUEUED));
         checkMetrics(env, 4, 40, 5, 4, 256);
 
-        // Even though consequences were not computed, we can replace it,
-        // too.
+        // Queue up a non-blocker replacement for aliceSeq + 1.
         env(noop(alice), seq(aliceSeq +1), fee(20), ter(terQUEUED));
         checkMetrics(env, 4, 40, 5, 4, 256);
 
@@ -1983,16 +1978,16 @@ public:
             BEAST_EXPECT(aliceStat.size() == 5);
             for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(tx.first == seq);
-                BEAST_EXPECT(tx.second.feeLevel == FeeLevel64{ 25600 });
+                BEAST_EXPECT(tx.sequence == seq);
+                BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
                 if(seq == aliceSeq + 2)
                 {
-                    BEAST_EXPECT(tx.second.lastValid &&
-                        *tx.second.lastValid == lastLedgerSeq);
+                    BEAST_EXPECT(tx.lastValid &&
+                        *tx.lastValid == lastLedgerSeq);
                 }
                 else
                 {
-                    BEAST_EXPECT(!tx.second.lastValid);
+                    BEAST_EXPECT(!tx.lastValid);
                 }
                 ++seq;
             }
@@ -2037,9 +2032,9 @@ public:
                 if (seq == aliceSeq + 2)
                     ++seq;
 
-                BEAST_EXPECT(tx.first == seq);
-                BEAST_EXPECT(tx.second.feeLevel == FeeLevel64{ 25600 });
-                BEAST_EXPECT(!tx.second.lastValid);
+                BEAST_EXPECT(tx.sequence == seq);
+                BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
+                BEAST_EXPECT(!tx.lastValid);
                 ++seq;
             }
         }
@@ -2052,9 +2047,9 @@ public:
             BEAST_EXPECT(aliceStat.size() == 5);
             for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(tx.first == seq);
-                BEAST_EXPECT(tx.second.feeLevel == FeeLevel64{ 25600 });
-                BEAST_EXPECT(!tx.second.lastValid);
+                BEAST_EXPECT(tx.sequence == seq);
+                BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
+                BEAST_EXPECT(!tx.lastValid);
                 ++seq;
             }
         }
@@ -2164,8 +2159,10 @@ public:
             BEAST_EXPECT(queue_data[jss::highest_sequence] ==
                 data[jss::Sequence].asUInt() +
                     queue_data[jss::txn_count].asUInt() - 1);
-            BEAST_EXPECT(!queue_data.isMember(jss::auth_change_queued));
-            BEAST_EXPECT(!queue_data.isMember(jss::max_spend_drops_total));
+            BEAST_EXPECT(queue_data.isMember(jss::auth_change_queued));
+            BEAST_EXPECT(queue_data[jss::auth_change_queued] == false);
+            BEAST_EXPECT(queue_data.isMember(jss::max_spend_drops_total));
+            BEAST_EXPECT(queue_data[jss::max_spend_drops_total] == "400");
             BEAST_EXPECT(queue_data.isMember(jss::transactions));
             auto const& queued = queue_data[jss::transactions];
             BEAST_EXPECT(queued.size() == queue_data[jss::txn_count]);
@@ -2176,22 +2173,12 @@ public:
                 BEAST_EXPECT(item[jss::fee_level] == "2560");
                 BEAST_EXPECT(!item.isMember(jss::LastLedgerSequence));
 
-                if (i == queued.size() - 1)
-                {
-                    BEAST_EXPECT(!item.isMember(jss::fee));
-                    BEAST_EXPECT(!item.isMember(jss::max_spend_drops));
-                    BEAST_EXPECT(!item.isMember(jss::auth_change));
-                }
-                else
-                {
-                    BEAST_EXPECT(item.isMember(jss::fee));
-                    BEAST_EXPECT(item[jss::fee] == "100");
-                    BEAST_EXPECT(item.isMember(jss::max_spend_drops));
-                    BEAST_EXPECT(item[jss::max_spend_drops] == "100");
-                    BEAST_EXPECT(item.isMember(jss::auth_change));
-                    BEAST_EXPECT(!item[jss::auth_change].asBool());
-                }
-
+                BEAST_EXPECT(item.isMember(jss::fee));
+                BEAST_EXPECT(item[jss::fee] == "100");
+                BEAST_EXPECT(item.isMember(jss::max_spend_drops));
+                BEAST_EXPECT(item[jss::max_spend_drops] == "100");
+                BEAST_EXPECT(item.isMember(jss::auth_change));
+                BEAST_EXPECT(item[jss::auth_change].asBool() == false);
             }
         }
 
@@ -2218,8 +2205,10 @@ public:
             BEAST_EXPECT(queue_data[jss::highest_sequence] ==
                 data[jss::Sequence].asUInt() +
                     queue_data[jss::txn_count].asUInt() - 1);
-            BEAST_EXPECT(!queue_data.isMember(jss::auth_change_queued));
-            BEAST_EXPECT(!queue_data.isMember(jss::max_spend_drops_total));
+            BEAST_EXPECT(queue_data.isMember(jss::auth_change_queued));
+            BEAST_EXPECT(queue_data[jss::auth_change_queued] == true);
+            BEAST_EXPECT(queue_data.isMember(jss::max_spend_drops_total));
+            BEAST_EXPECT(queue_data[jss::max_spend_drops_total] == "500");
             BEAST_EXPECT(queue_data.isMember(jss::transactions));
             auto const& queued = queue_data[jss::transactions];
             BEAST_EXPECT(queued.size() == queue_data[jss::txn_count]);
@@ -2228,23 +2217,20 @@ public:
                 auto const& item = queued[i];
                 BEAST_EXPECT(item[jss::seq] == data[jss::Sequence].asInt() + i);
                 BEAST_EXPECT(item[jss::fee_level] == "2560");
-
+                BEAST_EXPECT(item.isMember(jss::fee));
+                BEAST_EXPECT(item[jss::fee] == "100");
+                BEAST_EXPECT(item.isMember(jss::max_spend_drops));
+                BEAST_EXPECT(item[jss::max_spend_drops] == "100");
+                BEAST_EXPECT(item.isMember(jss::auth_change));
                 if (i == queued.size() - 1)
                 {
-                    BEAST_EXPECT(!item.isMember(jss::fee));
-                    BEAST_EXPECT(!item.isMember(jss::max_spend_drops));
-                    BEAST_EXPECT(!item.isMember(jss::auth_change));
+                    BEAST_EXPECT(item[jss::auth_change].asBool() == true);
                     BEAST_EXPECT(item.isMember(jss::LastLedgerSequence));
                     BEAST_EXPECT(item[jss::LastLedgerSequence] == 10);
                 }
                 else
                 {
-                    BEAST_EXPECT(item.isMember(jss::fee));
-                    BEAST_EXPECT(item[jss::fee] == "100");
-                    BEAST_EXPECT(item.isMember(jss::max_spend_drops));
-                    BEAST_EXPECT(item[jss::max_spend_drops] == "100");
-                    BEAST_EXPECT(item.isMember(jss::auth_change));
-                    BEAST_EXPECT(!item[jss::auth_change].asBool());
+                    BEAST_EXPECT(item[jss::auth_change].asBool() == false);
                     BEAST_EXPECT(!item.isMember(jss::LastLedgerSequence));
                 }
 
@@ -2866,8 +2852,8 @@ public:
             auto seq = aliceSeq;
             for (auto const& tx : aliceQueue)
             {
-                BEAST_EXPECT(tx.first == seq);
-                BEAST_EXPECT(tx.second.feeLevel == FeeLevel64{ 2560 });
+                BEAST_EXPECT(tx.sequence == seq);
+                BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 2560 });
                 ++seq;
             }
 
@@ -3066,6 +3052,7 @@ public:
     void run() override
     {
         testQueue();
+        testTecResult();
         testLocalTxRetry();
         testLastLedgerSeq();
         testZeroFeeTxn();

@@ -30,20 +30,21 @@
 namespace ripple {
 
 XRPAmount
-CreateOffer::calculateMaxSpend(STTx const& tx)
+CreateOffer::calculateMaxXRPSpend(STTx const& tx)
 {
-    auto const& saTakerGets = tx[sfTakerGets];
+    auto const& takerGets = tx[sfTakerGets];
 
-    return saTakerGets.native() ?
-        saTakerGets.xrp() : beast::zero;
+    return takerGets.native() && !takerGets.negative() ?
+        takerGets.xrp() : beast::zero;
 }
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 CreateOffer::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     auto& tx = ctx.tx;
     auto& j = ctx.j;
@@ -54,7 +55,7 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.debug()) <<
             "Malformed transaction: Invalid flags set.";
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
     bool const bImmediateOrCancel (uTxFlags & tfImmediateOrCancel);
@@ -64,7 +65,7 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.debug()) <<
             "Malformed transaction: both IoC and FoK set.";
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
     bool const bHaveExpiration (tx.isFieldPresent (sfExpiration));
@@ -73,7 +74,7 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.debug()) <<
             "Malformed offer: bad expiration";
-        return temBAD_EXPIRATION;
+        return {temBAD_EXPIRATION, conseq};
     }
 
     bool const bHaveCancel (tx.isFieldPresent (sfOfferSequence));
@@ -82,26 +83,26 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.debug()) <<
             "Malformed offer: bad cancel sequence";
-        return temBAD_SEQUENCE;
+        return {temBAD_SEQUENCE, conseq};
     }
 
     STAmount saTakerPays = tx[sfTakerPays];
     STAmount saTakerGets = tx[sfTakerGets];
 
     if (!isLegalNet (saTakerPays) || !isLegalNet (saTakerGets))
-        return temBAD_AMOUNT;
+        return {temBAD_AMOUNT, conseq};
 
     if (saTakerPays.native () && saTakerGets.native ())
     {
         JLOG(j.debug()) <<
             "Malformed offer: redundant (XRP for XRP)";
-        return temBAD_OFFER;
+        return {temBAD_OFFER, conseq};
     }
     if (saTakerPays <= beast::zero || saTakerGets <= beast::zero)
     {
         JLOG(j.debug()) <<
             "Malformed offer: bad amount";
-        return temBAD_OFFER;
+        return {temBAD_OFFER, conseq};
     }
 
     auto const& uPaysIssuerID = saTakerPays.getIssuer ();
@@ -114,14 +115,14 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.debug()) <<
             "Malformed offer: redundant (IOU for IOU)";
-        return temREDUNDANT;
+        return {temREDUNDANT, conseq};
     }
     // We don't allow a non-native currency to use the currency code XRP.
     if (badCurrency() == uPaysCurrency || badCurrency() == uGetsCurrency)
     {
         JLOG(j.debug()) <<
             "Malformed offer: bad currency";
-        return temBAD_CURRENCY;
+        return {temBAD_CURRENCY, conseq};
     }
 
     if (saTakerPays.native () != !uPaysIssuerID ||
@@ -129,10 +130,10 @@ CreateOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(j.warn()) <<
             "Malformed offer: bad issuer";
-        return temBAD_ISSUER;
+        return {temBAD_ISSUER, conseq};
     }
 
-    return preflight2(ctx);
+    return {preflight2(ctx), conseq};
 }
 
 TER
