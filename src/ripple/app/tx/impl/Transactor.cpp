@@ -153,12 +153,6 @@ Transactor::calculateBaseFee (
 }
 
 XRPAmount
-Transactor::calculateFeePaid(STTx const& tx)
-{
-    return tx[sfFee].xrp();
-}
-
-XRPAmount
 Transactor::minimumFee (Application& app, FeeUnit64 baseFee,
     Fees const& fees, ApplyFlags flags)
 {
@@ -166,17 +160,14 @@ Transactor::minimumFee (Application& app, FeeUnit64 baseFee,
         fees, flags & tapUNLIMITED);
 }
 
-XRPAmount
-Transactor::calculateMaxSpend(STTx const& tx)
-{
-    return beast::zero;
-}
-
 TER
 Transactor::checkFee (PreclaimContext const& ctx,
     FeeUnit64 baseFee)
 {
-    auto const feePaid = calculateFeePaid(ctx.tx);
+    if (! ctx.tx[sfFee].native())
+        return temBAD_FEE;
+
+    auto const feePaid = ctx.tx[sfFee].xrp();
     if (!isLegalAmount (feePaid) || feePaid < beast::zero)
         return temBAD_FEE;
 
@@ -221,7 +212,7 @@ Transactor::checkFee (PreclaimContext const& ctx,
 
 TER Transactor::payFee ()
 {
-    auto const feePaid = calculateFeePaid(ctx_.tx);
+    auto const feePaid = ctx_.tx[sfFee].xrp();
 
     auto const sle = view().peek(keylet::account(account_));
     if (! sle)
@@ -239,34 +230,35 @@ TER Transactor::payFee ()
 }
 
 NotTEC
-Transactor::checkSeqOrTicket (PreclaimContext const& ctx)
+Transactor::checkSeqOrTicket (
+    ReadView const& view, STTx const& tx, beast::Journal j)
 {
-    auto const id = ctx.tx.getAccountID(sfAccount);
+    auto const id = tx.getAccountID(sfAccount);
 
-    auto const sle = ctx.view.read(keylet::account(id));
+    auto const sle = view.read(keylet::account(id));
 
     if (!sle)
     {
-        JLOG(ctx.j.trace()) <<
+        JLOG(j.trace()) <<
             "applyTransaction: delay: source account does not exist " <<
-            toBase58(ctx.tx.getAccountID(sfAccount));
+            toBase58(tx.getAccountID(sfAccount));
         return terNO_ACCOUNT;
     }
 
-    SeqOrTicket const t_seqOrT = ctx.tx.getSeqOrTicket ();
+    SeqOrTicket const t_seqOrT = tx.getSeqOrTicket ();
     std::uint32_t const a_seq = sle->getFieldU32 (sfSequence);
 
     if (t_seqOrT.isSeq() && t_seqOrT.value() != a_seq)
     {
         if (a_seq < t_seqOrT.value())
         {
-            JLOG(ctx.j.trace()) <<
+            JLOG(j.trace()) <<
                 "applyTransaction: has future sequence number " <<
                 "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
             return terPRE_SEQ;
         }
         // It's an already-used sequence number.
-        JLOG(ctx.j.trace()) <<
+        JLOG(j.trace()) <<
             "applyTransaction: has past sequence number " <<
             "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
         return tefPAST_SEQ;
@@ -279,28 +271,28 @@ Transactor::checkSeqOrTicket (PreclaimContext const& ctx)
             // account sequence there's the possibility that the
             // transaction to create the Ticket has not hit the ledger
             // yet.  Allow a retry.
-            JLOG(ctx.j.trace()) <<
+            JLOG(j.trace()) <<
                 "applyTransaction: has future ticket id " <<
                 "a_seq=" << a_seq << " ticket=" << t_seqOrT.value();
             return terPRE_TICKET;
         }
 
         // Transaction can never succeed if the Ticket is not in the ledger.
-        if (! ctx.view.exists (keylet::ticket (id, t_seqOrT.value())))
+        if (! view.exists (keylet::ticket (id, t_seqOrT.value())))
         {
-            JLOG(ctx.j.trace()) <<
+            JLOG(j.trace()) <<
                 "applyTransaction: ticket already used or never created " <<
                 "a_seq=" << a_seq << "ticket=" << t_seqOrT.value();
             return tefNO_TICKET;
         }
     }
 
-    if (ctx.tx.isFieldPresent (sfAccountTxnID) &&
-            (sle->getFieldH256 (sfAccountTxnID) != ctx.tx.getFieldH256 (sfAccountTxnID)))
+    if (tx.isFieldPresent (sfAccountTxnID) &&
+            (sle->getFieldH256 (sfAccountTxnID) != tx.getFieldH256 (sfAccountTxnID)))
         return tefWRONG_PRIOR;
 
-    if (ctx.tx.isFieldPresent (sfLastLedgerSequence) &&
-            (ctx.view.seq() > ctx.tx.getFieldU32 (sfLastLedgerSequence)))
+    if (tx.isFieldPresent (sfLastLedgerSequence) &&
+            (view.seq() > tx.getFieldU32 (sfLastLedgerSequence)))
         return tefMAX_LEDGER;
 
     return tesSUCCESS;

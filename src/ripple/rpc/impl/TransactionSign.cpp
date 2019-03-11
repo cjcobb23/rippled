@@ -438,9 +438,9 @@ transactionPreProcessImpl (
             // numbers (accounting for possible gaps).
             for(auto const& tx : queued)
             {
-                if (tx.first == seq)
+                if (tx.sequence == seq)
                     ++seq;
-                else if (tx.first > seq)
+                else if (tx.sequence > seq)
                     break;
             }
             tx_json[jss::Sequence] = seq;

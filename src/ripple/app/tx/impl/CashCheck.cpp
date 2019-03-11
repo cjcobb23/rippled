@@ -31,21 +31,22 @@
 
 namespace ripple {
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 CashCheck::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled (featureChecks))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     NotTEC const ret {preflight1 (ctx)};
     if (! isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     if (ctx.tx.getFlags() & tfUniversalMask)
     {
         // There are no flags (other than universal) for CashCheck yet.
         JLOG(ctx.j.warn()) << "Malformed transaction: Invalid flags set.";
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
     // Exactly one of Amount or DeliverMin must be present.
@@ -56,7 +57,7 @@ CashCheck::preflight (PreflightContext const& ctx)
     {
         JLOG(ctx.j.warn()) << "Malformed transaction: "
             "does not specify exactly one of Amount and DeliverMin.";
-        return temMALFORMED;
+        return {temMALFORMED, conseq};
     }
 
     // Make sure the amount is valid.
@@ -65,16 +66,16 @@ CashCheck::preflight (PreflightContext const& ctx)
     {
         JLOG(ctx.j.warn()) << "Malformed transaction: bad amount: "
             << value.getFullText();
-        return temBAD_AMOUNT;
+        return {temBAD_AMOUNT, conseq};
     }
 
     if (badCurrency() == value.getCurrency())
     {
         JLOG(ctx.j.warn()) <<"Malformed transaction: Bad currency.";
-        return temBAD_CURRENCY;
+        return {temBAD_CURRENCY, conseq};
     }
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

@@ -1631,55 +1631,48 @@ convert(org::xrpl::rpc::v1::Meta& to, std::shared_ptr<TxMeta> const& from)
 void
 convert(
     org::xrpl::rpc::v1::QueueData& to,
-    std::map<TxSeq, TxQ::AccountTxDetails const> const& from)
+    std::vector<TxQ::TxDetails> const& from)
 {
     if (!from.empty())
     {
         to.set_txn_count(from.size());
-        to.set_lowest_sequence(from.begin()->first);
-        to.set_highest_sequence(from.rbegin()->first);
 
-        boost::optional<bool> anyAuthChanged(false);
-        boost::optional<XRPAmount> totalSpend(0);
+        boost::optional<std::uint32_t> lowestSeq;
+        boost::optional<std::uint32_t> highestSeq;
+        bool anyAuthChanged = {false};
+        XRPAmount totalSpend (0);
 
-        for (auto const& [txSeq, txDetails] : from)
+        for (auto const& tx : from)
         {
             org::xrpl::rpc::v1::QueuedTransaction& qt = *to.add_transactions();
 
-            qt.mutable_sequence()->set_value(txSeq);
-            qt.set_fee_level(txDetails.feeLevel.fee());
-            if (txDetails.lastValid)
-                qt.mutable_last_ledger_sequence()->set_value(
-                    *txDetails.lastValid);
+            qt.mutable_sequence()->set_value (tx.sequence);
+            if (!lowestSeq)
+                lowestSeq = tx.sequence;
+            highestSeq = tx.sequence;
 
-            if (txDetails.consequences)
-            {
-                qt.mutable_fee()->set_drops(
-                    txDetails.consequences->fee.drops());
-                auto spend = txDetails.consequences->potentialSpend +
-                    txDetails.consequences->fee;
-                qt.mutable_max_spend_drops()->set_drops(spend.drops());
-                if (totalSpend)
-                    *totalSpend += spend;
-                auto authChanged =
-                    txDetails.consequences->category == TxConsequences::blocker;
-                if (authChanged)
-                    anyAuthChanged.emplace(authChanged);
-                qt.set_auth_change(authChanged);
-            }
-            else
-            {
-                if (anyAuthChanged && !*anyAuthChanged)
-                    anyAuthChanged.reset();
-                totalSpend.reset();
-            }
+            qt.set_fee_level(tx.feeLevel.fee());
+            if (tx.lastValid)
+                qt.mutable_last_ledger_sequence()->set_value(*tx.lastValid);
+
+            qt.mutable_fee()->set_drops(tx.consequences.fee().drops());
+            auto const spend = tx.consequences.potentialSpend() +
+                tx.consequences.fee();
+            qt.mutable_max_spend_drops()->set_drops(spend.drops());
+            totalSpend += spend;
+            bool const authChanged = tx.consequences.isBlocker();
+            if (authChanged)
+                anyAuthChanged = true;
+            qt.set_auth_change(authChanged);
         }
 
-        if (anyAuthChanged)
-            to.set_auth_change_queued(*anyAuthChanged);
-        if (totalSpend)
-            to.mutable_max_spend_drops_total()->set_drops(
-                (*totalSpend).drops());
+        if (lowestSeq)
+            to.set_lowest_sequence(*lowestSeq);
+        if (highestSeq)
+            to.set_highest_sequence(*highestSeq);
+
+        to.set_auth_change_queued(anyAuthChanged);
+        to.mutable_max_spend_drops_total()->set_drops(totalSpend.drops());
     }
 }
 

@@ -71,23 +71,24 @@ SetSignerList::determineOperation(STTx const& tx,
     return std::make_tuple(tesSUCCESS, quorum, sign, op);
 }
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 SetSignerList::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx, TxConsequences::blocker};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     auto const result = determineOperation(ctx.tx, ctx.flags, ctx.j);
     if (std::get<0>(result) != tesSUCCESS)
-        return std::get<0>(result);
+        return {std::get<0>(result), conseq};
 
     if (std::get<3>(result) == unknown)
     {
         // Neither a set nor a destroy.  Malformed.
         JLOG(ctx.j.trace()) <<
             "Malformed transaction: Invalid signer set list format.";
-        return temMALFORMED;
+        return {temMALFORMED, conseq};
     }
 
     if (std::get<3>(result) == set)
@@ -99,11 +100,11 @@ SetSignerList::preflight (PreflightContext const& ctx)
                 std::get<2>(result), account, ctx.j);
         if (ter != tesSUCCESS)
         {
-            return ter;
+            return {ter, conseq};
         }
     }
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

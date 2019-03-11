@@ -27,23 +27,30 @@
 
 namespace ripple {
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 CreateTicket::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx, calculateSequencesConsumed (ctx.tx)};
     if (! ctx.rules.enabled (featureTicketBatch))
-        return temDISABLED;
+        return {temDISABLED, conseq};
 
     if (ctx.tx.getFlags() & tfUniversalMask)
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
 
     if (std::uint32_t const count = {ctx.tx[sfCount]};
                 (count < minValidCount || count > maxValidCount))
-        return temINVALID_COUNT;
+            return {temINVALID_COUNT, conseq};
 
     if (NotTEC const ret {preflight1 (ctx)}; ! isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
+}
+
+std::uint32_t
+CreateTicket::calculateSequencesConsumed(STTx const& tx)
+{
+    return tx[sfCount];
 }
 
 TER
@@ -56,8 +63,8 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
 
     // Make sure the TicketCreate would not cause the account to own
     // too many tickets.
-    auto const optTicketCount {(*sleAccountRoot)[~sfTicketCount]};
-    std::uint32_t const curTicketCount = {optTicketCount.value_or (0u)};
+    std::uint32_t const curTicketCount =
+        {(*sleAccountRoot)[~sfTicketCount].value_or (0u)};
     std::uint32_t const addedTickets = {ctx.tx[sfCount]};
     std::uint32_t const consumedTickets =
         {ctx.tx.getSeqOrTicket().isTicket() ? 1u : 0u};
@@ -77,8 +84,8 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
 TER
 CreateTicket::doApply ()
 {
-    SLE::pointer const sleAccountRoot {
-        view().peek (keylet::account (account_))};
+    SLE::pointer const sleAccountRoot =
+        view().peek (keylet::account (account_));
     if (! sleAccountRoot)
         return tefINTERNAL;
 

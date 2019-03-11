@@ -27,18 +27,19 @@
 
 namespace ripple {
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 Change::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     auto const ret = preflight0(ctx);
     if (!isTesSuccess(ret))
-        return ret;
+        return {ret, conseq};
 
     auto account = ctx.tx.getAccountID(sfAccount);
     if (account != beast::zero)
     {
         JLOG(ctx.j.warn()) << "Change: Bad source id";
-        return temBAD_SRC_ACCOUNT;
+        return {temBAD_SRC_ACCOUNT, conseq};
     }
 
     // No point in going any further if the transaction fee is malformed.
@@ -46,7 +47,7 @@ Change::preflight (PreflightContext const& ctx)
     if (!fee.native () || fee != beast::zero)
     {
         JLOG(ctx.j.warn()) << "Change: invalid fee";
-        return temBAD_FEE;
+        return {temBAD_FEE, conseq};
     }
 
     if (!ctx.tx.getSigningPubKey ().empty () ||
@@ -54,16 +55,16 @@ Change::preflight (PreflightContext const& ctx)
         ctx.tx.isFieldPresent (sfSigners))
     {
         JLOG(ctx.j.warn()) << "Change: Bad signature";
-        return temBAD_SIGNATURE;
+        return {temBAD_SIGNATURE, conseq};
     }
 
     if (ctx.tx.getSequence () != 0 || ctx.tx.isFieldPresent (sfPreviousTxnID))
     {
         JLOG(ctx.j.warn()) << "Change: Bad sequence";
-        return temBAD_SEQUENCE;
+        return {temBAD_SEQUENCE, conseq};
     }
 
-    return tesSUCCESS;
+    return {tesSUCCESS, conseq};
 }
 
 TER

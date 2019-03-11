@@ -203,39 +203,46 @@ public:
     };
 
     /**
-        Structure returned by @ref TxQ::getAccountTxs to describe
-        transactions in the queue for an account.
-    */
-    struct AccountTxDetails
-    {
-        /// Default constructor
-        explicit AccountTxDetails() = default;
-
-        /// Fee level of the queued transaction
-        FeeLevel64 feeLevel;
-        /// LastValidLedger field of the queued transaction, if any
-        boost::optional<LedgerIndex const> lastValid;
-        /** Potential @ref TxConsequences of applying the queued transaction
-            to the open ledger, if known.
-
-            @note `consequences` is lazy-computed, so may not be known at any
-            given time.
-        */
-        boost::optional<TxConsequences const> consequences;
-    };
-
-    /**
         Structure that describes a transaction in the queue
         waiting to be applied to the current open ledger.
         A collection of these is returned by @ref TxQ::getTxs.
     */
-    struct TxDetails : AccountTxDetails
+    struct TxDetails
     {
-        /// Default constructor
-        explicit TxDetails() = default;
+        /// Full initialization
+        TxDetails (
+            FeeLevel64 feeLevel_,
+            boost::optional<LedgerIndex const> const& lastValid_,
+            TxConsequences const& consequences_,
+            AccountID const& account_,
+            TxSeq sequence_,
+            std::shared_ptr<STTx const> const& txn_,
+            int retriesRemaining_,
+            TER preflightResult_,
+            boost::optional<TER> lastResult_)
+        : feeLevel (feeLevel_)
+        , lastValid (lastValid_)
+        , consequences (consequences_)
+        , account (account_)
+        , sequence (sequence_)
+        , txn (txn_)
+        , retriesRemaining (retriesRemaining_)
+        , preflightResult (preflightResult_)
+        , lastResult (lastResult_)
+        { }
 
+        /// Fee level of the queued transaction
+        FeeLevel64 feeLevel;
+        /// LastValidLedger field of the queued transaction, if any
+        boost::optional<LedgerIndex> lastValid;
+        /** TxConsequences of applying the queued transaction
+            to the open ledger.
+        */
+        TxConsequences consequences;
         /// The account the transaction is queued for
         AccountID account;
+        /// The transaction sequence
+        TxSeq sequence;
         /// The full transaction
         std::shared_ptr<STTx const> txn;
         /** Number of times the transactor can return a retry / `ter` result
@@ -345,7 +352,7 @@ public:
         @returns Empty `map` if the
         account has no transactions in the queue.
     */
-    std::map<TxSeq, AccountTxDetails const>
+    std::vector<TxDetails>
     getAccountTxs(AccountID const& account, ReadView const& view) const;
 
     /** Returns information about all transactions currently
@@ -513,21 +520,15 @@ private:
         /// The complete transaction.
         std::shared_ptr<STTx const> txn;
 
-        /// Potential @ref TxConsequences of applying this transaction
-        /// to the open ledger.
-        boost::optional<TxConsequences const> consequences;
-
         /// Computed fee level that the transaction will pay.
         FeeLevel64 const feeLevel;
         /// Transaction ID.
         TxID const txID;
-        /// Prior transaction ID (`sfAccountTxnID` field).
-        boost::optional<TxID> priorTxID;
         /// Account submitting the transaction.
         AccountID const account;
         /// Expiration ledger for the transaction
         /// (`sfLastLedgerSequence` field).
-        boost::optional<LedgerIndex> lastValid;
+        boost::optional<LedgerIndex const> lastValid;
         /// Transaction sequence number (`sfSequence` field).
         TxSeq const sequence;
         /**
@@ -586,6 +587,21 @@ private:
         /// Attempt to apply the queued transaction to the open ledger.
         std::pair<TER, bool>
         apply(Application& app, OpenView& view, beast::Journal j);
+
+        /// Potential @ref TxConsequences of applying this transaction
+        /// to the open ledger.
+        TxConsequences const&
+        consequences() const
+        {
+            return pfresult->consequences;
+        }
+
+        /// Return a TxDetails based on contained information.
+        TxDetails getTxDetails () const
+        {
+            return {feeLevel, lastValid, consequences(), account,
+                sequence, txn, retriesRemaining, pfresult->ter, lastResult};
+        }
     };
 
     /// Used for sorting @ref MaybeTx by `feeLevel`

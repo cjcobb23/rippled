@@ -54,14 +54,7 @@ public:
     }
 
     static
-    bool
-    affectsSubsequentTransactionAuth(STTx const& tx)
-    {
-        return true;
-    }
-
-    static
-    NotTEC
+    std::pair<NotTEC, TxConsequences>
     preflight (PreflightContext const& ctx);
 
     TER doApply () override;

@@ -27,12 +27,13 @@
 
 namespace ripple {
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 SetTrust::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     auto& tx = ctx.tx;
     auto& j = ctx.j;
@@ -43,34 +44,34 @@ SetTrust::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: Invalid flags set.";
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
     STAmount const saLimitAmount (tx.getFieldAmount (sfLimitAmount));
 
     if (!isLegalNet (saLimitAmount))
-        return temBAD_AMOUNT;
+        return {temBAD_AMOUNT, conseq};
 
     if (saLimitAmount.native ())
     {
         JLOG(j.trace()) <<
             "Malformed transaction: specifies native limit " <<
             saLimitAmount.getFullText ();
-        return temBAD_LIMIT;
+        return {temBAD_LIMIT, conseq};
     }
 
     if (badCurrency() == saLimitAmount.getCurrency ())
     {
         JLOG(j.trace()) <<
             "Malformed transaction: specifies XRP as IOU";
-        return temBAD_CURRENCY;
+        return {temBAD_CURRENCY, conseq};
     }
 
     if (saLimitAmount < beast::zero)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: Negative credit limit.";
-        return temBAD_LIMIT;
+        return {temBAD_LIMIT, conseq};
     }
 
     // Check if destination makes sense.
@@ -80,10 +81,10 @@ SetTrust::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: no destination account.";
-        return temDST_NEEDED;
+        return {temDST_NEEDED, conseq};
     }
 
-    return preflight2 (ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

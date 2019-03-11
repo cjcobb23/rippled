@@ -1248,10 +1248,9 @@ struct Escrow_test : public beast::unit_test::suite
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(1000));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(1000));
         }
 
         {
@@ -1259,10 +1258,9 @@ struct Escrow_test : public beast::unit_test::suite
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(0));
         }
 
         {
@@ -1270,10 +1268,9 @@ struct Escrow_test : public beast::unit_test::suite
             auto const pf = preflight(env.app(), env.current()->rules(),
                 *jtx.stx, tapNONE, env.journal);
             BEAST_EXPECT(pf.ter == tesSUCCESS);
-            auto const conseq = calculateConsequences(pf);
-            BEAST_EXPECT(conseq.category == TxConsequences::normal);
-            BEAST_EXPECT(conseq.fee == drops(10));
-            BEAST_EXPECT(conseq.potentialSpend == XRP(0));
+            BEAST_EXPECT(! pf.consequences.isBlocker());
+            BEAST_EXPECT(pf.consequences.fee() == drops(10));
+            BEAST_EXPECT(pf.consequences.potentialSpend() == XRP(0));
         }
     }
 

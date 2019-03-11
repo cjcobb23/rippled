@@ -49,12 +49,14 @@ SetRegularKey::calculateBaseFee (
     return Transactor::calculateBaseFee (view, tx);
 }
 
-NotTEC
+std::pair<NotTEC, TxConsequences>
 SetRegularKey::preflight (PreflightContext const& ctx)
 {
+    TxConsequences const conseq {ctx.tx, TxConsequences::blocker};
+
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return ret;
+        return {ret, conseq};
 
     std::uint32_t const uTxFlags = ctx.tx.getFlags ();
 
@@ -63,7 +65,7 @@ SetRegularKey::preflight (PreflightContext const& ctx)
         JLOG(ctx.j.trace()) <<
             "Malformed transaction: Invalid flags set.";
 
-        return temINVALID_FLAG;
+        return {temINVALID_FLAG, conseq};
     }
 
 
@@ -71,10 +73,10 @@ SetRegularKey::preflight (PreflightContext const& ctx)
         && ctx.tx.isFieldPresent(sfRegularKey)
         && (ctx.tx.getAccountID(sfRegularKey) == ctx.tx.getAccountID(sfAccount)))
     {
-        return temBAD_REGKEY;
+        return {temBAD_REGKEY, conseq};
     }
 
-    return preflight2(ctx);
+    return {preflight2 (ctx), conseq};
 }
 
 TER

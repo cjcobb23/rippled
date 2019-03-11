@@ -264,15 +264,12 @@ TxQ::MaybeTx::MaybeTx(
     , feeLevel(feeLevel_)
     , txID(txID_)
     , account(txn_->getAccountID(sfAccount))
+    , lastValid(getLastLedgerSequence(*txn_))
     , sequence(txn_->getSequence())
     , retriesRemaining(retriesAllowed)
     , flags(flags_)
     , pfresult(pfresult_)
 {
-    lastValid = getLastLedgerSequence(*txn);
-
-    if (txn->isFieldPresent(sfAccountTxnID))
-        priorTxID = txn->getFieldH256(sfAccountTxnID);
 }
 
 std::pair<TER, bool>
@@ -644,7 +641,6 @@ TxQ::apply(Application& app, OpenView& view,
     };
 
     boost::optional<MultiTxn> multiTxn;
-    boost::optional<TxConsequences const> consequences;
     boost::optional<FeeMultiSet::iterator> replacedItemDeleteIter;
 
     std::lock_guard lock(mutex_);
@@ -707,36 +703,18 @@ TxQ::apply(Application& app, OpenView& view,
                 */
                 if (std::next(existingIter) != txQAcct.transactions.end())
                 {
-                    // Normally, only the last tx in the queue will have
-                    // !consequences, but an expired transaction can be
-                    // replaced, and that replacement won't have it set,
-                    // and that's ok.
-                    if (!existingIter->second.consequences)
-                        existingIter->second.consequences.emplace(
-                            calculateConsequences(
-                                *existingIter->second.pfresult));
-
-                    if (existingIter->second.consequences->category ==
-                        TxConsequences::normal)
+                    if (pfresult.consequences.isBlocker())
                     {
-                        assert(!consequences);
-                        consequences.emplace(calculateConsequences(
-                            pfresult));
-                        if (consequences->category ==
-                            TxConsequences::blocker)
-                        {
-                            // Can't replace a normal transaction in the
-                            // middle of the queue with a blocker.
-                            JLOG(j_.trace()) <<
-                                "Ignoring blocker transaction " <<
-                                transactionID <<
-                                " in favor of normal queued " <<
-                                existingIter->second.txID;
-                            return {telCAN_NOT_QUEUE_BLOCKS, false };
-                        }
+                        // Can't replace a normal transaction in the
+                        // middle of the queue with a blocker.
+                        JLOG(j_.trace()) <<
+                            "Ignoring blocker transaction " <<
+                            transactionID <<
+                            " in favor of normal queued " <<
+                            existingIter->second.txID;
+                        return {telCAN_NOT_QUEUE_BLOCKS, false };
                     }
                 }
-
 
                 // Remove the queued transaction and continue
                 JLOG(j_.trace()) <<
@@ -839,15 +817,10 @@ TxQ::apply(Application& app, OpenView& view,
                                 txQAcct.transactions.end();
                         continue;
                     }
-                    if (!workingIter->second.consequences)
-                        workingIter->second.consequences.emplace(
-                            calculateConsequences(
-                                *workingIter->second.pfresult));
                     // Don't worry about the blocker status of txs
                     // after the current.
                     if (workingIter->first < tSeq &&
-                        workingIter->second.consequences->category ==
-                            TxConsequences::blocker)
+                        workingIter->second.consequences().isBlocker())
                     {
                         // Drop the current transaction, because it's
                         // blocked by workingIter.
@@ -859,9 +832,9 @@ TxQ::apply(Application& app, OpenView& view,
                         return{ telCAN_NOT_QUEUE_BLOCKED, false };
                     }
                     multiTxn->fee +=
-                        workingIter->second.consequences->fee;
+                        workingIter->second.consequences().fee();
                     multiTxn->potentialSpend +=
-                        workingIter->second.consequences->potentialSpend;
+                        workingIter->second.consequences().potentialSpend();
                 }
                 if (workingSeq < tSeq)
                     // Transactions are missing before `tx`.
@@ -1135,12 +1108,6 @@ TxQ::apply(Application& app, OpenView& view,
 
     auto& candidate = accountIter->second.add(
         { tx, transactionID, feeLevelPaid, flags, pfresult });
-    /* Normally we defer figuring out the consequences until
-        something later requires us to, but if we know the
-        consequences now, save them for later.
-    */
-    if (consequences)
-        candidate.consequences.emplace(*consequences);
     // Then index it into the byFee lookup.
     byFee_.insert(candidate);
     JLOG(j_.debug()) << "Added transaction " << candidate.txID <<
@@ -1413,67 +1380,42 @@ TxQ::getTxRequiredFeeAndSeq(OpenView const& view,
     return {mulDiv(fee, baseFee, baseLevel).second, accountSeq, availableSeq};
 }
 
-auto
+std::vector<TxQ::TxDetails>
 TxQ::getAccountTxs(AccountID const& account, ReadView const& view) const
-    -> std::map<TxSeq, AccountTxDetails const>
 {
+    std::vector<TxDetails> result;
+
     std::lock_guard lock(mutex_);
 
-    auto accountIter = byAccount_.find(account);
+    AccountMap::const_iterator const accountIter {byAccount_.find (account)};
+
     if (accountIter == byAccount_.end() ||
         accountIter->second.transactions.empty())
-        return {};
+            return result;
 
-    std::map<TxSeq, AccountTxDetails const> result;
-
+    result.reserve (accountIter->second.transactions.size());
     for (auto const& tx : accountIter->second.transactions)
     {
-        result.emplace(tx.first, [&]
-        {
-            AccountTxDetails resultTx;
-            resultTx.feeLevel = tx.second.feeLevel;
-            if (tx.second.lastValid)
-                resultTx.lastValid.emplace(*tx.second.lastValid);
-            if (tx.second.consequences)
-                resultTx.consequences.emplace(*tx.second.consequences);
-            return resultTx;
-        }());
+        result.emplace_back (tx.second.getTxDetails());
     }
     return result;
 }
 
-auto
+std::vector<TxQ::TxDetails>
 TxQ::getTxs(ReadView const& view) const
--> std::vector<TxDetails>
 {
+    std::vector<TxDetails> result;
+
     std::lock_guard lock(mutex_);
 
     if (byFee_.empty())
-        return {};
+        return result;
 
-    std::vector<TxDetails> result;
     result.reserve(byFee_.size());
 
     for (auto const& tx : byFee_)
-    {
-        result.emplace_back([&]
-        {
-            TxDetails resultTx;
-            resultTx.feeLevel = tx.feeLevel;
-            if (tx.lastValid)
-                resultTx.lastValid.emplace(*tx.lastValid);
-            if (tx.consequences)
-                resultTx.consequences.emplace(*tx.consequences);
-            resultTx.account = tx.account;
-            resultTx.txn = tx.txn;
-            resultTx.retriesRemaining = tx.retriesRemaining;
-            BOOST_ASSERT(tx.pfresult);
-            resultTx.preflightResult = tx.pfresult->ter;
-            if (tx.lastResult)
-                resultTx.lastResult.emplace(*tx.lastResult);
-            return resultTx;
-        }());
-    }
+        result.emplace_back(tx.getTxDetails());
+
     return result;
 }
 
