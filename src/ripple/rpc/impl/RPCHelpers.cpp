@@ -793,8 +793,8 @@ chooseLedgerEntryType(Json::Value const& params)
     std::pair<RPC::Status, LedgerEntryType> result{ RPC::Status::OK, ltINVALID };
     if (params.isMember(jss::type))
     {
-        static
-            std::array<std::pair<char const *, LedgerEntryType>, 13> const types
+        static constexpr
+            std::array<std::pair<char const *, LedgerEntryType>, 13> types
         { {
             { jss::account,         ltACCOUNT_ROOT },
             { jss::amendments,      ltAMENDMENTS },

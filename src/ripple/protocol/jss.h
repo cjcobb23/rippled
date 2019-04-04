@@ -514,6 +514,7 @@ JSS ( taker_pays_funded );          // out: NetworkOPs
 JSS ( threshold );                  // in: Blacklist
 JSS ( ticket );                     // in: AccountObjects
 JSS ( ticket_count );               // out: AccountInfo
+JSS ( ticket_seq );                 // in: LedgerEntry
 JSS ( time );
 JSS ( timeouts );                   // out: InboundLedger
 JSS ( traffic );                    // out: Overlay
