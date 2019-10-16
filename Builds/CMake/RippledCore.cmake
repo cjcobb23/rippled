@@ -134,6 +134,7 @@ target_include_directories (xrpl_core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ripple>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/grpc>
     # this one is for beast/legacy files:
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/beast/extras>
     $<INSTALL_INTERFACE:include>)
@@ -338,6 +339,39 @@ install (
     src/beast/extras/beast/unit_test/detail/const_container.hpp
   DESTINATION include/beast/unit_test/detail)
 
+###
+
+set(_PROTOBUF_LIBPROTOBUF libprotobuf)
+set(_PROTOBUF_PROTOC $<TARGET_FILE:protoc>)
+set(_GRPC_GRPCPP_UNSECURE grpc++_unsecure)
+set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:grpc_cpp_plugin>)
+
+# Proto file
+get_filename_component(hw_proto "helloworld.proto" ABSOLUTE)
+get_filename_component(hw_proto_path "${hw_proto}" PATH)
+
+# Generated sources
+set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.cc")
+set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.h")
+set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.cc")
+set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.h")
+
+
+
+add_custom_command(
+    OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
+    COMMAND ${_PROTOBUF_PROTOC}
+    ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+        -I "${hw_proto_path}"
+        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+        "${hw_proto}"
+    DEPENDS "${hw_proto}")
+
+message(STATUS, "proto is ${hw_proto}")
+
+message(STATUS, "proto file is ${hw_proto_srcs}")
+
 #[===================================================================[
    rippled executable
 #]===================================================================]
@@ -350,6 +384,8 @@ install (
 add_executable (rippled src/ripple/app/main/Application.h)
 if (unity)
   target_sources (rippled PRIVATE
+    ${hw_proto_srcs}
+    ${hw_grpc_srcs}
     #[===============================[
        unity, main sources
     #]===============================]
@@ -406,6 +442,8 @@ if (unity)
     src/test/unity/csf_unity.cpp)
 else ()
   target_sources (rippled PRIVATE
+    ${hw_proto_srcs}
+    ${hw_grpc_srcs}
     #[===============================[
        nounity, main sources:
          subdir: app
@@ -1006,7 +1044,9 @@ target_link_libraries (rippled
   Ripple::boost
   Ripple::opts
   Ripple::libs
-  Ripple::xrpl_core)
+  Ripple::xrpl_core
+  ${_GRPC_GRPCPP_UNSECURE}
+  ${_PROTOBUF_LIBPROTOBUF})
 exclude_if_included (rippled)
 # define a macro for tests that might need to
 # be exluded or run differently in CI environment

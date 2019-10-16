@@ -54,7 +54,9 @@ include(deps/Rocksdb)
 include(deps/Nudb)
 include(deps/Protobuf)
 
-###
+add_subdirectory(/home/cj/Code/rippled/grpc EXCLUDE_FROM_ALL)
+message(STATUS "Using gRPC via add_subdirectory.")
+
 
 include(RippledCore)
 include(RippledInstall)
@@ -62,3 +64,19 @@ include(RippledCov)
 include(RippledMultiConfig)
 include(RippledDocs)
 include(RippledValidatorKeys)
+
+
+# Include generated *.pb.h files
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+# Targets greeter_[async_](client|server)
+#foreach(_target
+#          greeter_client greeter_server
+#            greeter_async_client greeter_async_server)
+#          add_executable(${_target} "${_target}.cc"
+#                  ${hw_proto_srcs}
+#                      ${hw_grpc_srcs})
+#                    target_link_libraries(${_target}
+#                            ${_GRPC_GRPCPP_UNSECURE}
+#                                ${_PROTOBUF_LIBPROTOBUF})
+#                        endforeach()
