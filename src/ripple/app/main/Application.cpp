@@ -63,6 +63,7 @@
 #include <ripple/resource/Fees.h>
 #include <ripple/beast/asio/io_latency_probe.h>
 #include <ripple/beast/core/LexicalCast.h>
+#include <ripple/app/main/gRPCServer.h>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/system/error_code.hpp>
 #include <condition_variable>
@@ -387,6 +388,8 @@ public:
 
     io_latency_sampler m_io_latency_sampler;
 
+    std::unique_ptr<GRPCServer> grpcServer_;
+
     //--------------------------------------------------------------------------
 
     static
@@ -541,6 +544,8 @@ public:
 
         , m_io_latency_sampler (m_collectorManager->collector()->make_event ("ios_latency"),
             logs_->journal("Application"), std::chrono::milliseconds (100), get_io_service())
+
+        , grpcServer_(std::make_unique<GRPCServer>(*m_jobQueue))
     {
         if (shardStore_)
         {
@@ -1322,6 +1327,7 @@ bool ApplicationImp::setup()
     logs_->silent (config_->silent());
 
     m_jobQueue->setThreadCount (config_->WORKERS, config_->standalone());
+    grpcServer_->run();
 
     if (!config_->standalone())
         timeKeeper_->run(config_->SNTP_SERVERS);
