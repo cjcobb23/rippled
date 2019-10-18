@@ -59,8 +59,8 @@ class GRPCServerImpl final {
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
     // with the gRPC runtime.
-    CallData(Greeter::AsyncService* service, ServerCompletionQueue* cq, ripple::JobQueue& jq)
-        : service_(service), cq_(cq), responder_(&ctx_),status_(CREATE), jobQueue_(jq) {
+    CallData(Greeter::AsyncService* service, ServerCompletionQueue* cq, ripple::JobQueue& jq, int num)
+        : service_(service), cq_(cq), responder_(&ctx_),status_(CREATE), jobQueue_(jq), num_(num) {
       // Invoke the serving logic right away.
       Proceed();
     }
@@ -88,15 +88,17 @@ class GRPCServerImpl final {
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
           std::cout << "making new call data" << std::endl;
-        new CallData(service_, cq_, jobQueue_);
+        new CallData(service_, cq_, jobQueue_, num_+1);
         std::cout << "made new call data" << std::endl;
 
 
         jobQueue_.postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
-
-                // The actual processing.
-                std::string prefix("Helloooooooo from job queue");
+                //if(this->num_ == 1)
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+                // The actual processingfrom job queu
+                std::string prefix("Helloooooooo from job queue. num = ");
+                prefix += std::to_string(num_);
                 this->reply_.set_message(prefix + request_.name());
                 std::cout << "made reply" << std::endl;
 
@@ -150,13 +152,14 @@ class GRPCServerImpl final {
     CallStatus status_;  // The current serving state.
 
     ripple::JobQueue& jobQueue_;
+    int num_ = 0;
   };
 
   // This can be run in multiple threads if needed.
   void HandleRpcs() {
     std::cout << "entered handle rpcs" << std::endl;
     // Spawn a new CallData instance to serve new clients.
-    new CallData(&service_, cq_.get(), jobQueue_);
+    new CallData(&service_, cq_.get(), jobQueue_, 1);
 
     std::cout << "created call data" << std::endl;
     void* tag;  // uniquely identifies a request.
