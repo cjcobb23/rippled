@@ -25,6 +25,8 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/Status.h>
 
+#include "xrp_ledger.pb.h"
+
 namespace ripple {
 namespace RPC {
 
@@ -34,6 +36,9 @@ struct Context;
 Status doCommand (RPC::Context&, Json::Value&);
 
 Role roleRequired (std::string const& method );
+
+io::xpring::AccountInfo doAccountInfoGRPC(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+
 
 } // RPC
 } // ripple
