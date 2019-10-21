@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package io.xpring;
+
+// Available currencies.
+// Next field: 1
+enum Currency {
+    CURRENCY_INVALID = 0;
+    CURRENCY_USD = 1;
+}

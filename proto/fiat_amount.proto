@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package io.xpring;
+
+import "currency.proto";
+
+// A representation of an amount of currency in fiat.
+// Next field: 4
+message FiatAmount {
+    // The currency used to value the amount.
+    Currency currency = 1;
+
+    // The value of the amount.
+    string value = 2;
+
+    // Unique account address of the entity issuing the currency.
+    string issuer = 3;
+}

@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package io.xpring;
+
+// A request for the current transaction fee on the ledger.
+// Next field: 1
+message GetFeeRequest {
+}

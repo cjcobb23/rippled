@@ -135,6 +135,7 @@ target_include_directories (xrpl_core
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ripple>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/grpc>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/proto>
     # this one is for beast/legacy files:
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/beast/extras>
     $<INSTALL_INTERFACE:include>)
@@ -346,27 +347,49 @@ set(_PROTOBUF_PROTOC $<TARGET_FILE:protoc>)
 set(_GRPC_GRPCPP_UNSECURE grpc++_unsecure)
 set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:grpc_cpp_plugin>)
 
-# Proto file
-get_filename_component(hw_proto "helloworld.proto" ABSOLUTE)
-get_filename_component(hw_proto_path "${hw_proto}" PATH)
 
-# Generated sources
-set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.cc")
-set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.h")
-set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.cc")
-set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.h")
+file(GLOB PROTOBUF_DEFINITION_FILES "proto/*.proto")
+
+foreach(file ${PROTOBUF_DEFINITION_FILES})
+    message(STATUS, "file is ${file}")
+    string(REGEX MATCH \/.*\/ prefix ${file})
+    message(STATUS, "prefix is ${prefix}")
+    string(LENGTH ${prefix} prefix_length)
+    message(STATUS, "length is ${prefix_length}")
+    string(SUBSTRING ${file} ${prefix_length} -1 proto_file)
+    message(STATUS, "proto_file is ${proto_file}")
+    string(REGEX MATCH ^[^.]* proto_prefix ${proto_file})
+    message(STATUS, "proto_prefix is ${proto_prefix}")
+    # Proto file
+    get_filename_component(hw_proto "proto/${proto_file}" ABSOLUTE)
+    get_filename_component(hw_proto_path "${hw_proto}" PATH)
+    message(STATUS, "hw_proto is ${hw_proto}")
+    message(STATUS, "hw_proto_path is ${hw_proto_path}")
+
+    # Generated sources
+    set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.pb.cc")
+    set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.pb.h")
+    set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.grpc.pb.cc")
+    set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.grpc.pb.h")
+    add_custom_command(
+        OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
+        COMMAND ${_PROTOBUF_PROTOC}
+        ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+            --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+            -I "${hw_proto_path}"
+            --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+            "${hw_proto}"
+        DEPENDS "${hw_proto}")
+
+    list(APPEND PROTOBUF_SRCS "${proto_prefix}.pb.cc")
+    list(APPEND PROTOBUF_SRCS "${proto_prefix}.grpc.pb.cc")
+endforeach()
+
+foreach(file ${PROTOBUF_SRCS})
+    message(STATUS, "protobuf src is ${file}")
+endforeach()
 
 
-
-add_custom_command(
-    OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
-    COMMAND ${_PROTOBUF_PROTOC}
-    ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
-        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
-        -I "${hw_proto_path}"
-        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
-        "${hw_proto}"
-    DEPENDS "${hw_proto}")
 
 message(STATUS, "proto is ${hw_proto}")
 
@@ -384,8 +407,7 @@ message(STATUS, "proto file is ${hw_proto_srcs}")
 add_executable (rippled src/ripple/app/main/Application.h)
 if (unity)
   target_sources (rippled PRIVATE
-    ${hw_proto_srcs}
-    ${hw_grpc_srcs}
+    ${PROTOBUF_SRCS}
     #[===============================[
        unity, main sources
     #]===============================]
@@ -442,8 +464,7 @@ if (unity)
     src/test/unity/csf_unity.cpp)
 else ()
   target_sources (rippled PRIVATE
-    ${hw_proto_srcs}
-    ${hw_grpc_srcs}
+    ${PROTOBUF_SRCS}
     #[===============================[
        nounity, main sources:
          subdir: app
