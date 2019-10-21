@@ -60,6 +60,21 @@ struct Context
     Headers headers {};
 };
 
+template <class T>
+struct ContextGeneric
+{
+    beast::Journal j;
+    T params;
+    Application& app;
+    Resource::Charge& loadType;
+    NetworkOPs& netOps;
+    LedgerMaster& ledgerMaster;
+    Resource::Consumer& consumer;
+    Role role;
+    std::shared_ptr<JobQueue::Coro> coro;
+    InfoSub::pointer infoSub;
+};
+
 } // RPC
 } // ripple
 

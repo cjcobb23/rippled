@@ -29,6 +29,12 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
 
+#include "xrp_ledger.pb.h"
+
+using io::xpring::GetAccountInfoRequest;
+using io::xpring::AccountInfo;
+using io::xpring::XRPAmount;
+
 namespace ripple {
 
 // {
@@ -178,6 +184,49 @@ Json::Value doAccountInfo (RPC::Context& context)
     {
         result[jss::account] = context.app.accountIDCache().toBase58 (accountID);
         RPC::inject_error (rpcACT_NOT_FOUND, result);
+    }
+
+    return result;
+}
+
+
+io::xpring::AccountInfo RPC::doAccountInfoGRPC(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+{
+    io::xpring::AccountInfo result;
+    io::xpring::GetAccountInfoRequest& params = context.params;
+
+    std::string strIdent = params.address();
+
+    std::shared_ptr<ReadView const> ledger = context.ledgerMaster.getCurrentLedger();
+
+    if (!ledger)
+        return result;
+
+    AccountID accountID;
+
+    // Get info on account.
+
+    auto jvAccepted = RPC::accountFromString (accountID, strIdent, false);
+
+    if (jvAccepted)
+        return result;
+
+    auto const sleAccepted = ledger->read(keylet::account(accountID));
+    if(sleAccepted)
+    {
+        STAmount bal = sleAccepted->getFieldAmount(sfBalance);
+        std::uint32_t seq = sleAccepted->getFieldU32(sfSequence);
+        
+        std::uint32_t ownerCount = sleAccepted->getFieldU32(sfOwnerCount);
+        uint256 prevTxnId = sleAccepted->getFieldH256(sfPreviousTxnID);
+        std::uint32_t prevLedgerVersion
+            = sleAccepted->getFieldU32(sfPreviousTxnLgrSeq);
+        io::xpring::XRPAmount* balance = result.mutable_balance();
+        balance->set_drops(bal.getText());
+        result.set_previous_affecting_transaction_id(to_string(prevTxnId));
+        result.set_previous_affecting_transaction_ledger_version(prevLedgerVersion);
+        result.set_owner_count(ownerCount);
+        result.set_sequence(seq);
     }
 
     return result;

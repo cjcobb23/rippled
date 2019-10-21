@@ -548,7 +548,7 @@ public:
         , m_io_latency_sampler (m_collectorManager->collector()->make_event ("ios_latency"),
             logs_->journal("Application"), std::chrono::milliseconds (100), get_io_service())
 
-        , grpcServer_(std::make_unique<GRPCServer>(*m_jobQueue))
+        , grpcServer_(std::make_unique<GRPCServer>(*this))
     {
         if (shardStore_)
         {

@@ -7,6 +7,12 @@
 #include "xrp_ledger.grpc.pb.h"
 
 #include <ripple/core/JobQueue.h>
+#include <ripple/resource/Charge.h>
+#include <ripple/rpc/Role.h>
+#include <ripple/rpc/Context.h>
+#include <ripple/net/InfoSub.h>
+
+#include <ripple/rpc/RPCHandler.h>
 
 
 using grpc::Server;
@@ -30,7 +36,7 @@ class GRPCServerImpl final {
     cq_->Shutdown();
   }
 
-  GRPCServerImpl(ripple::JobQueue& jq) : jobQueue_(jq) {}
+  GRPCServerImpl(ripple::Application& app) : app_(app) {}
 
   // There is no shutdown handling in this code.
   void Run() {
@@ -60,8 +66,8 @@ class GRPCServerImpl final {
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
     // with the gRPC runtime.
-    CallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::JobQueue& jq, int num)
-        : service_(service), cq_(cq), responder_(&ctx_),status_(CREATE), jobQueue_(jq), num_(num) {
+    CallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app, int num)
+        : service_(service), cq_(cq), responder_(&ctx_),status_(CREATE), app_(app), num_(num) {
       // Invoke the serving logic right away.
       Proceed();
     }
@@ -89,12 +95,44 @@ class GRPCServerImpl final {
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
           std::cout << "making new call data" << std::endl;
-        new CallData(service_, cq_, jobQueue_, num_+1);
+        new CallData(service_, cq_, app_, num_+1);
         std::cout << "made new call data" << std::endl;
 
 
-        jobQueue_.postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
+        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
+
+
+                ripple::Resource::Charge loadType =
+                    ripple::Resource::feeReferenceRPC;
+                auto role = ripple::Role::USER;
+                std::string peer = ctx_.peer();
+                std::cout << "peer is " << peer << std::endl;
+
+                std::size_t first = peer.find_first_of(":");
+                std::size_t last = peer.find_last_of(":");
+
+                if(first != last)
+                {
+                    peer = peer.substr(first+1);
+                }
+
+                std::cout << "peer now is " << peer << std::endl;
+                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
+                if(endpoint)
+                    std::cout << "endpoint good" << std::endl;
+                else
+                    std::cout << "endpoint bad" << std::endl;
+
+
+                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                ripple::RPC::ContextGeneric<GetAccountInfoRequest> context {app_.journal("Server"),
+                request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                usage, role, coro, ripple::InfoSub::pointer()};
+
+
+
+
                 //if(this->num_ == 1)
                 //    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
                 // The actual processingfrom job queu
@@ -103,9 +141,13 @@ class GRPCServerImpl final {
                 //this->reply_.set_message(prefix + request_.name());
                 std::cout << "made reply" << std::endl;
 
-                XRPAmount* bal = new XRPAmount();
-                bal->set_drops("1");
-                this->reply_.set_allocated_balance(bal);
+//                XRPAmount* bal = new XRPAmount();
+//                bal->set_drops("1");
+//                this->reply_.set_allocated_balance(bal);
+//                this->reply_.set_previous_affecting_transaction_id(peer);
+//
+
+                this->reply_ = ripple::RPC::doAccountInfoGRPC(context);
                 // And we are done! Let the gRPC runtime know we've finished, using the
                 // memory address of this instance as the uniquely identifying tag for
                 // the event.
@@ -155,7 +197,7 @@ class GRPCServerImpl final {
     enum CallStatus { CREATE, PROCESS, FINISH };
     CallStatus status_;  // The current serving state.
 
-    ripple::JobQueue& jobQueue_;
+    ripple::Application& app_;
     int num_ = 0;
   };
 
@@ -163,7 +205,7 @@ class GRPCServerImpl final {
   void HandleRpcs() {
     std::cout << "entered handle rpcs" << std::endl;
     // Spawn a new CallData instance to serve new clients.
-    new CallData(&service_, cq_.get(), jobQueue_, 1);
+    new CallData(&service_, cq_.get(), app_, 1);
 
     std::cout << "created call data" << std::endl;
     void* tag;  // uniquely identifies a request.
@@ -185,13 +227,17 @@ class GRPCServerImpl final {
   std::unique_ptr<ServerCompletionQueue> cq_;
   XRPLedgerAPI::AsyncService service_;
   std::unique_ptr<Server> server_;
-  ripple::JobQueue& jobQueue_;
+//  ripple::JobQueue& jobQueue_;
+  ripple::Application& app_;
+//
+//  beast::Journal j_;
+//  NetworkOps& netops_;
 };
 
 class GRPCServer
 {
     public:
-    GRPCServer(ripple::JobQueue& jq) : impl_(jq) {};
+    GRPCServer(ripple::Application& app) : impl_(app) {};
 
     void run()
     {
