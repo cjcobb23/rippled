@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package io.xpring;
+
+// A request to get info about an account.
+// Next field: 2
+message GetAccountInfoRequest {
+  // The address to get info about.
+  string address = 1;
+}

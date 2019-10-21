@@ -4,7 +4,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "helloworld.grpc.pb.h"
+#include "xrp_ledger.grpc.pb.h"
 
 #include <ripple/core/JobQueue.h>
 
@@ -15,9 +15,10 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
-using helloworld::HelloRequest;
-using helloworld::HelloReply;
-using helloworld::Greeter;
+using io::xpring::GetAccountInfoRequest;
+using io::xpring::AccountInfo;
+using io::xpring::XRPLedgerAPI;
+using io::xpring::XRPAmount;
 
 
 
@@ -59,7 +60,7 @@ class GRPCServerImpl final {
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
     // with the gRPC runtime.
-    CallData(Greeter::AsyncService* service, ServerCompletionQueue* cq, ripple::JobQueue& jq, int num)
+    CallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::JobQueue& jq, int num)
         : service_(service), cq_(cq), responder_(&ctx_),status_(CREATE), jobQueue_(jq), num_(num) {
       // Invoke the serving logic right away.
       Proceed();
@@ -72,12 +73,12 @@ class GRPCServerImpl final {
         status_ = PROCESS;
 
         // As part of the initial CREATE state, we *request* that the system
-        // start processing SayHello requests. In this request, "this" acts are
+        // start processing GetAccountInfo requests. In this request, "this" acts are
         // the tag uniquely identifying the request (so that different CallData
         // instances can serve different requests concurrently), in this case
         // the memory address of this CallData instance.
         std::cout << "requesting" << std::endl;
-        service_->RequestSayHello(&ctx_, &request_, &responder_, cq_, cq_,
+        service_->RequestGetAccountInfo(&ctx_, &request_, &responder_, cq_, cq_,
                                   this);
         //service_->RequestSayGoodbye(&ctx_,&request_, &responder2_, cq_, cq_, this);
         std::cout << "requested" << std::endl;
@@ -99,9 +100,12 @@ class GRPCServerImpl final {
                 // The actual processingfrom job queu
                 std::string prefix("Helloooooooo from job queue. num = ");
                 prefix += std::to_string(num_);
-                this->reply_.set_message(prefix + request_.name());
+                //this->reply_.set_message(prefix + request_.name());
                 std::cout << "made reply" << std::endl;
 
+                XRPAmount* bal = new XRPAmount();
+                bal->set_drops("1");
+                this->reply_.set_allocated_balance(bal);
                 // And we are done! Let the gRPC runtime know we've finished, using the
                 // memory address of this instance as the uniquely identifying tag for
                 // the event.
@@ -128,7 +132,7 @@ class GRPCServerImpl final {
    private:
     // The means of communication with the gRPC runtime for an asynchronous
     // server.
-    Greeter::AsyncService* service_;
+    XRPLedgerAPI::AsyncService* service_;
     // The producer-consumer queue where for asynchronous server notifications.
     ServerCompletionQueue* cq_;
     // Context for the rpc, allowing to tweak aspects of it such as the use
@@ -137,12 +141,12 @@ class GRPCServerImpl final {
     ServerContext ctx_;
 
     // What we get from the client.
-    HelloRequest request_;
+    GetAccountInfoRequest request_;
     // What we send back to the client.
-    HelloReply reply_;
+    AccountInfo reply_;
 
     // The means to get back to the client.
-    ServerAsyncResponseWriter<HelloReply> responder_;
+    ServerAsyncResponseWriter<AccountInfo> responder_;
 
 
 
@@ -179,7 +183,7 @@ class GRPCServerImpl final {
   }
 
   std::unique_ptr<ServerCompletionQueue> cq_;
-  Greeter::AsyncService service_;
+  XRPLedgerAPI::AsyncService service_;
   std::unique_ptr<Server> server_;
   ripple::JobQueue& jobQueue_;
 };
