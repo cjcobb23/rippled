@@ -24,6 +24,13 @@
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/Feature.h>
 
+
+#include <ripple/basics/mulDiv.h>
+
+#include <ripple/rpc/GRPCHandlers.h>
+
+#include <ripple/app/misc/TxQ.h>
+
 namespace ripple
 {
     Json::Value doFee(RPC::Context& context)
@@ -34,5 +41,35 @@ namespace ripple
         assert(false);
         RPC::inject_error(rpcINTERNAL, context.params);
         return context.params;
+    }
+
+    io::xpring::Fee doFee(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
+    {
+        io::xpring::Fee reply;
+        Application& app = context.app;
+
+        auto const view = app.openLedger().current();
+        if(!view)
+        {
+            BOOST_ASSERT(false);
+            reply.mutable_amount()->set_drops("-1");
+            return reply;
+        }
+
+
+        auto const metrics = app.getTxQ().getMetrics(*view);
+
+        auto const baseFee = view->fees().base;
+
+        auto escalatedFee = mulDiv(
+                metrics.openLedgerFeeLevel, baseFee,
+                metrics.referenceFeeLevel).second;
+        if (mulDiv(escalatedFee, metrics.referenceFeeLevel,
+                    baseFee).second < metrics.openLedgerFeeLevel)
+            ++escalatedFee;
+
+        reply.mutable_amount()->set_drops(to_string(escalatedFee));
+        return reply;
+
     }
 } // ripple

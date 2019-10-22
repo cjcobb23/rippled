@@ -17,27 +17,22 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_RPC_RPCHANDLER_H_INCLUDED
-#define RIPPLE_RPC_RPCHANDLER_H_INCLUDED
 
-#include <ripple/core/Config.h>
-#include <ripple/net/InfoSub.h>
+#include "xrp_ledger.pb.h"
 #include <ripple/rpc/Context.h>
-#include <ripple/rpc/Status.h>
 
+#ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
+#define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 
 namespace ripple {
-namespace RPC {
 
 struct Context;
 
-/** Execute an RPC command and store the results in a Json::Value. */
-Status doCommand (RPC::Context&, Json::Value&);
+io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
 
-Role roleRequired (std::string const& method );
+io::xpring::Fee doFee(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
 
-
-} // RPC
 } // ripple
+
 
 #endif
