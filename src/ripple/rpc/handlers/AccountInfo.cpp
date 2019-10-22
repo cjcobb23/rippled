@@ -29,11 +29,8 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
 
-#include "xrp_ledger.pb.h"
+#include <ripple/rpc/GRPCHandlers.h>
 
-using io::xpring::GetAccountInfoRequest;
-using io::xpring::AccountInfo;
-using io::xpring::XRPAmount;
 
 namespace ripple {
 
@@ -189,8 +186,7 @@ Json::Value doAccountInfo (RPC::Context& context)
     return result;
 }
 
-
-io::xpring::AccountInfo RPC::doAccountInfoGRPC(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
 {
     io::xpring::AccountInfo result;
     io::xpring::GetAccountInfoRequest& params = context.params;
