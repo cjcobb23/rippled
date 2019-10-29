@@ -21,6 +21,7 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
+using grpc::StatusCode;
 using io::xpring::GetAccountInfoRequest;
 using io::xpring::AccountInfo;
 using io::xpring::XRPLedgerAPI;
@@ -173,8 +174,8 @@ class GRPCServerImpl final {
                 auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
                 if(usage.disconnect())
                 {
-
-                    //TODO return some error code
+                    Status status{StatusCode::RESOURCE_EXHAUSTED, "usage balance exceeds threshhold"};
+                    this->responder_.FinishWithError(status, this);
                     //TODO also return warning?
                 }
                 else
@@ -187,13 +188,13 @@ class GRPCServerImpl final {
                         request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
-                    this->reply_ = ripple::doAccountInfo(context);
+                    std::pair<AccountInfo,Status> result = ripple::doAccountInfo(context);
+
                     // And we are done! Let the gRPC runtime know we've finished, using the
                     // memory address of this instance as the uniquely identifying tag for
                     // the event.
+                    this->responder_.Finish(result.first, result.second, this);
                 }
-                this->status_ = FINISH;
-                this->responder_.Finish(this->reply_, Status::OK, this);
                 });
 
     } 
@@ -282,6 +283,8 @@ class GRPCServerImpl final {
                 {
                     //TODO return some error code
                     //TODO also return warning?
+                    Status status{StatusCode::RESOURCE_EXHAUSTED, "usage balance exceeds threshhold"};
+                    this->responder_.Finish(this->reply_,status, this);
                 }
                 else
                 {
@@ -296,7 +299,6 @@ class GRPCServerImpl final {
                 // And we are done! Let the gRPC runtime know we've finished, using the
                 // memory address of this instance as the uniquely identifying tag for
                 // the event.
-                this->status_ = FINISH;
                 this->responder_.Finish(this->reply_, Status::OK, this);
                 });
 
