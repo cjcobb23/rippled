@@ -31,6 +31,8 @@
 
 #include <ripple/rpc/GRPCHandlers.h>
 
+#include <grpc/status.h>
+
 
 namespace ripple {
 
@@ -186,9 +188,10 @@ Json::Value doAccountInfo (RPC::Context& context)
     return result;
 }
 
-io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
 {
     io::xpring::AccountInfo result;
+    grpc::Status status = grpc::Status::OK;
     io::xpring::GetAccountInfoRequest& params = context.params;
 
     std::string strIdent = params.address();
@@ -196,16 +199,29 @@ io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccount
     std::shared_ptr<ReadView const> ledger = context.ledgerMaster.getCurrentLedger();
 
     if (!ledger)
-        return result;
-
+    {
+        grpc::Status error_status{grpc::StatusCode::NOT_FOUND,"current ledger not found"};
+        return {result,error_status};
+        }
     AccountID accountID;
 
     // Get info on account.
 
-    auto jvAccepted = RPC::accountFromString (accountID, strIdent, false);
+ //   boost::optional<AccountID> accountIdOpt = RPC::accountFromStringStrict(strIdent); 
+ //   if (!accountIdOpt)
+ //   {
+ //       grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
+ //       return {result, error_status};
+ //   }
+ //   accountID = *accountIdOpt;
 
-    if (jvAccepted)
-        return result;
+    error_code_i code = RPC::accountFromStringWithCode(accountID, strIdent, false);
+
+    if(code != rpcSUCCESS)
+    {
+         grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
+        return {result, error_status};   
+    }
 
     auto const sleAccepted = ledger->read(keylet::account(accountID));
     if(sleAccepted)
@@ -224,8 +240,13 @@ io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccount
         result.set_owner_count(ownerCount);
         result.set_sequence(seq);
     }
+    else
+    {
+        grpc::Status error_status{grpc::StatusCode::NOT_FOUND, "account not found"};
+        return {result, error_status};
+    }
 
-    return result;
+    return {result, status};
 }
 
 } // ripple

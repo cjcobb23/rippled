@@ -52,6 +52,16 @@ Json::Value
 accountFromString (AccountID& result, std::string const& strIdent,
     bool bStrict = false);
 
+/** Decode account ID from string
+    @param[out] result account ID decoded from string
+    @param strIdent public key, account ID, or regular seed.
+    @param bStrict Only allow account id or public key.
+    @return code representing error, or rpcSUCCES on success
+*/
+error_code_i
+accountFromStringWithCode (AccountID& result, std::string const& strIdent,
+    bool bStrict = false);
+
 /** Gathers all objects for an account in a ledger.
     @param ledger Ledger to search account objects.
     @param account AccountID to find objects for.

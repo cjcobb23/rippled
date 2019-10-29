@@ -49,20 +49,20 @@ accountFromStringStrict(std::string const& account)
     return result;
 }
 
-Json::Value
-accountFromString(
+error_code_i
+accountFromStringWithCode(
     AccountID& result, std::string const& strIdent, bool bStrict)
 {
     if (auto accountID = accountFromStringStrict (strIdent))
     {
         result = *accountID;
-        return Json::objectValue;
+        return rpcSUCCESS;
     }
 
     if (bStrict)
     {
         auto id = deprecatedParseBitcoinAccountID (strIdent);
-        return rpcError (id ? rpcACT_BITCOIN : rpcACT_MALFORMED);
+        return id ? rpcACT_BITCOIN : rpcACT_MALFORMED;
     }
 
     // We allow the use of the seeds which is poor practice
@@ -70,14 +70,26 @@ accountFromString(
     auto const seed = parseGenericSeed (strIdent);
 
     if (!seed)
-        return rpcError (rpcBAD_SEED);
+        return rpcBAD_SEED;
 
     auto const keypair = generateKeyPair (
         KeyType::secp256k1,
         *seed);
 
     result = calcAccountID (keypair.first);
-    return Json::objectValue;
+    return rpcSUCCESS;
+}
+
+Json::Value
+accountFromString(
+    AccountID& result, std::string const& strIdent, bool bStrict)
+{
+
+    error_code_i code = accountFromStringWithCode(result, strIdent, bStrict);
+    if(code != rpcSUCCESS)
+        return rpcError(code);
+    else
+        return Json::objectValue;
 }
 
 bool

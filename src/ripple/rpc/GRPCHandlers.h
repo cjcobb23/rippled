@@ -21,6 +21,8 @@
 #include "xrp_ledger.pb.h"
 #include <ripple/rpc/Context.h>
 
+#include <grpcpp/grpcpp.h>
+
 #ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 #define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 
@@ -28,7 +30,7 @@ namespace ripple {
 
 struct Context;
 
-io::xpring::AccountInfo doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
 
 io::xpring::Fee doFee(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
 
