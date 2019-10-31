@@ -30,6 +30,17 @@ using io::xpring::GetFeeRequest;
 using io::xpring::Fee;
 
 
+template <class T>
+T* createCallDataAndListen(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
+{
+    T* ptr = new T(service, cq, app);
+    ptr->makeListener();
+    std::cout << "made listener" << std::endl;
+    return ptr;
+}
+
+
+
 
 class GRPCServerImpl final {
  public:
@@ -63,37 +74,50 @@ class GRPCServerImpl final {
   }
 
  private:
+
+  class Processor
+  {
+      public:
+      virtual void Proceed() = 0;
+      virtual ~Processor() {}
+  };
+
   // Class encompasing the state and logic needed to serve a request.
-  class CallData
+  template <class D>
+  class CallData : Processor
   {
   public:
       
     CallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-        : service_(service), cq_(cq), status_(CREATE), app_(app)
+        : service_(service), cq_(cq), status_(LISTEN), app_(app)
     {
     }
 
     virtual ~CallData() {}
 
-    void Proceed() {
-      if (status_ == CREATE) {
-          std::cout << "Proceed::Create - " << this << std::endl;
-        // Make this instance progress to the PROCESS state.
-        status_ = PROCESS;
-        doCreate();
-      } else if (status_ == PROCESS) {
-        status_ = FINISH;
-        doProcess();
+    void Proceed() override
+    {
+      if (status_ == LISTEN) {
+          std::cout << "processing" << std::endl;
+          status_ = PROCESS;
+          createCallDataAndListen<D>(service_,cq_,app_);
+          process();
       } else {
-
-          GPR_ASSERT(status_ == FINISH);
-          doFinish();
+          std::cout << "finishing" << std::endl;
+          GPR_ASSERT(status_ == PROCESS);
+          status_ = FINISH;
+          finish();
+          delete this;
       }
     }
 
-    virtual void doCreate() = 0;
-    virtual void doProcess() = 0;
-    virtual void doFinish() = 0;
+    virtual void makeListener() = 0;
+    virtual void process() = 0;
+    virtual void finish() {}
+
+    friend class Builder;
+
+
 
   protected:
     // The means of communication with the gRPC runtime for an asynchronous
@@ -107,14 +131,17 @@ class GRPCServerImpl final {
     ServerContext ctx_;
 
     // Let's implement a tiny state machine with the following states.
-    enum CallStatus { CREATE, PROCESS, FINISH };
+    enum CallStatus { LISTEN, PROCESS, FINISH };
     CallStatus status_;  // The current serving state.
 
     ripple::Application& app_;
   }; //CallData
+
+
+
   
 
-  class AccountInfoCallData : public CallData {
+  class AccountInfoCallData : public CallData<AccountInfoCallData> {
    public:
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
@@ -122,14 +149,13 @@ class GRPCServerImpl final {
     AccountInfoCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
         : CallData(service,cq,app), responder_(&ctx_)
     {
-        Proceed();
     }
 
 
 
-    void doCreate() override 
+    void makeListener() override 
     {
-        // As part of the initial CREATE state, we *request* that the system
+        // As part of the initial LISTEN state, we *request* that the system
         // start processing GetAccountInfo requests. In this request, "this" acts are
         // the tag uniquely identifying the request (so that different CallData
         // instances can serve different requests concurrently), in this case
@@ -138,13 +164,12 @@ class GRPCServerImpl final {
                                   this);
     } 
 
-    void doProcess() override
+    void process() override
     {
 
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
-        new AccountInfoCallData(service_, cq_, app_);
         app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
 
@@ -199,14 +224,6 @@ class GRPCServerImpl final {
 
     } 
 
-    void doFinish() override
-    {
-        GPR_ASSERT(status_ == FINISH);
-        // Once in the FINISH state, deallocate ourselves (CallData).
-        delete this;
-    }
-
-
    private:
 
     // What we get from the client.
@@ -218,7 +235,7 @@ class GRPCServerImpl final {
     ServerAsyncResponseWriter<AccountInfo> responder_;
   }; //AccountInfoCallData
 
-  class FeeCallData : public CallData {
+  class FeeCallData : public CallData<FeeCallData> {
    public:
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
@@ -226,14 +243,13 @@ class GRPCServerImpl final {
     FeeCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
         : CallData(service,cq,app), responder_(&ctx_)
     {
-        Proceed();
     }
 
 
 
-    void doCreate() override 
+    void makeListener() override 
     {
-        // As part of the initial CREATE state, we *request* that the system
+        // As part of the initial LISTEN state, we *request* that the system
         // start processing GetAccountInfo requests. In this request, "this" acts are
         // the tag uniquely identifying the request (so that different CallData
         // instances can serve different requests concurrently), in this case
@@ -242,13 +258,12 @@ class GRPCServerImpl final {
                                   this);
     } 
 
-    void doProcess() override
+    void process() override
     {
 
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
-        new FeeCallData(service_, cq_, app_);
         app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
 
@@ -304,14 +319,6 @@ class GRPCServerImpl final {
 
     } 
 
-    void doFinish() override
-    {
-        GPR_ASSERT(status_ == FINISH);
-        // Once in the FINISH state, deallocate ourselves (CallData).
-        delete this;
-    }
-
-
    private:
 
     // What we get from the client.
@@ -323,14 +330,17 @@ class GRPCServerImpl final {
     ServerAsyncResponseWriter<Fee> responder_;
   }; //AccountInfoCallData
 
+
+
+
+
   // This can be run in multiple threads if needed.
   void HandleRpcs() {
-    std::cout << "entered handle rpcs" << std::endl;
     // Spawn a new CallData instance to serve new clients.
-    new AccountInfoCallData(&service_, cq_.get(), app_);
-    new FeeCallData(&service_, cq_.get(), app_);
+    // TODO create factory to avoid passing same arguments repeatedly
+    createCallDataAndListen<AccountInfoCallData>(&service_,cq_.get(),app_);
+    createCallDataAndListen<FeeCallData>(&service_,cq_.get(),app_);
 
-    std::cout << "created call data" << std::endl;
     void* tag;  // uniquely identifies a request.
     bool ok;
     while (true) {
@@ -339,11 +349,10 @@ class GRPCServerImpl final {
       // memory address of a CallData instance.
       // The return value of Next should always be checked. This return value
       // tells us whether there is any kind of event or cq_ is shutting down.
-        std::cout << "polling completion queue" << std::endl;
       GPR_ASSERT(cq_->Next(&tag, &ok));
       GPR_ASSERT(ok);
-      std::cout << "got something from completion queue: " << tag << std::endl;
-      static_cast<CallData*>(tag)->Proceed();
+      std::cout << "Got tag" << std::endl;
+      static_cast<Processor*>(tag)->Proceed();
     }
   }
 
