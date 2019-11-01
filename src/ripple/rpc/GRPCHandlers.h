@@ -30,9 +30,12 @@ namespace ripple {
 
 struct Context;
 
-std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
 
-io::xpring::Fee doFee(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
+io::xpring::Fee doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
+
+std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
+doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context);
 
 } // ripple
 

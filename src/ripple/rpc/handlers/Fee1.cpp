@@ -43,7 +43,7 @@ namespace ripple
         return context.params;
     }
 
-    io::xpring::Fee doFee(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
+    io::xpring::Fee doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
     {
         io::xpring::Fee reply;
         Application& app = context.app;

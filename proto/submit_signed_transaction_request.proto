@@ -8,5 +8,5 @@ import "signed_transaction.proto";
 // Next field: 2
 message SubmitSignedTransactionRequest {
   // The signed transaction to submit.
-  SignedTransaction signed_transaction = 1;
+  bytes signed_transaction = 1;
 }
