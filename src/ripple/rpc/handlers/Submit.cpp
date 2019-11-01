@@ -27,6 +27,8 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/TransactionSign.h>
 
+#include <ripple/rpc/GRPCHandlers.h>
+
 namespace ripple {
 
 static NetworkOPs::FailHard getFailHard (RPC::Context const& context)
@@ -159,6 +161,125 @@ Json::Value doSubmit (RPC::Context& context)
 
         return jvResult;
     }
+}
+
+std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
+doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context)
+{
+    io::xpring::SubmitSignedTransactionResponse result;
+    auto request = context.params;
+    std::string const& tx = request.signed_transaction();
+
+
+    Blob blob;
+    blob.reserve(tx.size());
+
+    for(size_t i = 0; i < tx.size(); ++i)
+    {
+        blob.push_back(tx[i]);
+    }
+
+    //do we need to do this? I think we just need to cast to an array of bytes
+    //auto ret = strUnHex (tx);
+
+    if (!blob.size ())
+    {
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "could not decode hex"};
+        return {result, error_status};  
+    }
+
+    SerialIter sitTrans (makeSlice(blob));
+
+    std::shared_ptr<STTx const> stpTrans;
+
+    try
+    {
+        stpTrans = std::make_shared<STTx const> (std::ref (sitTrans));
+    }
+    catch (std::exception& e)
+    {
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+            "invalid transaction: " + std::string(e.what())};
+        return {result, error_status};  
+    }
+
+    {
+        if (!context.app.checkSigs())
+            forceValidity(context.app.getHashRouter(),
+                stpTrans->getTransactionID(), Validity::SigGoodOnly);
+        auto [validity, reason] = checkValidity(context.app.getHashRouter(),
+            *stpTrans, context.ledgerMaster.getCurrentLedger()->rules(),
+                context.app.config());
+        if (validity != Validity::Valid)
+        {
+            grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+                "invalid transaction: " + reason};
+            return {result, error_status};
+        }
+    }
+
+    std::string reason;
+    auto tpTrans = std::make_shared<Transaction> (
+        stpTrans, reason, context.app);
+    if (tpTrans->getStatus() != NEW)
+    {
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+            "invalid transaction: " + reason};
+        return {result, error_status};
+    }
+
+    try
+    {
+        //TODO: expand protobuf definition to include fail hard
+        auto const failType = NetworkOPs::doFailHard(false);
+
+        context.netOps.processTransaction (
+            tpTrans, isUnlimited (context.role), true, failType);
+    }
+    catch (std::exception& e)
+    {
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+            "invalid transaction : " + std::string(e.what())};
+        return {result, error_status};  
+    }
+
+    try
+    {
+        result.set_transaction_blob(strHex (
+            tpTrans->getSTransaction ()->getSerializer ().peekData ()));
+
+        if (temUNCERTAIN != tpTrans->getResult ())
+        {
+            std::string sToken;
+            std::string sHuman;
+
+            transResultInfo (tpTrans->getResult (), sToken, sHuman);
+
+            result.set_engine_result(sToken);
+            result.set_engine_result_code(TERtoInt(tpTrans->getResult()));
+            result.set_engine_result_message(sHuman);
+            uint256 hash = tpTrans->getID();
+            std::string s;
+            s.reserve(hash.size());
+            for(auto it = hash.begin(); it != hash.end(); ++it)
+            {
+                s.push_back(*it);
+            }
+            result.set_hash(s);
+
+        }
+        return {result,grpc::Status::OK};
+
+    }
+    catch (std::exception& e)
+    {
+
+        //TODO is this error message correct?
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+            "internal json?: " + std::string(e.what())};
+        return {result, error_status};
+    }
+    
 }
 
 } // ripple

@@ -188,7 +188,7 @@ Json::Value doAccountInfo (RPC::Context& context)
     return result;
 }
 
-std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfo(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
 {
     io::xpring::AccountInfo result;
     grpc::Status status = grpc::Status::OK;

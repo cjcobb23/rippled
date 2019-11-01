@@ -16,4 +16,7 @@ message SubmitSignedTransactionResponse {
 
   // The complete transaction in hex string format
   string transaction_blob = 4;
+
+  // hash
+  bytes hash = 5;
 }

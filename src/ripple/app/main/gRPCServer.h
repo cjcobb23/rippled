@@ -28,6 +28,8 @@ using io::xpring::XRPLedgerAPI;
 using io::xpring::XRPAmount;
 using io::xpring::GetFeeRequest;
 using io::xpring::Fee;
+using io::xpring::SubmitSignedTransactionRequest;
+using io::xpring::SubmitSignedTransactionResponse;
 
 
 template <class T>
@@ -39,6 +41,17 @@ T* createCallDataAndListen(XRPLedgerAPI::AsyncService* service, ServerCompletion
     return ptr;
 }
 
+std::string getEndpoint(std::string const& peer)
+{
+    std::size_t first = peer.find_first_of(":");
+    std::size_t last = peer.find_last_of(":");
+    std::string peer_clean;
+    if(first != last)
+    {
+        peer_clean = peer.substr(first+1);
+    }
+    return peer_clean;
+}
 
 
 
@@ -100,6 +113,9 @@ class GRPCServerImpl final {
       if (status_ == LISTEN) {
           std::cout << "processing" << std::endl;
           status_ = PROCESS;
+        // Spawn a new CallData instance to serve new clients while we process
+        // the one for this CallData. The instance will deallocate itself as
+        // part of its FINISH state.
           createCallDataAndListen<D>(service_,cq_,app_);
           process();
       } else {
@@ -141,7 +157,8 @@ class GRPCServerImpl final {
 
   
 
-  class AccountInfoCallData : public CallData<AccountInfoCallData> {
+  class AccountInfoCallData : public CallData<AccountInfoCallData>
+  {
    public:
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
@@ -213,7 +230,7 @@ class GRPCServerImpl final {
                         request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
-                    std::pair<AccountInfo,Status> result = ripple::doAccountInfo(context);
+                    std::pair<AccountInfo,Status> result = ripple::doAccountInfoGrpc(context);
 
                     // And we are done! Let the gRPC runtime know we've finished, using the
                     // memory address of this instance as the uniquely identifying tag for
@@ -235,7 +252,8 @@ class GRPCServerImpl final {
     ServerAsyncResponseWriter<AccountInfo> responder_;
   }; //AccountInfoCallData
 
-  class FeeCallData : public CallData<FeeCallData> {
+  class FeeCallData : public CallData<FeeCallData>
+  {
    public:
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
@@ -261,9 +279,6 @@ class GRPCServerImpl final {
     void process() override
     {
 
-        // Spawn a new CallData instance to serve new clients while we process
-        // the one for this CallData. The instance will deallocate itself as
-        // part of its FINISH state.
         app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
 
@@ -308,13 +323,14 @@ class GRPCServerImpl final {
                         request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
-                    this->reply_ = ripple::doFee(context);
+                    this->reply_ = ripple::doFeeGrpc(context);
+
+                this->responder_.Finish(this->reply_, Status::OK, this);
                 }
 
                 // And we are done! Let the gRPC runtime know we've finished, using the
                 // memory address of this instance as the uniquely identifying tag for
                 // the event.
-                this->responder_.Finish(this->reply_, Status::OK, this);
                 });
 
     } 
@@ -328,9 +344,62 @@ class GRPCServerImpl final {
 
     // The means to get back to the client.
     ServerAsyncResponseWriter<Fee> responder_;
-  }; //AccountInfoCallData
+  }; //FeeCallData
 
 
+  class SubmitCallData : public CallData<SubmitCallData>
+  {
+    public:
+    SubmitCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
+        : CallData(service,cq,app), responder_(&ctx_)
+    {
+    }
+
+    void makeListener() override
+    {
+
+        service_->RequestSubmitSignedTransaction(&ctx_, &request_, &responder_, cq_, cq_,
+                                  this);
+    }
+
+    void process() override
+    {
+
+        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
+                {
+
+                ripple::Resource::Charge loadType =
+                    ripple::Resource::feeReferenceRPC;
+                auto role = ripple::Role::USER;
+                std::string peer = getEndpoint(ctx_.peer());
+
+                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
+
+                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                usage.charge(loadType);
+                //TODO check usage
+                ripple::RPC::ContextGeneric<SubmitSignedTransactionRequest> context {app_.journal("Server"),
+                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                    usage, role, coro, ripple::InfoSub::pointer()};               
+
+                    auto res = ripple::doSubmitGrpc(context);
+                    this->responder_.Finish(res.first,res.second,this);
+
+
+
+                });
+    }
+   
+      private:
+    // What we get from the client.
+    SubmitSignedTransactionRequest request_;
+    // What we send back to the client.
+    SubmitSignedTransactionResponse reply_;
+
+    // The means to get back to the client.
+    ServerAsyncResponseWriter<SubmitSignedTransactionResponse> responder_;
+
+  }; //SubmitCallData
 
 
 
@@ -340,6 +409,7 @@ class GRPCServerImpl final {
     // TODO create factory to avoid passing same arguments repeatedly
     createCallDataAndListen<AccountInfoCallData>(&service_,cq_.get(),app_);
     createCallDataAndListen<FeeCallData>(&service_,cq_.get(),app_);
+    createCallDataAndListen<SubmitCallData>(&service_, cq_.get(),app_);
 
     void* tag;  // uniquely identifies a request.
     bool ok;
