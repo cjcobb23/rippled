@@ -37,6 +37,10 @@ io::xpring::Fee doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& contex
 std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context);
 
+std::pair<io::xpring::TxResponse, grpc::Status>
+doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context);
+
+
 } // ripple
 
 

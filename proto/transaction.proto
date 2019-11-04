@@ -9,7 +9,7 @@ import "xrp_amount.proto";
 // Next field: 6.
 message Transaction {
     // The account originating the transaction.
-    string account = 1;
+    bytes account = 1;
 
     // The fee attached to the transaction.
     XRPAmount fee = 2;
@@ -23,5 +23,5 @@ message Transaction {
     }
 
     // The public key of the account which signed the transaction in hexadecimal.
-    string signing_public_key_hex = 5;
+    bytes signing_public_key_hex = 5;
 }

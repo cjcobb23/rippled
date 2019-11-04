@@ -10,6 +10,9 @@ import "submit_signed_transaction_request.proto";
 import "submit_signed_transaction_response.proto";
 import "fee.proto";
 
+import "tx_request.proto";
+import "tx_response.proto";
+
 // RPCs available to interact with the XRP Ledger.
 service XRPLedgerAPI {
   // Get account info for an account on the XRP Ledger.
@@ -20,4 +23,7 @@ service XRPLedgerAPI {
 
   // Submit a signed transaction to the XRP Ledger.
   rpc SubmitSignedTransaction (SubmitSignedTransactionRequest) returns (SubmitSignedTransactionResponse);
+
+  // Get the status of a transaction
+  rpc Tx(TxRequest) returns (TxResponse);
 }

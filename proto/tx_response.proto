@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package io.xpring;
+
+import "transaction.proto";
+import "meta.proto";
+
+message TxResponse {
+
+    // The actual transaction
+    Transaction tx = 1;
+
+    // Sequence number of ledger that contains this transaction
+    uint64 ledger_index = 2;
+
+    // Hash of the transaction
+    bytes hash = 3;
+
+    // whether the ledger has been validated
+    bool validated = 4;
+
+    // metadata about the transaction
+    Meta meta = 5;
+
+}
