@@ -15,5 +15,5 @@ message Payment {
     }
 
     // The destination of the payment.
-    string destination = 3;
+    bytes destination = 3;
 }

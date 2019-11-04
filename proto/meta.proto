@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package io.xpring;
+
+message Meta {
+    // index in ledger
+    uint64 transaction_index = 1;
+
+    // result code indicating whether txn succeeded or failed
+    string transaction_result = 2;
+}
