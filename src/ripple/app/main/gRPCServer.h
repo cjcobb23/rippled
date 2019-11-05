@@ -32,6 +32,8 @@ using io::xpring::SubmitSignedTransactionRequest;
 using io::xpring::SubmitSignedTransactionResponse;
 using io::xpring::TxRequest;
 using io::xpring::TxResponse;
+using io::xpring::LedgerSequenceRequest;
+using io::xpring::LedgerSequenceResponse;
 
 
 template <class T>
@@ -457,6 +459,61 @@ class GRPCServerImpl final {
 
   }; //TxCallData
 
+  
+  class LedgerSequenceCallData : public CallData<LedgerSequenceCallData>
+  {
+    public:
+    LedgerSequenceCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
+        : CallData(service,cq,app), responder_(&ctx_)
+    {
+    }
+
+    void makeListener() override
+    {
+
+        service_->RequestLedgerSequence(&ctx_, &request_, &responder_, cq_, cq_,
+                                  this);
+    }
+
+    void process() override
+    {
+
+        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
+                {
+
+                ripple::Resource::Charge loadType =
+                    ripple::Resource::feeReferenceRPC;
+                auto role = ripple::Role::USER;
+                std::string peer = getEndpoint(ctx_.peer());
+
+                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
+
+                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                usage.charge(loadType);
+                //TODO check usage
+                ripple::RPC::ContextGeneric<LedgerSequenceRequest> context {app_.journal("Server"),
+                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                    usage, role, coro, ripple::InfoSub::pointer()};               
+
+                    auto res = ripple::doLedgerSequenceGrpc(context);
+                    this->responder_.Finish(res.first,res.second,this);
+
+
+
+                });
+    }
+   
+      private:
+    // What we get from the client.
+    LedgerSequenceRequest request_;
+    // What we send back to the client.
+    LedgerSequenceResponse reply_;
+
+    // The means to get back to the client.
+    ServerAsyncResponseWriter<LedgerSequenceResponse> responder_;
+
+  }; //LedgerSequenceCallData
+
 
 
 
@@ -468,6 +525,7 @@ class GRPCServerImpl final {
     createCallDataAndListen<FeeCallData>(&service_,cq_.get(),app_);
     createCallDataAndListen<SubmitCallData>(&service_, cq_.get(),app_);
     createCallDataAndListen<TxCallData>(&service_, cq_.get(),app_);
+    createCallDataAndListen<LedgerSequenceCallData>(&service_, cq_.get(),app_);
 
     void* tag;  // uniquely identifies a request.
     bool ok;

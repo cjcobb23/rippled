@@ -25,6 +25,8 @@
 #include <ripple/rpc/impl/TransactionSign.h>
 #include <ripple/rpc/Role.h>
 
+#include <ripple/rpc/GRPCHandlers.h>
+
 namespace ripple {
 
 Json::Value doServerInfo (RPC::Context& context)
@@ -37,6 +39,32 @@ Json::Value doServerInfo (RPC::Context& context)
             context.params[jss::counters].asBool());
 
     return ret;
+}
+
+std::pair<io::xpring::LedgerSequenceResponse, grpc::Status> doLedgerSequenceGrpc(RPC::ContextGeneric<io::xpring::LedgerSequenceRequest>& context)
+{
+    io::xpring::LedgerSequenceResponse result;
+    grpc::Status status = grpc::Status::OK;
+    bool valid = false;
+    auto lpClosed = context.ledgerMaster.getValidatedLedger ();
+
+    if (lpClosed)
+        valid = true;
+    else
+        lpClosed = context.ledgerMaster.getClosedLedger ();
+
+    if (lpClosed)
+    {
+        std::uint64_t seq = lpClosed->info().seq;
+
+        if (valid)
+            result.set_validated(seq);
+        else
+            result.set_closed(seq);
+    }
+
+    return {result,status};
+
 }
 
 } // ripple

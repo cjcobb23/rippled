@@ -32,6 +32,8 @@ struct Context;
 
 std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
 
+
+//TODO return status
 io::xpring::Fee doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
 
 std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
@@ -39,6 +41,10 @@ doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& co
 
 std::pair<io::xpring::TxResponse, grpc::Status>
 doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context);
+
+
+std::pair<io::xpring::LedgerSequenceResponse, grpc::Status>
+doLedgerSequenceGrpc(RPC::ContextGeneric<io::xpring::LedgerSequenceRequest>& context);
 
 
 } // ripple
