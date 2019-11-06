@@ -36,13 +36,25 @@ using io::xpring::LedgerSequenceRequest;
 using io::xpring::LedgerSequenceResponse;
 
 
-template <class T>
-T* createCallDataAndListen(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
+
+class Processor
 {
-    T* ptr = new T(service, cq, app);
+    public:
+    virtual std::shared_ptr<Processor> Proceed() = 0;
+    virtual ~Processor() {}
+
+    virtual void setIter(std::list<std::shared_ptr<Processor>>::iterator const& it) = 0;
+    virtual std::list<std::shared_ptr<Processor>>::iterator getIter() = 0;
+    virtual void abort() = 0;
+};
+
+template <class T>
+std::shared_ptr<Processor> createCallDataAndListen(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
+{
+    std::shared_ptr<T> ptr = std::make_shared<T>(service, cq, app);
     ptr->makeListener();
     std::cout << "made listener" << std::endl;
-    return ptr;
+    return std::static_pointer_cast<Processor>(ptr);
 }
 
 std::string getEndpoint(std::string const& peer)
@@ -62,9 +74,19 @@ std::string getEndpoint(std::string const& peer)
 class GRPCServerImpl final {
  public:
   ~GRPCServerImpl() {
-    server_->Shutdown();
+
+    std::cout << "shutting down grpc" << std::endl;
+ //   server_->Shutdown();
     // Always shutdown the completion queue after the server.
-    cq_->Shutdown();
+ //   cq_->Shutdown();
+    std::cout << "shut down grpc" << std::endl;
+  }
+
+  void shutdown()
+  {
+     server_->Shutdown();
+    // Always shutdown the completion queue after the server.
+    cq_->Shutdown(); 
   }
 
   GRPCServerImpl(ripple::Application& app) : app_(app) {}
@@ -92,27 +114,22 @@ class GRPCServerImpl final {
 
  private:
 
-  class Processor
-  {
-      public:
-      virtual void Proceed() = 0;
-      virtual ~Processor() {}
-  };
+
 
   // Class encompasing the state and logic needed to serve a request.
   template <class D>
-  class CallData : Processor
+  class CallData : public Processor, public std::enable_shared_from_this<CallData<D>>
   {
   public:
       
     CallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-        : service_(service), cq_(cq), status_(LISTEN), app_(app)
+        : service_(service), cq_(cq), status_(LISTEN), app_(app),iter_(nullptr),aborted_(false)
     {
     }
 
     virtual ~CallData() {}
 
-    void Proceed() override
+    std::shared_ptr<Processor> Proceed() override
     {
       if (status_ == LISTEN) {
           std::cout << "processing" << std::endl;
@@ -120,14 +137,15 @@ class GRPCServerImpl final {
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
-          createCallDataAndListen<D>(service_,cq_,app_);
+          auto ptr = createCallDataAndListen<D>(service_,cq_,app_);
           process();
+          return ptr;
       } else {
           std::cout << "finishing" << std::endl;
           GPR_ASSERT(status_ == PROCESS);
           status_ = FINISH;
           finish();
-          delete this;
+          return std::shared_ptr<Processor>();
       }
     }
 
@@ -135,11 +153,28 @@ class GRPCServerImpl final {
     virtual void process() = 0;
     virtual void finish() {}
 
+    virtual void abort() override
+    {
+        std::lock_guard<std::mutex> lock(mut_);
+        aborted_ = true;
+    }
+
+    void setIter(std::list<std::shared_ptr<Processor>>::iterator const & it) override
+    {
+        iter_ = it;
+    }
+
+    std::list<std::shared_ptr<Processor>>::iterator getIter() override
+    {
+        return iter_;
+    }
+
     friend class Builder;
 
 
 
-  protected:
+    //TODO: return to protected
+  //protected:
     // The means of communication with the gRPC runtime for an asynchronous
     // server.
     XRPLedgerAPI::AsyncService* service_;
@@ -155,6 +190,10 @@ class GRPCServerImpl final {
     CallStatus status_;  // The current serving state.
 
     ripple::Application& app_;
+
+    std::list<std::shared_ptr<Processor>>::iterator iter_;
+    std::mutex mut_;
+    bool aborted_;
   }; //CallData
 
 
@@ -191,14 +230,19 @@ class GRPCServerImpl final {
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
+        auto this_s = std::static_pointer_cast<AccountInfoCallData>(shared_from_this());
+        //TODO abstract the logic of posting to the JobQueue
+        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this_s](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
+                std::lock_guard<std::mutex> lock(this_s->mut_);
+                if(this_s->aborted_)
+                    return;//Do nothing if the call has been aborted due to server shutdown
 
 
                 ripple::Resource::Charge loadType =
                     ripple::Resource::feeReferenceRPC;
                 auto role = ripple::Role::USER;
-                std::string peer = ctx_.peer();
+                std::string peer = this_s->ctx_.peer();
                 std::cout << "peer is " << peer << std::endl;
 
                 std::size_t first = peer.find_first_of(":");
@@ -217,11 +261,12 @@ class GRPCServerImpl final {
                     std::cout << "endpoint bad" << std::endl;
 
 
-                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                ripple::Application& app = this_s->app_;
+                auto usage = app.getResourceManager().newInboundEndpoint(endpoint.get());
                 if(usage.disconnect())
                 {
                     Status status{StatusCode::RESOURCE_EXHAUSTED, "usage balance exceeds threshhold"};
-                    this->responder_.FinishWithError(status, this);
+                    this_s->responder_.FinishWithError(status, this_s.get());
                     //TODO also return warning?
                 }
                 else
@@ -230,8 +275,8 @@ class GRPCServerImpl final {
 
 
                     ripple::RPC::ContextGeneric<GetAccountInfoRequest> context {
-                        app_.journal("Server"),
-                        request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                        app.journal("Server"),
+                        this_s->request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
                     std::pair<AccountInfo,Status> result = ripple::doAccountInfoGrpc(context);
@@ -239,7 +284,8 @@ class GRPCServerImpl final {
                     // And we are done! Let the gRPC runtime know we've finished, using the
                     // memory address of this instance as the uniquely identifying tag for
                     // the event.
-                    this->responder_.Finish(result.first, result.second, this);
+                    //TODO: what happens if server was shutdown but we try to respond?
+                    this_s->responder_.Finish(result.first, result.second, this_s.get());
                 }
                 });
 
@@ -515,30 +561,59 @@ class GRPCServerImpl final {
   }; //LedgerSequenceCallData
 
 
+  template <class T>
+  void makeAndPush(std::list<std::shared_ptr<Processor>>& data)
+  {
+    auto ptr = createCallDataAndListen<T>(&service_,cq_.get(),app_);
+    data.push_front(ptr);
+    ptr->setIter(data.begin());
+  }
 
 
   // This can be run in multiple threads if needed.
   void HandleRpcs() {
     // Spawn a new CallData instance to serve new clients.
-    // TODO create factory to avoid passing same arguments repeatedly
-    createCallDataAndListen<AccountInfoCallData>(&service_,cq_.get(),app_);
-    createCallDataAndListen<FeeCallData>(&service_,cq_.get(),app_);
-    createCallDataAndListen<SubmitCallData>(&service_, cq_.get(),app_);
-    createCallDataAndListen<TxCallData>(&service_, cq_.get(),app_);
-    createCallDataAndListen<LedgerSequenceCallData>(&service_, cq_.get(),app_);
+    std::list<std::shared_ptr<Processor>> data;
+    makeAndPush<AccountInfoCallData>(data);
+    makeAndPush<FeeCallData>(data);
+    makeAndPush<SubmitCallData>(data);
+    makeAndPush<TxCallData>(data);
+    makeAndPush<LedgerSequenceCallData>(data);
 
     void* tag;  // uniquely identifies a request.
     bool ok;
-    while (true) {
+    std::unordered_map<void*,bool> deleted;
+    while (cq_->Next(&tag,&ok)) {
       // Block waiting to read the next event from the completion queue. The
       // event is uniquely identified by its tag, which in this case is the
       // memory address of a CallData instance.
       // The return value of Next should always be checked. This return value
       // tells us whether there is any kind of event or cq_ is shutting down.
-      GPR_ASSERT(cq_->Next(&tag, &ok));
-      GPR_ASSERT(ok);
+      if(!ok)
+      {
+          std::cout << "not ok. tag is " << tag << std::endl;
+          if(deleted.find(tag) != deleted.end())
+          {
+        //abort first, then erase. Otherwise, erase may delete object
+        static_cast<Processor*>(tag)->abort();
+        data.erase(static_cast<Processor*>(tag)->getIter());
+        deleted[tag] = true;
+          }
+      }
+      else
+      {
       std::cout << "Got tag" << std::endl;
-      static_cast<Processor*>(tag)->Proceed();
+      auto new_data = static_cast<Processor*>(tag)->Proceed();
+      if(new_data)
+      {
+          data.push_front(new_data);
+          new_data->setIter(data.begin());
+      }
+      else //Delete this object
+      {
+        data.erase(static_cast<Processor*>(tag)->getIter());
+      }
+      }
     }
   }
 
@@ -563,6 +638,12 @@ class GRPCServer
                 {
                 this->impl_.Run();
                 });
+    }
+    ~GRPCServer()
+    {
+        std::cout << "shutting down grpc server main" << std::endl;
+        impl_.shutdown();
+        threads_[0].join();
     }
 
     private:

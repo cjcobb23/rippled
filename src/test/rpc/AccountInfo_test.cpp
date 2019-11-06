@@ -21,6 +21,10 @@
 #include <ripple/protocol/jss.h>
 #include <test/jtx.h>
 
+#include <ripple/rpc/GRPCHandlers.h>
+#include <ripple/resource/Charge.h>
+#include <ripple/resource/Fees.h>
+
 namespace ripple {
 namespace test {
 
@@ -314,11 +318,42 @@ public:
         }
     }
 
+   void testGrpc()
+   {
+       using namespace jtx;
+       Env env(*this);
+       Account const alice {"alice"};
+       env.fund(XRP(1000), alice);
+
+       io::xpring::GetAccountInfoRequest request;
+       request.set_address(alice.human());
+       Application& app = env.app();
+       ripple::Resource::Charge loadType =
+           ripple::Resource::feeReferenceRPC;
+
+       std::shared_ptr<JobQueue::Coro> coro;
+       auto role = ripple::Role::USER;
+
+       auto usage = ripple::Resource::Consumer();
+
+       ripple::RPC::ContextGeneric<io::xpring::GetAccountInfoRequest> context {
+           app.journal("Server"),
+               request, app, loadType, app.getOPs(), app.getLedgerMaster(),
+               usage, role, coro, ripple::InfoSub::pointer()};
+
+       std::pair<io::xpring::AccountInfo,grpc::Status> result = ripple::doAccountInfoGrpc(context);
+       std::cout << result.first.DebugString() << std::endl;
+       BEAST_EXPECT(result.first.balance().drops() == "1000");
+       std::cout << "done grpc" << std::endl;
+
+   }
+
     void run() override
     {
         testErrors();
         testSignerLists();
         testSignerListsV2();
+        //testGrpc();
     }
 };
 
