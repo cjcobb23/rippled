@@ -469,6 +469,7 @@ class GRPCServerImpl final {
     void process() override
     {
 
+        //TODO capture shared_from_this ptr and use mutex
         app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
                 {
 
@@ -487,8 +488,10 @@ class GRPCServerImpl final {
                     usage, role, coro, ripple::InfoSub::pointer()};               
 
                     auto res = ripple::doTxGrpc(context);
+                    std::cout << res.first.DebugString() << std::endl;
+                    std::cout << "responding" << std::endl;
                     this->responder_.Finish(res.first,res.second,this);
-
+                    std::cout << "responded" << std::endl;
 
 
                 });

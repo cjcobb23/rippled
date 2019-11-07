@@ -4,7 +4,8 @@ package io.xpring;
 
 // Available currencies.
 // Next field: 1
-enum Currency {
-    CURRENCY_INVALID = 0;
-    CURRENCY_USD = 1;
+message Currency {
+
+    string name = 1;
+    bytes code = 2;
 }
