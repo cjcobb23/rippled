@@ -52,7 +52,6 @@ namespace ripple
         if(!view)
         {
             BOOST_ASSERT(false);
-            reply.mutable_amount()->set_drops("-1");
             return reply;
         }
 
@@ -68,7 +67,7 @@ namespace ripple
                     baseFee).second < metrics.openLedgerFeeLevel)
             ++escalatedFee;
 
-        reply.mutable_amount()->set_drops(to_string(escalatedFee));
+        reply.mutable_amount()->set_drops(escalatedFee);
         return reply;
 
     }

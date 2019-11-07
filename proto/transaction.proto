@@ -3,8 +3,8 @@ syntax = "proto3";
 package io.xpring;
 
 import "payment.proto";
+import "amount.proto";
 import "xrp_amount.proto";
-import "fiat_amount.proto";
 
 // A class encompassing all transactions.
 // Next field: 6.
@@ -34,10 +34,7 @@ message Transaction {
     
     repeated Path paths = 9;
 
-    oneof send_max {
-        XRPAmount send_max_native = 10;
-        FiatAmount send_max_fiat = 11;
-    }
+    CurrencyAmount send_max = 10;
 }
 
 message Path {

@@ -343,7 +343,7 @@ public:
 
        std::pair<io::xpring::AccountInfo,grpc::Status> result = ripple::doAccountInfoGrpc(context);
        std::cout << result.first.DebugString() << std::endl;
-       BEAST_EXPECT(result.first.balance().drops() == "1000");
+       BEAST_EXPECT(result.first.balance().drops() == 1000);
        std::cout << "done grpc" << std::endl;
 
    }
