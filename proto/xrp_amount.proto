@@ -6,5 +6,5 @@ package io.xpring;
 // Next field: 2
 message XRPAmount {
     // A numeric string representing the number of drops of XRP.
-    string drops = 1;
+    uint64 drops = 1;
 }

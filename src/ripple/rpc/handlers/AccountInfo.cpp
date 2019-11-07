@@ -234,7 +234,7 @@ std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextG
         std::uint32_t prevLedgerVersion
             = sleAccepted->getFieldU32(sfPreviousTxnLgrSeq);
         io::xpring::XRPAmount* balance = result.mutable_balance();
-        balance->set_drops(bal.getText());
+        balance->set_drops(bal.xrp().drops());
         result.set_previous_affecting_transaction_id(to_string(prevTxnId));
         result.set_previous_affecting_transaction_ledger_version(prevLedgerVersion);
         result.set_owner_count(ownerCount);

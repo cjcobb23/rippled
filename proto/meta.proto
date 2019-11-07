@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package io.xpring;
 
+import "amount.proto";
+
 message Meta {
     // index in ledger
     uint64 transaction_index = 1;
@@ -9,9 +11,9 @@ message Meta {
     // result code indicating whether txn succeeded or failed
     string transaction_result = 2;
 
-   repeated AffectedNode nodes = 3;
+   repeated AffectedNode affected_node = 3;
 
-   uint64 delivered_amount = 4;
+   CurrencyAmount delivered_amount = 4;
 }
 
 message AffectedNode {
@@ -47,7 +49,7 @@ message ModifiedNode {
 
     bytes previous_txn_id = 3;
 
-    uint64 ledger_index = 4;
+    uint32 previous_txn_ledger_sequence = 4;
 
 }
 
@@ -55,13 +57,62 @@ message LedgerFields {
 
     string account = 1;
 
-    uint64 balance = 2;
+    CurrencyAmount balance = 2;
 
     uint32 sequence = 3;
 
     uint32 flags = 4;
 
     uint32 owner_count = 5;
+
+    bytes previous_txn_id = 6;
+
+    uint32 previous_txn_ledger_sequence = 7;
+
+    bytes account_txn_id = 8;
+
+    bytes domain = 9;
+
+    bytes email_hash = 10;
+
+    bytes message_key = 11;
+
+    bytes regular_key = 12;
+
+    uint32 tick_size = 13;
+
+    uint32 transfer_rate = 14;
+
+//unique to Offer
+
+    CurrencyAmount taker_pays = 15;
+
+    CurrencyAmount taker_gets = 16;
+
+    bytes book_directory = 17;
+
+    uint64 book_node = 18;
+
+    uint64 owner_node = 19;
+
+    uint32 expiration = 20;
+
+//unique to RippleState
     
+    CurrencyAmount low_limit = 21;
+
+    CurrencyAmount high_limit = 22;
+
+    uint64 low_node = 23;
+
+    uint64 high_node = 24;
+
+    uint32 low_quality_in = 25;
+
+    uint32 low_quality_out = 26;
+
+    uint32 high_quality_in = 27;
+
+    uint32 high_quality_out = 28;
 
 }
