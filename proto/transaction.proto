@@ -4,18 +4,19 @@ package io.xpring;
 
 import "payment.proto";
 import "xrp_amount.proto";
+import "fiat_amount.proto";
 
 // A class encompassing all transactions.
 // Next field: 6.
 message Transaction {
     // The account originating the transaction.
-    bytes account = 1;
+    string account = 1;
 
     // The fee attached to the transaction.
     XRPAmount fee = 2;
 
     // The sequence number for the transaction.
-    uint64 sequence = 3;
+    uint32 sequence = 3;
 
     // Data specific to a the type of transaction being submitted.
     oneof transaction_data {
@@ -24,4 +25,31 @@ message Transaction {
 
     // The public key of the account which signed the transaction in hexadecimal.
     bytes signing_public_key_hex = 5;
+
+    bytes signature = 6;
+
+    uint32 flags = 7;
+
+    uint32 last_ledger_sequence = 8;
+    
+    repeated Path paths = 9;
+
+    oneof send_max {
+        XRPAmount send_max_native = 10;
+        FiatAmount send_max_fiat = 11;
+    }
+}
+
+message Path {
+
+    repeated PathElement elements = 1;
+}
+
+message PathElement {
+
+    string account = 1;
+
+    string currency = 2;
+
+    string issuer = 3;
 }
