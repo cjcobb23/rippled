@@ -7,4 +7,20 @@ package io.xpring;
 message GetAccountInfoRequest {
   // The address to get info about.
   string address = 1;
+
+  bool strict = 2;
+
+
+  oneof ledger_index {
+    string ledger_index_shortcut_string = 3;
+    uint32 ledger_index_seq = 4;
+    bytes ledger_hash = 5;
+  }
+
+  bool queue = 6;
+
+  bool signer_lists = 7;
+  
+
+
 }

@@ -14,6 +14,8 @@
 
 #include <ripple/rpc/GRPCHandlers.h>
 
+#include <boost/exception/diagnostic_information.hpp> 
+
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -34,6 +36,7 @@ using io::xpring::TxRequest;
 using io::xpring::TxResponse;
 using io::xpring::LedgerSequenceRequest;
 using io::xpring::LedgerSequenceResponse;
+using io::xpring::FeeResponse;
 
 
 
@@ -238,6 +241,8 @@ class GRPCServerImpl final {
                 if(this_s->aborted_)
                     return;//Do nothing if the call has been aborted due to server shutdown
 
+                try
+                {
 
                 ripple::Resource::Charge loadType =
                     ripple::Resource::feeReferenceRPC;
@@ -287,6 +292,16 @@ class GRPCServerImpl final {
                     //TODO: what happens if server was shutdown but we try to respond?
                     this_s->responder_.Finish(result.first, result.second, this_s.get());
                 }
+                    } catch(...)
+                    {
+                    
+                        std::cout << boost::current_exception_diagnostic_information()
+                            << std::endl;
+
+                        Status status{StatusCode::INTERNAL,
+                            boost::current_exception_diagnostic_information()};
+                        this_s->responder_.FinishWithError(status,this_s.get());
+                    }
                 });
 
     } 
@@ -333,6 +348,8 @@ class GRPCServerImpl final {
                 {
 
 
+                try
+                {
                 ripple::Resource::Charge loadType =
                     ripple::Resource::feeReferenceRPC;
                 auto role = ripple::Role::USER;
@@ -377,6 +394,16 @@ class GRPCServerImpl final {
 
                 this->responder_.Finish(this->reply_, Status::OK, this);
                 }
+                    } catch(...)
+                    {
+                    
+                        std::cout << boost::current_exception_diagnostic_information()
+                            << std::endl;
+
+                        Status status{StatusCode::INTERNAL,
+                            boost::current_exception_diagnostic_information()};
+                        this->responder_.FinishWithError(status,this);
+                    }
 
                 // And we are done! Let the gRPC runtime know we've finished, using the
                 // memory address of this instance as the uniquely identifying tag for
@@ -390,10 +417,10 @@ class GRPCServerImpl final {
     // What we get from the client.
     GetFeeRequest request_;
     // What we send back to the client.
-    Fee reply_;
+    FeeResponse reply_;
 
     // The means to get back to the client.
-    ServerAsyncResponseWriter<Fee> responder_;
+    ServerAsyncResponseWriter<FeeResponse> responder_;
   }; //FeeCallData
 
 

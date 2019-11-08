@@ -8,18 +8,23 @@ import "meta.proto";
 message TxResponse {
 
     // The actual transaction
-    Transaction tx = 1;
-
+    oneof sttx {
+        Transaction tx = 1;
+        bytes tx_bytes = 2;
+    };
     // Sequence number of ledger that contains this transaction
-    uint64 ledger_index = 2;
+    uint64 ledger_index = 3;
 
     // Hash of the transaction
-    bytes hash = 3;
+    bytes hash = 4;
 
     // whether the ledger has been validated
-    bool validated = 4;
+    bool validated = 5;
 
     // metadata about the transaction
-    Meta meta = 5;
+    oneof stmeta {
+        Meta meta = 6;
+        bytes meta_bytes = 7;
+    }
 
 }

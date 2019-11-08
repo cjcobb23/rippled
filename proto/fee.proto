@@ -8,5 +8,42 @@ import "xrp_amount.proto";
 // Next field: 2
 message Fee {
   // The amount of the fee.
-  XRPAmount amount = 1;
+  uint64 base_fee = 1;
+
+uint64 median_fee = 2;
+
+uint64 minimum_fee = 3;
+
+uint64 open_ledger_fee = 4;
+
+}
+
+message FeeResponse {
+uint64 current_ledger_size = 1;
+
+uint64 current_queue_size = 2;
+
+Fee drops = 3;
+
+uint64 expected_ledger_size = 4;
+
+uint32 ledger_current_index = 5;
+
+FeeLevels levels = 6;
+
+uint64 max_queue_size = 7;
+
+}
+
+message FeeLevels {
+
+uint64 median_level = 1;
+
+uint64 minimum_level = 2;
+
+uint64 open_ledger_level = 3;
+
+uint64 reference_level = 4;
+
+
 }
