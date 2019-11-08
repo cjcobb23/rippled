@@ -298,6 +298,106 @@ ledgerFromRequest(T& ledger, Context& context)
 
     return Status::OK;
 }
+} // namespace
+
+template <class T>
+Status
+ledgerFromRequest(T& ledger,
+        ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+{
+    static auto const minSequenceGap = 10;
+
+    ledger.reset();
+
+    io::xpring::GetAccountInfoRequest & request = context.params;
+    auto& ledgerMaster = context.ledgerMaster;
+
+    using LedgerIndexCase = io::xpring::GetAccountInfoRequest::LedgerIndexCase;
+    LedgerIndexCase ledger_index_case =
+        request.ledger_index_case();
+
+    if (ledger_index_case == LedgerIndexCase::kLedgerHash)
+    {
+
+        uint256 ledgerHash =
+            uint256::fromVoid(request.ledger_hash().data());
+        if (ledgerHash.size() != request.ledger_hash().size())
+            return {rpcINVALID_PARAMS, "ledgerHashMalformed"};
+
+        ledger = ledgerMaster.getLedgerByHash (ledgerHash);
+        if (ledger == nullptr)
+            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+    }
+    else if (ledger_index_case == LedgerIndexCase::kLedgerIndexSeq)
+    {
+        ledger = ledgerMaster.getLedgerBySeq (request.ledger_index_seq());
+
+        if (ledger == nullptr)
+        {
+            auto cur = ledgerMaster.getCurrentLedger();
+            if (cur->info().seq == request.ledger_index_seq())
+                ledger = cur;
+        }
+
+        if (ledger == nullptr)
+            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+
+        if (ledger->info().seq > ledgerMaster.getValidLedgerIndex() &&
+            isValidatedOld(ledgerMaster, context.app.config().standalone()))
+        {
+            ledger.reset();
+            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+        }
+    }
+    else
+    {
+        if (isValidatedOld (ledgerMaster, context.app.config().standalone()))
+            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+        auto const index = request.ledger_index_shortcut_string();
+        if (index == "validated")
+        {
+            ledger = ledgerMaster.getValidatedLedger ();
+            if (ledger == nullptr)
+                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+            assert (! ledger->open());
+        }
+        else
+        {
+            if (index.empty () || index == "current")
+            {
+                ledger = ledgerMaster.getCurrentLedger ();
+                assert (ledger->open());
+            }
+            else if (index == "closed")
+            {
+                ledger = ledgerMaster.getClosedLedger ();
+                assert (! ledger->open());
+            }
+            else
+            {
+                return {rpcINVALID_PARAMS, "ledgerIndexMalformed"};
+            }
+
+            if (ledger == nullptr)
+                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+            if (ledger->info().seq + minSequenceGap <
+                ledgerMaster.getValidLedgerIndex ())
+            {
+                ledger.reset ();
+                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+            }
+        }
+    }
+
+    return Status::OK;
+}
+
+template
+Status
+ledgerFromRequest<>(std::shared_ptr<ReadView const>&, ContextGeneric<io::xpring::GetAccountInfoRequest>&);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -346,7 +446,6 @@ isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
     return true;
 }
 
-} // namespace
 
 // The previous version of the lookupLedger command would accept the
 // "ledger_index" argument as a string and silently treat it as a request to
@@ -722,6 +821,244 @@ chooseLedgerEntryType(Json::Value const& params)
         result.second = iter->second;
     }
     return result;
+}
+
+void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
+{
+    std::cout << "populating account root" << std::endl;
+    if(obj.isFieldPresent(sfAccount))
+    {
+        AccountID account = obj.getAccountID(sfAccount);
+        proto.set_account(toBase58(account));
+    }
+    if(obj.isFieldPresent(sfBalance))
+    {
+        STAmount amount = obj.getFieldAmount(sfBalance);
+        populateAmount(*proto.mutable_balance(),amount);
+    }
+    if(obj.isFieldPresent(sfSequence))
+    {
+        proto.set_sequence(obj.getFieldU32(sfSequence));
+    }
+    if(obj.isFieldPresent(sfFlags))
+    {
+        proto.set_flags(obj.getFieldU32(sfFlags));
+    }
+    if(obj.isFieldPresent(sfOwnerCount))
+    {
+        proto.set_owner_count(obj.getFieldU32(sfOwnerCount)); 
+    }
+    if(obj.isFieldPresent(sfPreviousTxnID))
+    {
+        proto.set_previous_txn_id(
+                toBytes(obj.getFieldH256(sfPreviousTxnID)));
+    }
+    if(obj.isFieldPresent(sfPreviousTxnLgrSeq))
+    {
+        proto.set_previous_txn_ledger_sequence(
+                obj.getFieldU32(sfPreviousTxnLgrSeq));
+    }
+    if(obj.isFieldPresent(sfAccountTxnID))
+    {
+        proto.set_account_txn_id(
+                toBytes(obj.getFieldH256(sfAccountTxnID)));
+    }
+    if(obj.isFieldPresent(sfDomain))
+    {
+        proto.set_domain(toBytes(obj.getFieldVL(sfDomain))); 
+    }
+    if(obj.isFieldPresent(sfEmailHash))
+    {
+        proto.set_email_hash(toBytes(obj.getFieldH128(sfEmailHash)));
+    }
+    if(obj.isFieldPresent(sfMessageKey))
+    {
+        proto.set_message_key(toBytes(obj.getFieldVL(sfMessageKey)));
+    }
+    if(obj.isFieldPresent(sfRegularKey))
+    {
+        proto.set_regular_key(toBase58(obj.getAccountID(sfRegularKey)));
+    }
+    if(obj.isFieldPresent(sfTickSize))
+    {
+        proto.set_tick_size(obj.getFieldU8(sfTickSize));
+    }
+    if(obj.isFieldPresent(sfTransferRate))
+    {
+        proto.set_transfer_rate(obj.getFieldU32(sfTransferRate));
+    }
+    std::cout << "populated account root" << std::endl;
+}
+
+void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
+{
+    if(obj.isFieldPresent(sfBalance))
+    {
+        STAmount amount = obj.getFieldAmount(sfBalance);
+        populateAmount(*proto.mutable_balance(),amount);
+    }
+    if(obj.isFieldPresent(sfFlags))
+    {
+        proto.set_flags(obj.getFieldU32(sfFlags));
+    }
+    if(obj.isFieldPresent(sfLowLimit))
+    {
+        STAmount amount = obj.getFieldAmount(sfLowLimit);
+        populateAmount(*proto.mutable_low_limit(),amount);
+    }
+    if(obj.isFieldPresent(sfHighLimit))
+    {
+        STAmount amount = obj.getFieldAmount(sfHighLimit);
+        populateAmount(*proto.mutable_high_limit(),amount);
+    }
+    if(obj.isFieldPresent(sfLowNode))
+    {
+        proto.set_low_node(obj.getFieldU64(sfLowNode));
+    }
+    if(obj.isFieldPresent(sfHighNode))
+    {
+        proto.set_high_node(obj.getFieldU64(sfHighNode));
+    }
+    if(obj.isFieldPresent(sfLowQualityIn))
+    {
+        proto.set_low_quality_in(obj.getFieldU32(sfLowQualityIn));
+    }
+    if(obj.isFieldPresent(sfLowQualityOut))
+    {
+        proto.set_low_quality_out(obj.getFieldU32(sfLowQualityOut));
+    }
+    if(obj.isFieldPresent(sfHighQualityIn))
+    {
+        proto.set_high_quality_in(obj.getFieldU32(sfHighQualityIn));
+    }
+    if(obj.isFieldPresent(sfHighQualityOut))
+    {
+        proto.set_high_quality_out(obj.getFieldU32(sfHighQualityOut));
+    }
+
+}
+
+void populateOffer(io::xpring::Offer& proto, STObject const & obj)
+{
+    if(obj.isFieldPresent(sfAccount))
+    {
+        AccountID account = obj.getAccountID(sfAccount);
+        proto.set_account(toBase58(account));
+    }
+    if(obj.isFieldPresent(sfSequence))
+    {
+        proto.set_sequence(obj.getFieldU32(sfSequence));
+    }
+    if(obj.isFieldPresent(sfFlags))
+    {
+        proto.set_flags(obj.getFieldU32(sfFlags));
+    }
+    if(obj.isFieldPresent(sfTakerPays))
+    {
+        STAmount amount = obj.getFieldAmount(sfTakerPays);
+        populateAmount(*proto.mutable_taker_pays(),amount);
+    }
+    if(obj.isFieldPresent(sfTakerGets))
+    {
+        STAmount amount = obj.getFieldAmount(sfTakerGets);
+        populateAmount(*proto.mutable_taker_gets(),amount);
+    }
+    //TODO: do we need to handle the below fields? What is the difference 
+    //between the below fields (in the comment) and the above two fields?
+    //sfTakerPaysCurrency, sfTakerPaysIssuer,
+    //sfTakerGetsCurrency, sfTakerGetsIssuer
+
+    if(obj.isFieldPresent(sfBookDirectory))
+    {
+        proto.set_book_directory(
+                toBytes(obj.getFieldVL(sfBookDirectory)));
+    }
+    if(obj.isFieldPresent(sfBookNode))
+    {
+        proto.set_book_node(obj.getFieldU64(sfBookNode));
+    }
+    if(obj.isFieldPresent(sfExpiration))
+    {
+        proto.set_expiration(obj.getFieldU32(sfExpiration));
+    }
+}
+
+void populateSignerList(io::xpring::SignerList& proto, STObject const & obj)
+{
+    proto.set_flags(obj.getFieldU32(sfFlags));
+    proto.set_previous_txn_id(toBytes(obj.getFieldH256(sfPreviousTxnID)));
+    proto.set_previous_txn_ledger_sequence(obj.getFieldU64(sfPreviousTxnLgrSeq));
+    proto.set_owner_node(obj.getFieldU64(sfOwnerNode));
+    proto.set_signer_list_id(obj.getFieldU32(sfSignerListID));
+    proto.set_signer_quorum(obj.getFieldU32(sfSignerQuorum));
+
+    STArray const & signer_entries = obj.getFieldArray(sfSignerEntries);
+
+    for(auto it = signer_entries.begin(); it != signer_entries.end(); ++it)
+    {
+        io::xpring::SignerEntry& signer_entry_proto = 
+            *proto.add_signer_entry();
+
+        signer_entry_proto.set_account(toBase58(it->getAccountID(sfAccount)));
+        signer_entry_proto.set_signer_weight(it->getFieldU16(sfSignerWeight));
+
+    }
+
+}
+
+void populateQueueData(io::xpring::QueueData& proto, std::map<TxSeq, TxQ::AccountTxDetails const> const & txs)
+{
+//    if(!txs.empty())
+//    {
+//        proto.set_txn_count(txs.size());
+//        proto.set_lowest_sequence(txs.begin()->first);
+//        proto.set_highest_sequence(txs.rbegin()->first);
+//
+//
+//        boost::optional<bool> anyAuthChanged(false);
+//        boost::optional<XRPAmount> totalSpend(0);
+//
+//        for (auto const& [txSeq, txDetails] : txs)
+//        {
+//            io::xpring::QueuedTransaction& qt = 
+//                *proto.add_transaction();
+//
+//            qt.set_seq(txSeq);
+//            qt.set_fee_level(txDetails.feeLevel);
+//            if(txDetails.lastValid)
+//                qt.set_last_ledger_sequence(*txDetails.lastValid);
+//
+//
+//            if (txDetails.consequences)
+//            {
+//                qt.set_fee(txDetails.consequences->fee.drops());
+//                auto spend = txDetails.consequences->potentialSpend +
+//                    txDetails.consequences->fee;
+//                qt.set_max_spend_drops(spend.drops());
+//                if (totalSpend)
+//                    *totalSpend += spend;
+//                auto authChanged = txDetails.consequences->category ==
+//                    TxConsequences::blocker;
+//                if (authChanged)
+//                    anyAuthChanged.emplace(authChanged);
+//                qt.set_auth_change(authChanged);
+//            }
+//            else
+//            {
+//                if (anyAuthChanged && !*anyAuthChanged)
+//                    anyAuthChanged.reset();
+//                totalSpend.reset();
+//            }
+//
+//        }
+//
+//        if (anyAuthChanged)
+//            proto.set_auth_change_queued(*anyAuthChanged);
+//        if (totalSpend)
+//            proto.set_max_spend_drops_total((*totalSpend).drops());
+//
+//    }
+
 }
 
 beast::SemanticVersion const firstVersion("1.0.0");

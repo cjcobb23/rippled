@@ -26,6 +26,9 @@
 #include <ripple/rpc/impl/Tuning.h>
 #include <ripple/rpc/Status.h>
 #include <boost/optional.hpp>
+#include <ripple/app/misc/NetworkOPs.h>
+
+#include <xrp_ledger.pb.h>
 
 namespace Json {
 class Value;
@@ -93,6 +96,15 @@ lookupLedger (std::shared_ptr<ReadView const>&, Context&);
 Status
 lookupLedger (std::shared_ptr<ReadView const>&, Context&, Json::Value& result);
 
+template <class T>
+Status
+ledgerFromRequest(T& ledger,
+        ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+
+bool
+isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
+    Application& app);
+
 hash_set <AccountID>
 parseAccountIds(Json::Value const& jvArray);
 
@@ -140,6 +152,19 @@ setVersion(Object& parent)
 
 std::pair<RPC::Status, LedgerEntryType>
     chooseLedgerEntryType(Json::Value const& params);
+
+
+void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj);
+
+void populateRippleState(io::xpring::RippleState& proto, STObject const & obj);
+
+void populateOffer(io::xpring::Offer& proto, STObject const & obj);
+
+void populateSignerList(io::xpring::SignerList& proto, STObject const & obj);
+
+void populateQueueData(io::xpring::QueueData& proto,
+        std::map<TxSeq, TxQ::AccountTxDetails const> const & txs);
+
 
 } // RPC
 } // ripple

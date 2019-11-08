@@ -156,12 +156,6 @@ Json::Value doTx (RPC::Context& context)
     return ret;
 }
 
-template <class T>
-std::string toBytes(T const & data)
-{
-    const char* bytes = reinterpret_cast<const char*>(data.data());
-    return {bytes,data.size()};
-}
 
 template <class T>
 void populateAmount(T& proto,STAmount const& amount)
@@ -321,140 +315,298 @@ void populateTransaction(
 }
 
 
+//void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
+//{
+//    if(obj.isFieldPresent(sfAccount))
+//    {
+//        AccountID account = obj.getAccountID(sfAccount);
+//        proto.set_account(toBase58(account));
+//    }
+//    if(obj.isFieldPresent(sfBalance))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfBalance);
+//        populateAmount(*proto.mutable_balance(),amount);
+//    }
+//    if(obj.isFieldPresent(sfSequence))
+//    {
+//        proto.set_sequence(obj.getFieldU32(sfSequence));
+//    }
+//    if(obj.isFieldPresent(sfFlags))
+//    {
+//        proto.set_flags(obj.getFieldU32(sfFlags));
+//    }
+//    if(obj.isFieldPresent(sfOwnerCount))
+//    {
+//        proto.set_owner_count(obj.getFieldU32(sfOwnerCount)); 
+//    }
+//    if(obj.isFieldPresent(sfPreviousTxnID))
+//    {
+//        proto.set_previous_txn_id(
+//                toBytes(obj.getFieldH256(sfPreviousTxnID)));
+//    }
+//    if(obj.isFieldPresent(sfPreviousTxnLgrSeq))
+//    {
+//        proto.set_previous_txn_ledger_sequence(
+//                obj.getFieldU32(sfPreviousTxnLgrSeq));
+//    }
+//    if(obj.isFieldPresent(sfAccountTxnID))
+//    {
+//        proto.set_account_txn_id(
+//                toBytes(obj.getFieldH256(sfAccountTxnID)));
+//    }
+//    if(obj.isFieldPresent(sfDomain))
+//    {
+//        proto.set_domain(toBytes(obj.getFieldVL(sfDomain))); 
+//    }
+//    if(obj.isFieldPresent(sfEmailHash))
+//    {
+//        proto.set_email_hash(toBytes(obj.getFieldH128(sfEmailHash)));
+//    }
+//    if(obj.isFieldPresent(sfMessageKey))
+//    {
+//        proto.set_message_key(toBytes(obj.getFieldVL(sfMessageKey)));
+//    }
+//    if(obj.isFieldPresent(sfRegularKey))
+//    {
+//        proto.set_regular_key(toBytes(obj.getFieldVL(sfRegularKey)));
+//    }
+//    if(obj.isFieldPresent(sfTickSize))
+//    {
+//        proto.set_tick_size(obj.getFieldU8(sfTickSize));
+//    }
+//    if(obj.isFieldPresent(sfTransferRate))
+//    {
+//        proto.set_transfer_rate(obj.getFieldU32(sfTransferRate));
+//    }
+//}
+//
+//void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
+//{
+//    if(obj.isFieldPresent(sfBalance))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfBalance);
+//        populateAmount(*proto.mutable_balance(),amount);
+//    }
+//    if(obj.isFieldPresent(sfFlags))
+//    {
+//        proto.set_flags(obj.getFieldU32(sfFlags));
+//    }
+//    if(obj.isFieldPresent(sfLowLimit))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfLowLimit);
+//        populateAmount(*proto.mutable_low_limit(),amount);
+//    }
+//    if(obj.isFieldPresent(sfHighLimit))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfHighLimit);
+//        populateAmount(*proto.mutable_high_limit(),amount);
+//    }
+//    if(obj.isFieldPresent(sfLowNode))
+//    {
+//        proto.set_low_node(obj.getFieldU64(sfLowNode));
+//    }
+//    if(obj.isFieldPresent(sfHighNode))
+//    {
+//        proto.set_high_node(obj.getFieldU64(sfHighNode));
+//    }
+//    if(obj.isFieldPresent(sfLowQualityIn))
+//    {
+//        proto.set_low_quality_in(obj.getFieldU32(sfLowQualityIn));
+//    }
+//    if(obj.isFieldPresent(sfLowQualityOut))
+//    {
+//        proto.set_low_quality_out(obj.getFieldU32(sfLowQualityOut));
+//    }
+//    if(obj.isFieldPresent(sfHighQualityIn))
+//    {
+//        proto.set_high_quality_in(obj.getFieldU32(sfHighQualityIn));
+//    }
+//    if(obj.isFieldPresent(sfHighQualityOut))
+//    {
+//        proto.set_high_quality_out(obj.getFieldU32(sfHighQualityOut));
+//    }
+//
+//}
+//
+//void populateOffer(io::xpring::Offer& proto, STObject const & obj)
+//{
+//    if(obj.isFieldPresent(sfAccount))
+//    {
+//        AccountID account = obj.getAccountID(sfAccount);
+//        proto.set_account(toBase58(account));
+//    }
+//    if(obj.isFieldPresent(sfSequence))
+//    {
+//        proto.set_sequence(obj.getFieldU32(sfSequence));
+//    }
+//    if(obj.isFieldPresent(sfFlags))
+//    {
+//        proto.set_flags(obj.getFieldU32(sfFlags));
+//    }
+//    if(obj.isFieldPresent(sfTakerPays))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfTakerPays);
+//        populateAmount(*proto.mutable_taker_pays(),amount);
+//    }
+//    if(obj.isFieldPresent(sfTakerGets))
+//    {
+//        STAmount amount = obj.getFieldAmount(sfTakerGets);
+//        populateAmount(*proto.mutable_taker_gets(),amount);
+//    }
+//    //TODO: do we need to handle the below fields? What is the difference 
+//    //between the below fields (in the comment) and the above two fields?
+//    //sfTakerPaysCurrency, sfTakerPaysIssuer,
+//    //sfTakerGetsCurrency, sfTakerGetsIssuer
+//
+//    if(obj.isFieldPresent(sfBookDirectory))
+//    {
+//        proto.set_book_directory(
+//                toBytes(obj.getFieldVL(sfBookDirectory)));
+//    }
+//    if(obj.isFieldPresent(sfBookNode))
+//    {
+//        proto.set_book_node(obj.getFieldU64(sfBookNode));
+//    }
+//    if(obj.isFieldPresent(sfExpiration))
+//    {
+//        proto.set_expiration(obj.getFieldU32(sfExpiration));
+//    }
+//
+//}
 
-void populateFields(io::xpring::LedgerFields& fields_proto, STObject& fields_st)
-{
-
-    //AccountRoot fields
-    if(fields_st.isFieldPresent(sfAccount))
-    {
-        AccountID account = fields_st.getAccountID(sfAccount);
-        fields_proto.set_account(toBase58(account));
-    }
-    if(fields_st.isFieldPresent(sfBalance))
-    {
-        STAmount amount = fields_st.getFieldAmount(sfBalance);
-        populateAmount(*fields_proto.mutable_balance(),amount);
-    }
-    if(fields_st.isFieldPresent(sfSequence))
-    {
-        fields_proto.set_sequence(fields_st.getFieldU32(sfSequence));
-    }
-    if(fields_st.isFieldPresent(sfFlags))
-    {
-        fields_proto.set_flags(fields_st.getFieldU32(sfFlags));
-    }
-    if(fields_st.isFieldPresent(sfOwnerCount))
-    {
-        fields_proto.set_owner_count(fields_st.getFieldU32(sfOwnerCount)); 
-    }
-    if(fields_st.isFieldPresent(sfPreviousTxnID))
-    {
-        fields_proto.set_previous_txn_id(
-                toBytes(fields_st.getFieldH256(sfPreviousTxnID)));
-    }
-    if(fields_st.isFieldPresent(sfPreviousTxnLgrSeq))
-    {
-        fields_proto.set_previous_txn_ledger_sequence(
-                fields_st.getFieldU32(sfPreviousTxnLgrSeq));
-    }
-    if(fields_st.isFieldPresent(sfAccountTxnID))
-    {
-        fields_proto.set_account_txn_id(
-                toBytes(fields_st.getFieldH256(sfAccountTxnID)));
-    }
-    if(fields_st.isFieldPresent(sfDomain))
-    {
-        fields_proto.set_domain(toBytes(fields_st.getFieldVL(sfDomain))); 
-    }
-    if(fields_st.isFieldPresent(sfEmailHash))
-    {
-        fields_proto.set_email_hash(toBytes(fields_st.getFieldH128(sfEmailHash)));
-    }
-    if(fields_st.isFieldPresent(sfMessageKey))
-    {
-        fields_proto.set_message_key(toBytes(fields_st.getFieldVL(sfMessageKey)));
-    }
-    if(fields_st.isFieldPresent(sfRegularKey))
-    {
-        fields_proto.set_regular_key(toBytes(fields_st.getFieldVL(sfRegularKey)));
-    }
-    if(fields_st.isFieldPresent(sfTickSize))
-    {
-        fields_proto.set_tick_size(fields_st.getFieldU8(sfTickSize));
-    }
-    if(fields_st.isFieldPresent(sfTransferRate))
-    {
-        fields_proto.set_transfer_rate(fields_st.getFieldU32(sfTransferRate));
-    }
-    //Offer fields
-
-    if(fields_st.isFieldPresent(sfTakerPays))
-    {
-        STAmount amount = fields_st.getFieldAmount(sfTakerPays);
-        populateAmount(*fields_proto.mutable_taker_pays(),amount);
-    }
-    if(fields_st.isFieldPresent(sfTakerGets))
-    {
-        STAmount amount = fields_st.getFieldAmount(sfTakerGets);
-        populateAmount(*fields_proto.mutable_taker_gets(),amount);
-    }
-    //TODO: do we need to handle the below fields? What is the difference 
-    //between the below fields and the above two fields?
-    //sfTakerPaysCurrency, sfTakerPaysIssuer,
-    //sfTakerGetsCurrency, sfTakerGetsIssuer
-
-
-    if(fields_st.isFieldPresent(sfBookDirectory))
-    {
-        fields_proto.set_book_directory(
-                toBytes(fields_st.getFieldVL(sfBookDirectory)));
-    }
-    if(fields_st.isFieldPresent(sfBookNode))
-    {
-        fields_proto.set_book_node(fields_st.getFieldU64(sfBookNode));
-    }
-    if(fields_st.isFieldPresent(sfExpiration))
-    {
-        fields_proto.set_expiration(fields_st.getFieldU32(sfExpiration));
-    }
-
-    //RippleState fields
-    if(fields_st.isFieldPresent(sfLowLimit))
-    {
-        STAmount amount = fields_st.getFieldAmount(sfLowLimit);
-        populateAmount(*fields_proto.mutable_low_limit(),amount);
-    }
-    if(fields_st.isFieldPresent(sfHighLimit))
-    {
-        STAmount amount = fields_st.getFieldAmount(sfHighLimit);
-        populateAmount(*fields_proto.mutable_high_limit(),amount);
-    }
-    if(fields_st.isFieldPresent(sfLowNode))
-    {
-        fields_proto.set_low_node(fields_st.getFieldU64(sfLowNode));
-    }
-    if(fields_st.isFieldPresent(sfHighNode))
-    {
-        fields_proto.set_high_node(fields_st.getFieldU64(sfHighNode));
-    }
-    if(fields_st.isFieldPresent(sfLowQualityIn))
-    {
-        fields_proto.set_low_quality_in(fields_st.getFieldU32(sfLowQualityIn));
-    }
-    if(fields_st.isFieldPresent(sfLowQualityOut))
-    {
-        fields_proto.set_low_quality_out(fields_st.getFieldU32(sfLowQualityOut));
-    }
-    if(fields_st.isFieldPresent(sfHighQualityIn))
-    {
-        fields_proto.set_high_quality_in(fields_st.getFieldU32(sfHighQualityIn));
-    }
-    if(fields_st.isFieldPresent(sfHighQualityOut))
-    {
-        fields_proto.set_high_quality_out(fields_st.getFieldU32(sfHighQualityOut));
-    }
-}
+//void populateFields(io::xpring::LedgerFields& fields_proto, STObject& fields_st)
+//{
+//
+//    //AccountRoot fields
+//    if(fields_st.isFieldPresent(sfAccount))
+//    {
+//        AccountID account = fields_st.getAccountID(sfAccount);
+//        fields_proto.set_account(toBase58(account));
+//    }
+//    if(fields_st.isFieldPresent(sfBalance))
+//    {
+//        STAmount amount = fields_st.getFieldAmount(sfBalance);
+//        populateAmount(*fields_proto.mutable_balance(),amount);
+//    }
+//    if(fields_st.isFieldPresent(sfSequence))
+//    {
+//        fields_proto.set_sequence(fields_st.getFieldU32(sfSequence));
+//    }
+//    if(fields_st.isFieldPresent(sfFlags))
+//    {
+//        fields_proto.set_flags(fields_st.getFieldU32(sfFlags));
+//    }
+//    if(fields_st.isFieldPresent(sfOwnerCount))
+//    {
+//        fields_proto.set_owner_count(fields_st.getFieldU32(sfOwnerCount)); 
+//    }
+//    if(fields_st.isFieldPresent(sfPreviousTxnID))
+//    {
+//        fields_proto.set_previous_txn_id(
+//                toBytes(fields_st.getFieldH256(sfPreviousTxnID)));
+//    }
+//    if(fields_st.isFieldPresent(sfPreviousTxnLgrSeq))
+//    {
+//        fields_proto.set_previous_txn_ledger_sequence(
+//                fields_st.getFieldU32(sfPreviousTxnLgrSeq));
+//    }
+//    if(fields_st.isFieldPresent(sfAccountTxnID))
+//    {
+//        fields_proto.set_account_txn_id(
+//                toBytes(fields_st.getFieldH256(sfAccountTxnID)));
+//    }
+//    if(fields_st.isFieldPresent(sfDomain))
+//    {
+//        fields_proto.set_domain(toBytes(fields_st.getFieldVL(sfDomain))); 
+//    }
+//    if(fields_st.isFieldPresent(sfEmailHash))
+//    {
+//        fields_proto.set_email_hash(toBytes(fields_st.getFieldH128(sfEmailHash)));
+//    }
+//    if(fields_st.isFieldPresent(sfMessageKey))
+//    {
+//        fields_proto.set_message_key(toBytes(fields_st.getFieldVL(sfMessageKey)));
+//    }
+//    if(fields_st.isFieldPresent(sfRegularKey))
+//    {
+//        fields_proto.set_regular_key(toBytes(fields_st.getFieldVL(sfRegularKey)));
+//    }
+//    if(fields_st.isFieldPresent(sfTickSize))
+//    {
+//        fields_proto.set_tick_size(fields_st.getFieldU8(sfTickSize));
+//    }
+//    if(fields_st.isFieldPresent(sfTransferRate))
+//    {
+//        fields_proto.set_transfer_rate(fields_st.getFieldU32(sfTransferRate));
+//    }
+//    //Offer fields
+//
+//    if(fields_st.isFieldPresent(sfTakerPays))
+//    {
+//        STAmount amount = fields_st.getFieldAmount(sfTakerPays);
+//        populateAmount(*fields_proto.mutable_taker_pays(),amount);
+//    }
+//    if(fields_st.isFieldPresent(sfTakerGets))
+//    {
+//        STAmount amount = fields_st.getFieldAmount(sfTakerGets);
+//        populateAmount(*fields_proto.mutable_taker_gets(),amount);
+//    }
+//    //TODO: do we need to handle the below fields? What is the difference 
+//    //between the below fields and the above two fields?
+//    //sfTakerPaysCurrency, sfTakerPaysIssuer,
+//    //sfTakerGetsCurrency, sfTakerGetsIssuer
+//
+//
+//    if(fields_st.isFieldPresent(sfBookDirectory))
+//    {
+//        fields_proto.set_book_directory(
+//                toBytes(fields_st.getFieldVL(sfBookDirectory)));
+//    }
+//    if(fields_st.isFieldPresent(sfBookNode))
+//    {
+//        fields_proto.set_book_node(fields_st.getFieldU64(sfBookNode));
+//    }
+//    if(fields_st.isFieldPresent(sfExpiration))
+//    {
+//        fields_proto.set_expiration(fields_st.getFieldU32(sfExpiration));
+//    }
+//
+//    //RippleState fields
+//    if(fields_st.isFieldPresent(sfLowLimit))
+//    {
+//        STAmount amount = fields_st.getFieldAmount(sfLowLimit);
+//        populateAmount(*fields_proto.mutable_low_limit(),amount);
+//    }
+//    if(fields_st.isFieldPresent(sfHighLimit))
+//    {
+//        STAmount amount = fields_st.getFieldAmount(sfHighLimit);
+//        populateAmount(*fields_proto.mutable_high_limit(),amount);
+//    }
+//    if(fields_st.isFieldPresent(sfLowNode))
+//    {
+//        fields_proto.set_low_node(fields_st.getFieldU64(sfLowNode));
+//    }
+//    if(fields_st.isFieldPresent(sfHighNode))
+//    {
+//        fields_proto.set_high_node(fields_st.getFieldU64(sfHighNode));
+//    }
+//    if(fields_st.isFieldPresent(sfLowQualityIn))
+//    {
+//        fields_proto.set_low_quality_in(fields_st.getFieldU32(sfLowQualityIn));
+//    }
+//    if(fields_st.isFieldPresent(sfLowQualityOut))
+//    {
+//        fields_proto.set_low_quality_out(fields_st.getFieldU32(sfLowQualityOut));
+//    }
+//    if(fields_st.isFieldPresent(sfHighQualityIn))
+//    {
+//        fields_proto.set_high_quality_in(fields_st.getFieldU32(sfHighQualityIn));
+//    }
+//    if(fields_st.isFieldPresent(sfHighQualityOut))
+//    {
+//        fields_proto.set_high_quality_out(fields_st.getFieldU32(sfHighQualityOut));
+//    }
+//}
 
 std::string ledgerEntryTypeString(std::uint16_t type)
 {
@@ -478,6 +630,27 @@ std::string ledgerEntryTypeString(std::uint16_t type)
             << std::to_string(type) << std::endl;
 
         return ""; //Not supported yet
+    }
+}
+
+template <class T>
+void populateFields(T& proto,STObject const& obj, std::uint16_t type)
+{
+    if(type == ltACCOUNT_ROOT)
+    {
+        RPC::populateAccountRoot(*proto.mutable_account_root(),obj);
+    }
+    else if(type == ltRIPPLE_STATE)
+    {
+        RPC::populateRippleState(*proto.mutable_ripple_state(),obj);
+    }
+    else if(type == ltOFFER)
+    {
+        RPC::populateOffer(*proto.mutable_offer(),obj);
+    }
+    else
+    {
+        //Ledger object not supported
     }
 }
 
@@ -512,15 +685,43 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
         std::cout << st_txn->peekAtField(field).getFullText() << std::endl;
     }
 */
-
-    populateTransaction(result.mutable_tx(),st_txn);
-
+    if(request.binary())
+    {
+        Serializer s = st_txn->getSerializer();
+        result.set_tx_bytes(toBytes(s.peekData()));
+    }
+    else
+    {
+        populateTransaction(result.mutable_tx(),st_txn);
+    }
     result.set_ledger_index(txn->getLedger());
 
     std::shared_ptr<Ledger const> ledger = 
         context.ledgerMaster.getLedgerBySeq(txn->getLedger());
     if(ledger)
     { 
+        if(request.binary())
+        {
+            SHAMapTreeNode::TNType type;
+            auto const item =
+                ledger->txMap().peekItem (txn->getID(), type);
+
+            if (item && type == SHAMapTreeNode::tnTRANSACTION_MD)
+            {
+
+            SerialIter it (item->slice());
+            it.getVL (); // skip transaction
+            Slice slice = makeSlice(it.getVL ());
+            result.set_meta_bytes(toBytes(slice));
+
+
+            bool validated = isValidated(context.ledgerMaster,
+                    ledger->info().seq,ledger->info().hash);
+            result.set_validated(validated);
+            }
+        }
+        else
+        {
         auto rawMeta = ledger->txRead (txn->getID()).second;
         if(rawMeta)
         {
@@ -589,10 +790,10 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
                         STObject& final_fields =
                             obj.getField(sfFinalFields).downcast<STObject>();
 
-                        io::xpring::LedgerFields* final_fields_proto =
+                        io::xpring::LedgerObject* final_fields_proto =
                             node->mutable_modified_node()->mutable_final_fields();
 
-                        populateFields(*final_fields_proto,final_fields);
+                        populateFields(*final_fields_proto,final_fields,type);
 
                     }
                     //previous fields
@@ -600,10 +801,10 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
                     {
                         std::cout << "previous fields is present" << std::endl;
                         STObject& prev_fields = obj.getField(sfPreviousFields).downcast<STObject>();
-                        io::xpring::LedgerFields* prev_fields_proto =
+                        io::xpring::LedgerObject* prev_fields_proto =
                             node->mutable_modified_node()->mutable_previous_fields();
 
-                        populateFields(*prev_fields_proto,prev_fields);
+                        populateFields(*prev_fields_proto,prev_fields,type);
 
                     }
                     std::cout << "setting prev txn id and sequence" << std::endl;
@@ -628,10 +829,10 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
                         STObject& new_fields =
                             obj.getField(sfNewFields).downcast<STObject>();
 
-                        io::xpring::LedgerFields* new_fields_proto =
+                        io::xpring::LedgerObject* new_fields_proto =
                             node->mutable_created_node()->mutable_new_fields();
 
-                        populateFields(*new_fields_proto,new_fields);
+                        populateFields(*new_fields_proto,new_fields,type);
                     }
 
                 }
@@ -644,10 +845,10 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
                         STObject& final_fields =
                             obj.getField(sfNewFields).downcast<STObject>();
 
-                        io::xpring::LedgerFields* final_fields_proto =
+                        io::xpring::LedgerObject* final_fields_proto =
                             node->mutable_deleted_node()->mutable_final_fields();
 
-                        populateFields(*final_fields_proto,final_fields);
+                        populateFields(*final_fields_proto,final_fields,type);
 
                     }
                 }
@@ -656,6 +857,7 @@ doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
 
             }
 
+        }
         }
     }
 

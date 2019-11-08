@@ -22,7 +22,7 @@ service XRPLedgerAPI {
   rpc GetAccountInfo (GetAccountInfoRequest) returns (AccountInfo);
 
   // Get the fee for a transaction on the XRP Ledger.
-  rpc GetFee (GetFeeRequest) returns (Fee);
+  rpc GetFee (GetFeeRequest) returns (FeeResponse);
 
   // Submit a signed transaction to the XRP Ledger.
   rpc SubmitSignedTransaction (SubmitSignedTransactionRequest) returns (SubmitSignedTransactionResponse);

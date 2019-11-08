@@ -33,6 +33,8 @@
 
 #include <grpc/status.h>
 
+#include <ripple/rpc/impl/RPCHelpers.h>
+
 
 namespace ripple {
 
@@ -196,49 +198,163 @@ std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextG
 
     std::string strIdent = params.address();
 
-    std::shared_ptr<ReadView const> ledger = context.ledgerMaster.getCurrentLedger();
+    std::shared_ptr<ReadView const> ledger;//= context.ledgerMaster.getCurrentLedger();
+
+
+    auto lgr_status = RPC::ledgerFromRequest(ledger,context);
+
+    if(lgr_status)
+    {
+        grpc::Status error_status;
+        if(lgr_status.toErrorCode() == rpcINVALID_PARAMS)
+        {
+            error_status = 
+                grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                        lgr_status.message());
+        }
+        else
+        {
+
+            error_status = grpc::Status(grpc::StatusCode::NOT_FOUND,
+                    lgr_status.message());
+        }
+        //TODO return an error
+        return {result,error_status};
+    }
+
+    result.set_ledger_index(ledger->info().seq);
+
+    result.set_validated(
+            RPC::isValidated(context.ledgerMaster, *ledger, context.app));
+
+
+
+
+
 
     if (!ledger)
     {
-        grpc::Status error_status{grpc::StatusCode::NOT_FOUND,"current ledger not found"};
+        grpc::Status error_status{grpc::StatusCode::NOT_FOUND,"ledger not found"};
         return {result,error_status};
-        }
+    }
     AccountID accountID;
 
     // Get info on account.
 
- //   boost::optional<AccountID> accountIdOpt = RPC::accountFromStringStrict(strIdent); 
- //   if (!accountIdOpt)
- //   {
- //       grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
- //       return {result, error_status};
- //   }
- //   accountID = *accountIdOpt;
+    //   boost::optional<AccountID> accountIdOpt = RPC::accountFromStringStrict(strIdent); 
+    //   if (!accountIdOpt)
+    //   {
+    //       grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
+    //       return {result, error_status};
+    //   }
+    //   accountID = *accountIdOpt;
 
-    error_code_i code = RPC::accountFromStringWithCode(accountID, strIdent, false);
+    error_code_i code = RPC::accountFromStringWithCode(accountID, strIdent, params.strict());
 
     if(code != rpcSUCCESS)
     {
-         grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
+        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "invalid account"};
         return {result, error_status};   
     }
 
     auto const sleAccepted = ledger->read(keylet::account(accountID));
     if(sleAccepted)
     {
-        STAmount bal = sleAccepted->getFieldAmount(sfBalance);
-        std::uint32_t seq = sleAccepted->getFieldU32(sfSequence);
-        
-        std::uint32_t ownerCount = sleAccepted->getFieldU32(sfOwnerCount);
-        uint256 prevTxnId = sleAccepted->getFieldH256(sfPreviousTxnID);
-        std::uint32_t prevLedgerVersion
-            = sleAccepted->getFieldU32(sfPreviousTxnLgrSeq);
-        io::xpring::XRPAmount* balance = result.mutable_balance();
-        balance->set_drops(bal.xrp().drops());
-        result.set_previous_affecting_transaction_id(to_string(prevTxnId));
-        result.set_previous_affecting_transaction_ledger_version(prevLedgerVersion);
-        result.set_owner_count(ownerCount);
-        result.set_sequence(seq);
+
+        RPC::populateAccountRoot(*result.mutable_account_data(),*sleAccepted);
+
+        if(params.signer_lists())
+        {
+            auto const sleSigners = ledger->read (keylet::signers (accountID));
+            if(sleSigners)
+            {
+                io::xpring::SignerList& signer_list_proto = *result.mutable_signer_list();
+                RPC::populateSignerList(signer_list_proto,*sleSigners);
+
+
+            }
+        }
+
+        if(params.queue())
+        {
+            if(!ledger->open())
+            {
+                grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+                    "requested queue but ledger is not open"};
+                return {result, error_status};
+            }
+            auto const txs = context.app.getTxQ().getAccountTxs(
+                    accountID, *ledger);
+            io::xpring::QueueData& queue_data = 
+                *result.mutable_queue_data();
+            RPC::populateQueueData(queue_data,txs);
+            if(!txs.empty())
+            {
+                io::xpring::QueueData& queue_data = 
+                    *result.mutable_queue_data();
+                queue_data.set_txn_count(txs.size());
+                queue_data.set_lowest_sequence(txs.begin()->first);
+                queue_data.set_highest_sequence(txs.rbegin()->first);
+
+
+                boost::optional<bool> anyAuthChanged(false);
+                boost::optional<XRPAmount> totalSpend(0);
+
+                for (auto const& [txSeq, txDetails] : txs)
+                {
+                    io::xpring::QueuedTransaction& qt = 
+                        *queue_data.add_transaction();
+
+                    qt.set_seq(txSeq);
+                    qt.set_fee_level(txDetails.feeLevel);
+                    if(txDetails.lastValid)
+                        qt.set_last_ledger_sequence(*txDetails.lastValid);
+
+
+                    if (txDetails.consequences)
+                    {
+                        qt.set_fee(txDetails.consequences->fee.drops());
+                        auto spend = txDetails.consequences->potentialSpend +
+                            txDetails.consequences->fee;
+                        qt.set_max_spend_drops(spend.drops());
+                        if (totalSpend)
+                            *totalSpend += spend;
+                        auto authChanged = txDetails.consequences->category ==
+                            TxConsequences::blocker;
+                        if (authChanged)
+                            anyAuthChanged.emplace(authChanged);
+                        qt.set_auth_change(authChanged);
+                    }
+                    else
+                    {
+                        if (anyAuthChanged && !*anyAuthChanged)
+                            anyAuthChanged.reset();
+                        totalSpend.reset();
+                    }
+
+                }
+
+                if (anyAuthChanged)
+                    queue_data.set_auth_change_queued(*anyAuthChanged);
+                if (totalSpend)
+                    queue_data.set_max_spend_drops_total((*totalSpend).drops());
+
+            }
+        }
+        //            
+        //        STAmount bal = sleAccepted->getFieldAmount(sfBalance);
+        //        std::uint32_t seq = sleAccepted->getFieldU32(sfSequence);
+        //        
+        //        std::uint32_t ownerCount = sleAccepted->getFieldU32(sfOwnerCount);
+        //        uint256 prevTxnId = sleAccepted->getFieldH256(sfPreviousTxnID);
+        //        std::uint32_t prevLedgerVersion
+        //            = sleAccepted->getFieldU32(sfPreviousTxnLgrSeq);
+        //        io::xpring::XRPAmount* balance = result.mutable_balance();
+        //        balance->set_drops(bal.xrp().drops());
+        //        result.set_previous_affecting_transaction_id(to_string(prevTxnId));
+        //        result.set_previous_affecting_transaction_ledger_version(prevLedgerVersion);
+        //        result.set_owner_count(ownerCount);
+        //        result.set_sequence(seq);
     }
     else
     {
