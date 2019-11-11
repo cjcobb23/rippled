@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "fiat_amount.proto";
+import "xrp_amount.proto";
+
+package io.xpring;
+
+message CurrencyAmount {
+    oneof amount {
+        XRPAmount xrp_amount = 1;
+        FiatAmount fiat_amount = 2;
+    }
+}
