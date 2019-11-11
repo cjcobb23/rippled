@@ -132,7 +132,7 @@ class GRPCServerImpl final {
 
     virtual ~CallData() {}
 
-    std::shared_ptr<Processor> Proceed() override
+    void Proceed() override
     {
       if (status_ == LISTEN) {
           std::cout << "processing" << std::endl;
@@ -140,21 +140,56 @@ class GRPCServerImpl final {
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
-          auto ptr = createCallDataAndListen<D>(service_,cq_,app_);
-          process();
-          return ptr;
+          std::shared_ptr<CallData<D>> this_s = this->shared_from_this();
+          app_.getJobQueue().postCoro(ripple::JobType::jtRPC, "gRPC-Client",[this_s](std::shared_ptr<ripple::JobQueue::Coro> coro)
+                {
+                    std::lock_guard<std::mutex> lock(this_s->mut_);
+
+                    //Do nothing if the call has been aborted due to server shutdown
+                    if(this_s->aborted_)
+                        return;
+
+                    this_s->process(coro);
+                });
       } else {
           std::cout << "finishing" << std::endl;
           GPR_ASSERT(status_ == PROCESS);
           status_ = FINISH;
           finish();
-          return std::shared_ptr<Processor>();
       }
     }
 
+    std::shared_ptr<CallData<D>> clone()
+    {
+        auto ptr = createCallDataAndListen<D>(service_,cq_,app_);
+    
+        return ptr;
+    }
+
     virtual void makeListener() = 0;
-    virtual void process() = 0;
+    virtual void process(std::shared_ptr<ripple::JobQueue::Coro>) = 0;
     virtual void finish() {}
+
+    //override these next 3 if different functionality is desired
+    virtual ripple::Resource::Charge getLoadType()
+    {
+        return ripple::Resource::feeReferenceRPC;
+    }
+
+    virtual ripple::Role getRole()
+    {
+        return ripple::Role::USER;
+    }
+
+    virtual ripple::Consumer getUsage()
+    {
+        std::string peer = getEndpoint(ctx_.peer());
+
+        boost::optional<beast::IP::Endpoint> endpoint =
+            beast::IP::Endpoint::from_string_checked(peer);
+        return app_.getResourceManager().newInboundEndpoint(endpoint.get());
+    }
+
 
     virtual void abort() override
     {
@@ -227,84 +262,40 @@ class GRPCServerImpl final {
                                   this);
     } 
 
-    void process() override
+    void process(std::shared_ptr<ripple::JobQueue::Coro> coro) override
     {
+        try
+        {
+            auto usage = getUsage();
+            if(usage.disconnect())
+            {
+                Status status{StatusCode::RESOURCE_EXHAUSTED,
+                    "usage balance exceeds threshhold"};
+                responder_.FinishWithError(status, this);
+            }
+            else
+            {
 
-        // Spawn a new CallData instance to serve new clients while we process
-        // the one for this CallData. The instance will deallocate itself as
-        // part of its FINISH state.
-        auto this_s = std::static_pointer_cast<AccountInfoCallData>(shared_from_this());
-        //TODO abstract the logic of posting to the JobQueue
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this_s](std::shared_ptr<ripple::JobQueue::Coro> coro)
-                {
-                std::lock_guard<std::mutex> lock(this_s->mut_);
-                if(this_s->aborted_)
-                    return;//Do nothing if the call has been aborted due to server shutdown
+                auto loadType = getLoadType();
+                usage.charge(loadType);
 
-                try
-                {
-
-                ripple::Resource::Charge loadType =
-                    ripple::Resource::feeReferenceRPC;
-                auto role = ripple::Role::USER;
-                std::string peer = this_s->ctx_.peer();
-                std::cout << "peer is " << peer << std::endl;
-
-                std::size_t first = peer.find_first_of(":");
-                std::size_t last = peer.find_last_of(":");
-
-                if(first != last)
-                {
-                    peer = peer.substr(first+1);
-                }
-
-                std::cout << "peer now is " << peer << std::endl;
-                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
-                if(endpoint)
-                    std::cout << "endpoint good" << std::endl;
-                else
-                    std::cout << "endpoint bad" << std::endl;
-
-
-                ripple::Application& app = this_s->app_;
-                auto usage = app.getResourceManager().newInboundEndpoint(endpoint.get());
-                if(usage.disconnect())
-                {
-                    Status status{StatusCode::RESOURCE_EXHAUSTED, "usage balance exceeds threshhold"};
-                    this_s->responder_.FinishWithError(status, this_s.get());
-                    //TODO also return warning?
-                }
-                else
-                {
-                    usage.charge(loadType);
-
-
-                    ripple::RPC::ContextGeneric<GetAccountInfoRequest> context {
-                        app.journal("Server"),
-                        this_s->request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
+                ripple::RPC::ContextGeneric<GetAccountInfoRequest> context {
+                    app.journal("gRPCServer"),getLoadType()
+                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
-                    std::pair<AccountInfo,Status> result = ripple::doAccountInfoGrpc(context);
+                std::pair<AccountInfo,Status> result = ripple::doAccountInfoGrpc(context);
 
-                    // And we are done! Let the gRPC runtime know we've finished, using the
-                    // memory address of this instance as the uniquely identifying tag for
-                    // the event.
-                    //TODO: what happens if server was shutdown but we try to respond?
-                    this_s->responder_.Finish(result.first, result.second, this_s.get());
-                }
-                    } catch(...)
-                    {
-                    
-                        std::cout << boost::current_exception_diagnostic_information()
-                            << std::endl;
-
-                        Status status{StatusCode::INTERNAL,
-                            boost::current_exception_diagnostic_information()};
-                        this_s->responder_.FinishWithError(status,this_s.get());
-                    }
-                });
-
-    } 
+                //TODO: what happens if server was shutdown but we try to respond?
+                responder_.Finish(result.first, result.second, this);
+            }
+        }
+        catch(std::exception const & ex)
+        {
+            Status status{StatusCode::INTERNAL,ex.what()};
+            responder_.FinishWithError(status,this);
+        }
+    }
 
    private:
 
@@ -320,9 +311,6 @@ class GRPCServerImpl final {
   class FeeCallData : public CallData<FeeCallData>
   {
    public:
-    // Take in the "service" instance (in this case representing an asynchronous
-    // server) and the completion queue "cq" used for asynchronous communication
-    // with the gRPC runtime.
     FeeCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
         : CallData(service,cq,app), responder_(&ctx_)
     {
@@ -332,84 +320,43 @@ class GRPCServerImpl final {
 
     void makeListener() override 
     {
-        // As part of the initial LISTEN state, we *request* that the system
-        // start processing GetAccountInfo requests. In this request, "this" acts are
-        // the tag uniquely identifying the request (so that different CallData
-        // instances can serve different requests concurrently), in this case
-        // the memory address of this CallData instance.
         service_->RequestGetFee(&ctx_, &request_, &responder_, cq_, cq_,
                                   this);
     } 
 
     void process() override
     {
+        try
+        {
+            auto usage = getUsage();
+            if(usage.disconnect())
+            {
+                Status status{StatusCode::RESOURCE_EXHAUSTED,
+                    "usage balance exceeds threshhold"};
+                responder_.FinishWithError(status, this);
+            }
+            else
+            {getLoadType()
 
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
-                {
+                auto loadType = getLoadType();
+                usage.charge(loadType);
 
-
-                try
-                {
-                ripple::Resource::Charge loadType =
-                    ripple::Resource::feeReferenceRPC;
-                auto role = ripple::Role::USER;
-                std::string peer = ctx_.peer();
-                std::cout << "peer is " << peer << std::endl;
-
-                std::size_t first = peer.find_first_of(":");
-                std::size_t last = peer.find_last_of(":");
-
-                if(first != last)
-                {
-                    //TODO: should we use ip and port or just ip?
-                    peer = peer.substr(first+1,last-first);
-                }
-
-                std::cout << "peer now is " << peer << std::endl;
-                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
-                if(endpoint)
-                    std::cout << "endpoint good" << std::endl;
-                else
-                    std::cout << "endpoint bad" << std::endl;
-
-
-                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
-                std::cout << "usage balance = " << usage.balance() << std::endl;
-                //TODO: will this ever return true?
-                if(usage.disconnect())
-                {
-                    //TODO return some error code
-                    //TODO also return warning?
-                    Status status{StatusCode::RESOURCE_EXHAUSTED, "usage balance exceeds threshhold"};
-                    this->responder_.Finish(this->reply_,status, this);
-                }
-                else
-                {
-                    usage.charge(loadType);
-                    ripple::RPC::ContextGeneric<GetFeeRequest> context {app_.journal("Server"),
-                        request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                ripple::RPC::ContextGeneric<FeeRequest> context {
+                    app.journal("gRPCServer"),
+                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
                         usage, role, coro, ripple::InfoSub::pointer()};
 
-                    this->reply_ = ripple::doFeeGrpc(context);
+                reply_ = ripple::doFeeGrpc(context);
 
-                this->responder_.Finish(this->reply_, Status::OK, this);
-                }
-                    } catch(...)
-                    {
-                    
-                        std::cout << boost::current_exception_diagnostic_information()
-                            << std::endl;
-
-                        Status status{StatusCode::INTERNAL,
-                            boost::current_exception_diagnostic_information()};
-                        this->responder_.FinishWithError(status,this);
-                    }
-
-                // And we are done! Let the gRPC runtime know we've finished, using the
-                // memory address of this instance as the uniquely identifying tag for
-                // the event.
-                });
-
+                //TODO: what happens if server was shutdown but we try to respond?
+                responder_.Finish(reply_, Status::OK, this);
+            }
+        }
+        catch(std::exception const & ex)
+        {
+            Status status{StatusCode::INTERNAL,ex.what()};
+            responder_.FinishWithError(status,this);
+        }
     } 
 
    private:
@@ -441,30 +388,39 @@ class GRPCServerImpl final {
 
     void process() override
     {
+        try
+        {
+            auto usage = getUsage();
+            if(usage.disconnect())
+            {
+                Status status{StatusCode::RESOURCE_EXHAUSTED,
+                    "usage balance exceeds threshhold"};
+                responder_.FinishWithError(status, this);
+            }
+            else
+            {
 
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
-                {
-
-                ripple::Resource::Charge loadType =
-                    ripple::Resource::feeReferenceRPC;
-                auto role = ripple::Role::USER;
-                std::string peer = getEndpoint(ctx_.peer());
-
-                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
-
-                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                auto loadType = getLoadType();
                 usage.charge(loadType);
-                //TODO check usage
-                ripple::RPC::ContextGeneric<SubmitSignedTransactionRequest> context {app_.journal("Server"),
-                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
-                    usage, role, coro, ripple::InfoSub::pointer()};               
 
-                    auto res = ripple::doSubmitGrpc(context);
-                    this->responder_.Finish(res.first,res.second,this);
+                ripple::RPC::ContextGeneric<SubmitSignedTransactionRequest> context {
+                    app.journal("gRPCServer"),
+                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
+                        usage, role, coro, ripple::InfoSub::pointer()};
+
+                std::pair<SubmitSignedTransactionResponse,Status> result = ripple::doSubmitGrpc(context);
+
+                //TODO: what happens if server was shutdown but we try to respond?
+                responder_.Finish(result.first,result.second, this);
+            }
+        }
+        catch(std::exception const & ex)
+        {
+            Status status{StatusCode::INTERNAL,ex.what()};
+            responder_.FinishWithError(status,this);
+        }
 
 
-
-                });
     }
    
       private:
@@ -493,35 +449,45 @@ class GRPCServerImpl final {
                                   this);
     }
 
-    void process() override
+    void process(std::shared_ptr<ripple::JobQueue::Coro> coro) override
     {
+        try
+        {
+            auto usage = getUsage();
+            if(usage.disconnect())
+            {
+                Status status{StatusCode::RESOURCE_EXHAUSTED,
+                    "usage balance exceeds threshhold"};
+                responder_.FinishWithError(status, this);
+            }
+            else
+            {
 
-        //TODO capture shared_from_this ptr and use mutex
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
-                {
-
-                ripple::Resource::Charge loadType =
-                    ripple::Resource::feeReferenceRPC;
-                auto role = ripple::Role::USER;
-                std::string peer = getEndpoint(ctx_.peer());
-
-                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
-
-                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
+                auto loadType = getLoadType();
                 usage.charge(loadType);
-                //TODO check usage
-                ripple::RPC::ContextGeneric<TxRequest> context {app_.journal("Server"),
-                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
-                    usage, role, coro, ripple::InfoSub::pointer()};               
 
-                    auto res = ripple::doTxGrpc(context);
-                    std::cout << res.first.DebugString() << std::endl;
-                    std::cout << "responding" << std::endl;
-                    this->responder_.Finish(res.first,res.second,this);
-                    std::cout << "responded" << std::endl;
+                ripple::RPC::ContextGeneric<TxRequest> context {
+                    app.journal("gRPCServer"),
+                        request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
+                        usage, role, coro, ripple::InfoSub::pointer()};
 
+                std::pair<TxResponse,Status> result = ripple::doTxGrpc(context);
 
-                });
+                //TODO: what happens if server was shutdown but we try to respond?
+                responder_.Finish(result.first,result.second, this);
+            }
+        }
+        catch(std::exception const & ex)
+        {
+            Status status{StatusCode::INTERNAL,ex.what()};
+            responder_.FinishWithError(status,this);
+        }
+
+    }
+
+    ripple::Resource::Charge getLoadType() override
+    {
+        return ripple::Resource::feeMediumBurdenRPC;
     }
    
       private:
@@ -535,62 +501,10 @@ class GRPCServerImpl final {
 
   }; //TxCallData
 
+
+
   
-  class LedgerSequenceCallData : public CallData<LedgerSequenceCallData>
-  {
-    public:
-    LedgerSequenceCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-        : CallData(service,cq,app), responder_(&ctx_)
-    {
-    }
-
-    void makeListener() override
-    {
-
-        service_->RequestLedgerSequence(&ctx_, &request_, &responder_, cq_, cq_,
-                                  this);
-    }
-
-    void process() override
-    {
-
-        app_.getJobQueue().postCoro(ripple::JobType::jtCLIENT, "GRPC-Client",[this](std::shared_ptr<ripple::JobQueue::Coro> coro)
-                {
-
-                ripple::Resource::Charge loadType =
-                    ripple::Resource::feeReferenceRPC;
-                auto role = ripple::Role::USER;
-                std::string peer = getEndpoint(ctx_.peer());
-
-                boost::optional<beast::IP::Endpoint> endpoint = beast::IP::Endpoint::from_string_checked(peer);
-
-                auto usage = app_.getResourceManager().newInboundEndpoint(endpoint.get());
-                usage.charge(loadType);
-                //TODO check usage
-                ripple::RPC::ContextGeneric<LedgerSequenceRequest> context {app_.journal("Server"),
-                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
-                    usage, role, coro, ripple::InfoSub::pointer()};               
-
-                    auto res = ripple::doLedgerSequenceGrpc(context);
-                    this->responder_.Finish(res.first,res.second,this);
-
-
-
-                });
-    }
-   
-      private:
-    // What we get from the client.
-    LedgerSequenceRequest request_;
-    // What we send back to the client.
-    LedgerSequenceResponse reply_;
-
-    // The means to get back to the client.
-    ServerAsyncResponseWriter<LedgerSequenceResponse> responder_;
-
-  }; //LedgerSequenceCallData
-
-
+  //create CallData object, add to list and set iterator data member
   template <class T>
   void makeAndPush(std::list<std::shared_ptr<Processor>>& data)
   {
@@ -602,47 +516,50 @@ class GRPCServerImpl final {
 
   // This can be run in multiple threads if needed.
   void HandleRpcs() {
-    // Spawn a new CallData instance to serve new clients.
-    std::list<std::shared_ptr<Processor>> data;
-    makeAndPush<AccountInfoCallData>(data);
-    makeAndPush<FeeCallData>(data);
-    makeAndPush<SubmitCallData>(data);
-    makeAndPush<TxCallData>(data);
-    makeAndPush<LedgerSequenceCallData>(data);
+    // Container for CallData instances
+    std::list<std::shared_ptr<Processor>> requests;
+
+    //create CallData object for each request type
+    makeAndPush<AccountInfoCallData>(requests);
+    makeAndPush<FeeCallData>(requests);
+    makeAndPush<SubmitCallData>(requests);
+    makeAndPush<TxCallData>(requests);
+    makeAndPush<LedgerSequenceCallData>(requests);
 
     void* tag;  // uniquely identifies a request.
     bool ok;
-    std::unordered_map<void*,bool> deleted;
+    // Block waiting to read the next event from the completion queue. The
+    // event is uniquely identified by its tag, which in this case is the
+    // memory address of a CallData instance.
+    // The return value of Next should always be checked. This return value
+    // tells us whether there is any kind of event or cq_ is shutting down.
     while (cq_->Next(&tag,&ok)) {
-      // Block waiting to read the next event from the completion queue. The
-      // event is uniquely identified by its tag, which in this case is the
-      // memory address of a CallData instance.
-      // The return value of Next should always be checked. This return value
-      // tells us whether there is any kind of event or cq_ is shutting down.
+
+      //if ok is false, this event was terminated as part of a shutdown sequence
+      //need to abort any further processing
       if(!ok)
       {
-          std::cout << "not ok. tag is " << tag << std::endl;
-          if(deleted.find(tag) != deleted.end())
-          {
-        //abort first, then erase. Otherwise, erase may delete object
+        //abort first, then erase. Otherwise, erase can delete object
         static_cast<Processor*>(tag)->abort();
-        data.erase(static_cast<Processor*>(tag)->getIter());
-        deleted[tag] = true;
-          }
+        requests.erase(static_cast<Processor*>(tag)->getIter());
       }
       else
       {
-      std::cout << "Got tag" << std::endl;
-      auto new_data = static_cast<Processor*>(tag)->Proceed();
-      if(new_data)
-      {
-          data.push_front(new_data);
-          new_data->setIter(data.begin());
-      }
-      else //Delete this object
-      {
-        data.erase(static_cast<Processor*>(tag)->getIter());
-      }
+          auto ptr = static_cast<Processor*>(tag);
+          if(ptr.status_ == CallStatus::LISTEN)
+          {
+              //ptr is now processing a request, so create a new CallData object
+              //to handle additional requests
+              auto cloned = ptr->clone();
+              requests.push_front(cloned);
+              //set iterator as data member for later lookup
+              cloned->setIter(requests.begin());
+          }
+          else
+          {
+              requests.erase(static_cast<Processor*>(tag)->getIter());
+          }
+          ptr->proceed();
       }
     }
   }
@@ -650,11 +567,7 @@ class GRPCServerImpl final {
   std::unique_ptr<ServerCompletionQueue> cq_;
   XRPLedgerAPI::AsyncService service_;
   std::unique_ptr<Server> server_;
-//  ripple::JobQueue& jobQueue_;
   ripple::Application& app_;
-//
-//  beast::Journal j_;
-//  NetworkOps& netops_;
 }; //GRPCServerImpl
 
 class GRPCServer

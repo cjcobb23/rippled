@@ -997,56 +997,56 @@ void populateSignerList(io::xpring::SignerList& proto, STObject const & obj)
 
 void populateQueueData(io::xpring::QueueData& proto, std::map<TxSeq, TxQ::AccountTxDetails const> const & txs)
 {
-//    if(!txs.empty())
-//    {
-//        proto.set_txn_count(txs.size());
-//        proto.set_lowest_sequence(txs.begin()->first);
-//        proto.set_highest_sequence(txs.rbegin()->first);
-//
-//
-//        boost::optional<bool> anyAuthChanged(false);
-//        boost::optional<XRPAmount> totalSpend(0);
-//
-//        for (auto const& [txSeq, txDetails] : txs)
-//        {
-//            io::xpring::QueuedTransaction& qt = 
-//                *proto.add_transaction();
-//
-//            qt.set_seq(txSeq);
-//            qt.set_fee_level(txDetails.feeLevel);
-//            if(txDetails.lastValid)
-//                qt.set_last_ledger_sequence(*txDetails.lastValid);
-//
-//
-//            if (txDetails.consequences)
-//            {
-//                qt.set_fee(txDetails.consequences->fee.drops());
-//                auto spend = txDetails.consequences->potentialSpend +
-//                    txDetails.consequences->fee;
-//                qt.set_max_spend_drops(spend.drops());
-//                if (totalSpend)
-//                    *totalSpend += spend;
-//                auto authChanged = txDetails.consequences->category ==
-//                    TxConsequences::blocker;
-//                if (authChanged)
-//                    anyAuthChanged.emplace(authChanged);
-//                qt.set_auth_change(authChanged);
-//            }
-//            else
-//            {
-//                if (anyAuthChanged && !*anyAuthChanged)
-//                    anyAuthChanged.reset();
-//                totalSpend.reset();
-//            }
-//
-//        }
-//
-//        if (anyAuthChanged)
-//            proto.set_auth_change_queued(*anyAuthChanged);
-//        if (totalSpend)
-//            proto.set_max_spend_drops_total((*totalSpend).drops());
-//
-//    }
+    if(!txs.empty())
+    {
+        proto.set_txn_count(txs.size());
+        proto.set_lowest_sequence(txs.begin()->first);
+        proto.set_highest_sequence(txs.rbegin()->first);
+
+
+        boost::optional<bool> anyAuthChanged(false);
+        boost::optional<XRPAmount> totalSpend(0);
+
+        for (auto const& [txSeq, txDetails] : txs)
+        {
+            io::xpring::QueuedTransaction& qt = 
+                *proto.add_transaction();
+
+            qt.set_seq(txSeq);
+            qt.set_fee_level(txDetails.feeLevel);
+            if(txDetails.lastValid)
+                qt.set_last_ledger_sequence(*txDetails.lastValid);
+
+
+            if (txDetails.consequences)
+            {
+                qt.set_fee(txDetails.consequences->fee.drops());
+                auto spend = txDetails.consequences->potentialSpend +
+                    txDetails.consequences->fee;
+                qt.set_max_spend_drops(spend.drops());
+                if (totalSpend)
+                    *totalSpend += spend;
+                auto authChanged = txDetails.consequences->category ==
+                    TxConsequences::blocker;
+                if (authChanged)
+                    anyAuthChanged.emplace(authChanged);
+                qt.set_auth_change(authChanged);
+            }
+            else
+            {
+                if (anyAuthChanged && !*anyAuthChanged)
+                    anyAuthChanged.reset();
+                totalSpend.reset();
+            }
+
+        }
+
+        if (anyAuthChanged)
+            proto.set_auth_change_queued(*anyAuthChanged);
+        if (totalSpend)
+            proto.set_max_spend_drops_total((*totalSpend).drops());
+
+    }
 
 }
 
