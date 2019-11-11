@@ -53,9 +53,8 @@ include(deps/Snappy)
 include(deps/Rocksdb)
 include(deps/Nudb)
 include(deps/Protobuf)
+include(deps/gRPC)
 
-add_subdirectory(/home/cj/Code/rippled/grpc EXCLUDE_FROM_ALL)
-message(STATUS "Using gRPC via add_subdirectory.")
 
 
 include(RippledCore)

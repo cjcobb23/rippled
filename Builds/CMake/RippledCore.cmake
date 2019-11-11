@@ -342,17 +342,22 @@ install (
 
 ###
 
-set(_PROTOBUF_LIBPROTOBUF libprotobuf)
-set(_PROTOBUF_PROTOC $<TARGET_FILE:protoc>)
-set(_GRPC_GRPCPP_UNSECURE grpc++_unsecure)
-set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:grpc_cpp_plugin>)
+set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+set(_CARES_LIB "${CMAKE_CURRENT_BINARY_DIR}/c-ares/lib")
+set(_GRPC_LIB "${CMAKE_CURRENT_BINARY_DIR}/grpc/lib")
+link_directories(
+  ${_CARES_LIB}
+  ${_GRPC_LIB}
+  )
 
+set(_GRPC_CPP_PLUGIN_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX})
 
 file(GLOB PROTOBUF_DEFINITION_FILES "proto/*.proto")
 
 foreach(file ${PROTOBUF_DEFINITION_FILES})
     message(STATUS, "file is ${file}")
-    string(REGEX MATCH \/.*\/ prefix ${file})
+    string(REGEX MATCH ^.*\/ prefix ${file})
     message(STATUS, "prefix is ${prefix}")
     string(LENGTH ${prefix} prefix_length)
     message(STATUS, "length is ${prefix_length}")
@@ -405,6 +410,9 @@ message(STATUS, "proto file is ${hw_proto_srcs}")
    add_executable with no sources
 #]=========================================================]
 add_executable (rippled src/ripple/app/main/Application.h)
+target_include_directories(rippled PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}/grpc/include)
+add_dependencies (rippled grpc)
 if (unity)
   target_sources (rippled PRIVATE
     ${PROTOBUF_SRCS}
@@ -1066,8 +1074,13 @@ target_link_libraries (rippled
   Ripple::opts
   Ripple::libs
   Ripple::xrpl_core
-  ${_GRPC_GRPCPP_UNSECURE}
-  ${_PROTOBUF_LIBPROTOBUF})
+  ${CMAKE_STATIC_LIBRARY_PREFIX}grpc++_unsecure${CMAKE_STATIC_LIBRARY_SUFFIX}
+  ${CMAKE_STATIC_LIBRARY_PREFIX}grpc_unsecure${CMAKE_STATIC_LIBRARY_SUFFIX}
+  ${CMAKE_STATIC_LIBRARY_PREFIX}gpr${CMAKE_STATIC_LIBRARY_SUFFIX}
+  ${CMAKE_STATIC_LIBRARY_PREFIX}address_sorting${CMAKE_STATIC_LIBRARY_SUFFIX}
+  ${CMAKE_STATIC_LIBRARY_PREFIX}cares${CMAKE_STATIC_LIBRARY_SUFFIX}
+  ${_PROTOBUF_LIBPROTOBUF}
+  )
 exclude_if_included (rippled)
 # define a macro for tests that might need to
 # be exluded or run differently in CI environment
