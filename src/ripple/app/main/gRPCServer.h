@@ -140,6 +140,7 @@ class GRPCServerImpl final {
               cq_(cq),
               status_(PROCESSING),
               app_(app),
+              iter_(boost::none),
               aborted_(false),
               responder_(&this->ctx_),
               bind_listener_(bind_listener),
