@@ -1,4 +1,3 @@
-
 #ifndef RIPPLE_CORE_GRPCSERVER_H_INCLUDED
 #define RIPPLE_CORE_GRPCSERVER_H_INCLUDED
 
@@ -121,8 +120,6 @@ class GRPCServerImpl final {
       cq_ = builder.AddCompletionQueue();
       // Finally assemble the server.
       server_ = builder.BuildAndStart();
-      std::cout << "Server listening on " << server_address << std::endl;
-
       // Proceed to the server's main loop.
       HandleRpcs();
   }
@@ -183,7 +180,7 @@ class GRPCServerImpl final {
           }
           else
           {
-              assert(false);
+              BOOST_ASSERT(false);
           }
       }
 
@@ -206,7 +203,7 @@ class GRPCServerImpl final {
       std::list<std::shared_ptr<Processor>>::iterator get_iter() override
       {
           if(!iter_)
-              assert(false);
+              BOOST_ASSERT(false);
 
           return iter_.get();
       }
