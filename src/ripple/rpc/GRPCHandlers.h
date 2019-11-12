@@ -34,7 +34,7 @@ std::pair<io::xpring::AccountInfo, grpc::Status> doAccountInfoGrpc(RPC::ContextG
 
 
 //TODO return status
-io::xpring::FeeResponse doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
+std::pair<io::xpring::FeeResponse,grpc::Status> doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
 
 std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context);
