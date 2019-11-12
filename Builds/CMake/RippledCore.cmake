@@ -356,20 +356,13 @@ set(_GRPC_CPP_PLUGIN_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_pl
 file(GLOB PROTOBUF_DEFINITION_FILES "proto/*.proto")
 
 foreach(file ${PROTOBUF_DEFINITION_FILES})
-    message(STATUS, "file is ${file}")
     string(REGEX MATCH ^.*\/ prefix ${file})
-    message(STATUS, "prefix is ${prefix}")
     string(LENGTH ${prefix} prefix_length)
-    message(STATUS, "length is ${prefix_length}")
     string(SUBSTRING ${file} ${prefix_length} -1 proto_file)
-    message(STATUS, "proto_file is ${proto_file}")
     string(REGEX MATCH ^[^.]* proto_prefix ${proto_file})
-    message(STATUS, "proto_prefix is ${proto_prefix}")
     # Proto file
     get_filename_component(hw_proto "proto/${proto_file}" ABSOLUTE)
     get_filename_component(hw_proto_path "${hw_proto}" PATH)
-    message(STATUS, "hw_proto is ${hw_proto}")
-    message(STATUS, "hw_proto_path is ${hw_proto_path}")
 
     # Generated sources
     set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.pb.cc")
@@ -389,16 +382,6 @@ foreach(file ${PROTOBUF_DEFINITION_FILES})
     list(APPEND PROTOBUF_SRCS "${proto_prefix}.pb.cc")
     list(APPEND PROTOBUF_SRCS "${proto_prefix}.grpc.pb.cc")
 endforeach()
-
-foreach(file ${PROTOBUF_SRCS})
-    message(STATUS, "protobuf src is ${file}")
-endforeach()
-
-
-
-message(STATUS, "proto is ${hw_proto}")
-
-message(STATUS, "proto file is ${hw_proto_srcs}")
 
 #[===================================================================[
    rippled executable
