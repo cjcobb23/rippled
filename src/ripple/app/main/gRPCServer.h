@@ -140,7 +140,6 @@ class GRPCServerImpl final {
               cq_(cq),
               status_(PROCESSING),
               app_(app),
-              iter_(nullptr),
               aborted_(false),
               responder_(&this->ctx_),
               bind_listener_(bind_listener),
@@ -192,7 +191,10 @@ class GRPCServerImpl final {
 
       std::list<std::shared_ptr<Processor>>::iterator get_iter() override
       {
-          return iter_;
+          if(!iter_)
+              assert(false);
+
+          return iter_.get();
       }
 
       std::shared_ptr<Processor> clone() override
@@ -282,7 +284,7 @@ class GRPCServerImpl final {
       ripple::Application& app_;
 
       // iterator to requests list, for lifetime management
-      std::list<std::shared_ptr<Processor>>::iterator iter_;
+      boost::optional<std::list<std::shared_ptr<Processor>>::iterator> iter_;
       // mutex for signaling abort
       std::mutex mut_;
       // whether the call should be aborted, due to server shutdown
