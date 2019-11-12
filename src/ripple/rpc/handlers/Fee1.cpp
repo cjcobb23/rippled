@@ -43,16 +43,17 @@ namespace ripple
         return context.params;
     }
 
-    io::xpring::FeeResponse doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
+    std::pair<io::xpring::FeeResponse,grpc::Status> doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
     {
         io::xpring::FeeResponse reply;
         Application& app = context.app;
+        grpc::Status status = grpc::Status::OK; 
 
         auto const view = app.openLedger().current();
         if(!view)
         {
             BOOST_ASSERT(false);
-            return reply;
+            return {reply,status};
         }
 
 
@@ -86,7 +87,7 @@ namespace ripple
 
 
 
-        return reply;
+        return {reply,status};
 
     }
 } // ripple
