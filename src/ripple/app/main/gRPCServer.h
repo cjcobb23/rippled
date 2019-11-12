@@ -47,14 +47,16 @@ class Processor
     virtual void Proceed() = 0;
     virtual ~Processor() {}
 
-    virtual void setIter(std::list<std::shared_ptr<Processor>>::iterator const& it) = 0;
-    virtual std::list<std::shared_ptr<Processor>>::iterator getIter() = 0;
+    virtual void set_iter(std::list<std::shared_ptr<Processor>>::iterator const& it) = 0;
+    virtual std::list<std::shared_ptr<Processor>>::iterator get_iter() = 0;
     virtual void abort() = 0;
 
     virtual std::shared_ptr<Processor> clone() = 0;
     virtual bool isProcessing() = 0;
 };
 
+
+//Typedefs for functions passed to CallData
 template <class Request, class Response>
 using MakeListener = std::function<void(
         XRPLedgerAPI::AsyncService&,
@@ -206,12 +208,12 @@ class GRPCServerImpl final {
         aborted_ = true;
     }
 
-    void setIter(std::list<std::shared_ptr<Processor>>::iterator const & it) override
+    void set_iter(std::list<std::shared_ptr<Processor>>::iterator const & it) override
     {
         iter_ = it;
     }
 
-    std::list<std::shared_ptr<Processor>>::iterator getIter() override
+    std::list<std::shared_ptr<Processor>>::iterator get_iter() override
     {
         return iter_;
     }
@@ -328,343 +330,88 @@ class GRPCServerImpl final {
     Process<Request,Response> process_;
 
 
-  }; //AccountInfoCallData
+  }; //CallDataGen
 
 
+ 
+  void setup()
+  {
+      makeAndPush<GetFeeRequest,FeeResponse>(
+              &XRPLedgerAPI::AsyncService::RequestGetFee,
+              ripple::doFeeGrpc);
 
-  
+      makeAndPush<GetAccountInfoRequest,AccountInfo>(
+              &XRPLedgerAPI::AsyncService::RequestGetAccountInfo,
+              ripple::doAccountInfoGrpc);
 
-//  class AccountInfoCallData : public CallData<AccountInfoCallData>
-//  {
-//   public:
-//    // Take in the "service" instance (in this case representing an asynchronous
-//    // server) and the completion queue "cq" used for asynchronous communication
-//    // with the gRPC runtime.
-//    AccountInfoCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-//        : CallData(service,cq,app), responder_(&ctx_)
-//    {
-//    }
-//
-//
-//
-//    void makeListener() override 
-//    {
-//        // As part of the initial LISTEN state, we *request* that the system
-//        // start processing GetAccountInfo requests. In this request, "this" acts are
-//        // the tag uniquely identifying the request (so that different CallData
-//        // instances can serve different requests concurrently), in this case
-//        // the memory address of this CallData instance.
-//        service_->RequestGetAccountInfo(&ctx_, &request_, &responder_, cq_, cq_,
-//                                  this);
-//    } 
-//
-//    void process(std::shared_ptr<ripple::JobQueue::Coro> coro) override
-//    {
-//        try
-//        {
-//            auto usage = getUsage();
-//            if(usage.disconnect())
-//            {
-//                Status status{StatusCode::RESOURCE_EXHAUSTED,
-//                    "usage balance exceeds threshhold"};
-//                responder_.FinishWithError(status, this);
-//            }
-//            else
-//            {Fe
-//
-//                auto loadType = getLoadType();
-//                usage.charge(loadType);
-//
-//                ripple::RPC::ContextGeneric<GetAccountInfoRequest> context {
-//                    app.journal("gRPCServer"),getLoadType()
-//                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
-//                        usage, role, coro, ripple::InfoSub::pointer()};
-//
-//                std::pair<AccountInfo,Status> result = ripple::doAccountInfoGrpc(context);
-//
-//                //TODO: what happens if server was shutdown but we try to respond?
-//                responder_.Finish(result.first, result.second, this);
-//            }
-//        }
-//        catch(std::exception const & ex)
-//        {
-//            Status status{StatusCode::INTERNAL,ex.what()};
-//            responder_.FinishWithError(status,this);
-//        }
-//    }
-//
-//   private:
-//
-//    // What we get from the client.
-//    GetAccountInfoRequest request_;
-//    // What we send back to the client.
-//    AccountInfo reply_;
-//
-//    // The means to get back to the client.
-//    ServerAsyncResponseWriter<AccountInfo> responder_;
-//  }; //AccountInfoCallData
-//
-//  class FeeCallData : public CallData<FeeCallData>
-//  {
-//   public:
-//    FeeCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-//        : CallData(service,cq,app), responder_(&ctx_)
-//    {
-//    }
-//
-//
-//
-//    void makeListener() override 
-//    {
-//        service_->RequestGetFee(&ctx_, &request_, &responder_, cq_, cq_,
-//                                  this);
-//    } 
-//
-//    void process() override
-//    {
-//        try
-//        {
-//            auto usage = getUsage();
-//            if(usage.disconnect())
-//            {
-//                Status status{StatusCode::RESOURCE_EXHAUSTED,
-//                    "usage balance exceeds threshhold"};
-//                responder_.FinishWithError(status, this);
-//            }
-//            else
-//            {
-//
-//                auto loadType = getLoadType();
-//                usage.charge(loadType);
-//
-//                ripple::RPC::ContextGeneric<FeeRequest> context {
-//                    app.journal("gRPCServer"),
-//                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
-//                        usage, role, coro, ripple::InfoSub::pointer()};
-//
-//                reply_ = ripple::doFeeGrpc(context);
-//
-//                //TODO: what happens if server was shutdown but we try to respond?
-//                responder_.Finish(reply_, Status::OK, this);
-//            }
-//        }
-//        catch(std::exception const & ex)
-//        {
-//            Status status{StatusCode::INTERNAL,ex.what()};
-//            responder_.FinishWithError(status,this);
-//        }
-//    } 
-//
-//   private:
-//
-//    // What we get from the client.
-//    GetFeeRequest request_;
-//    // What we send back to the client.
-//    FeeResponse reply_;
-//
-//    // The means to get back to the client.
-//    ServerAsyncResponseWriter<FeeResponse> responder_;
-//  }; //FeeCallData
-//
-//
-//  class SubmitCallData : public CallData<SubmitCallData>
-//  {
-//    public:
-//    SubmitCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-//        : CallData(service,cq,app), responder_(&ctx_)
-//    {
-//    }
-//
-//    void makeListener() override
-//    {
-//
-//        service_->RequestSubmitSignedTransaction(&ctx_, &request_, &responder_, cq_, cq_,
-//                                  this);
-//    }
-//
-//    void process() override
-//    {
-//        try
-//        {
-//            auto usage = getUsage();
-//            if(usage.disconnect())
-//            {
-//                Status status{StatusCode::RESOURCE_EXHAUSTED,
-//                    "usage balance exceeds threshhold"};
-//                responder_.FinishWithError(status, this);
-//            }
-//            else
-//            {
-//
-//                auto loadType = getLoadType();
-//                usage.charge(loadType);
-//
-//                ripple::RPC::ContextGeneric<SubmitSignedTransactionRequest> context {
-//                    app.journal("gRPCServer"),
-//                        request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
-//                        usage, role, coro, ripple::InfoSub::pointer()};
-//
-//                std::pair<SubmitSignedTransactionResponse,Status> result = ripple::doSubmitGrpc(context);
-//
-//                //TODO: what happens if server was shutdown but we try to respond?
-//                responder_.Finish(result.first,result.second, this);
-//            }
-//        }
-//        catch(std::exception const & ex)
-//        {
-//            Status status{StatusCode::INTERNAL,ex.what()};
-//            responder_.FinishWithError(status,this);
-//        }
-//
-//
-//    }
-//   
-//      private:
-//    // What we get from the client.
-//    SubmitSignedTransactionRequest request_;
-//    // What we send back to the client.
-//    SubmitSignedTransactionResponse reply_;
-//
-//    // The means to get back to the client.
-//    ServerAsyncResponseWriter<SubmitSignedTransactionResponse> responder_;
-//
-//  }; //SubmitCallData
-//
-//  class TxCallData : public CallData<TxCallData>
-//  {
-//    public:
-//    TxCallData(XRPLedgerAPI::AsyncService* service, ServerCompletionQueue* cq, ripple::Application& app)
-//        : CallData(service,cq,app), responder_(&ctx_)
-//    {
-//    }
-//
-//    void makeListener() override
-//    {
-//
-//        service_->RequestTx(&ctx_, &request_, &responder_, cq_, cq_,
-//                                  this);
-//    }
-//
-//    void process(std::shared_ptr<ripple::JobQueue::Coro> coro) override
-//    {
-//        try
-//        {
-//            auto usage = getUsage();
-//            if(usage.disconnect())
-//            {
-//                Status status{StatusCode::RESOURCE_EXHAUSTED,
-//                    "usage balance exceeds threshhold"};
-//                responder_.FinishWithError(status, this);
-//            }
-//            else
-//            {
-//
-//                auto loadType = getLoadType();
-//                usage.charge(loadType);
-//
-//                ripple::RPC::ContextGeneric<TxRequest> context {
-//                    app.journal("gRPCServer"),
-//                        request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
-//                        usage, role, coro, ripple::InfoSub::pointer()};
-//
-//                std::pair<TxResponse,Status> result = ripple::doTxGrpc(context);
-//
-//                //TODO: what happens if server was shutdown but we try to respond?
-//                responder_.Finish(result.first,result.second, this);
-//            }
-//        }
-//        catch(std::exception const & ex)
-//        {
-//            Status status{StatusCode::INTERNAL,ex.what()};
-//            responder_.FinishWithError(status,this);
-//        }
-//
-//    }
-//
-//    ripple::Resource::Charge getLoadType() override
-//    {
-//        return ripple::Resource::feeMediumBurdenRPC;
-//    }
-//   
-//      private:
-//    // What we get from the client.
-//    TxRequest request_;
-//    // What we send back to the client.
-//    TxResponse reply_;
-//
-//    // The means to get back to the client.
-//    ServerAsyncResponseWriter<TxResponse> responder_;
-//
-//  }; //TxCallData
+      makeAndPush<TxRequest,TxResponse>(
+              &XRPLedgerAPI::AsyncService::RequestTx,
+              ripple::doTxGrpc);
 
+      makeAndPush<SubmitSignedTransactionRequest,SubmitSignedTransactionResponse>(
+              &XRPLedgerAPI::AsyncService::RequestSubmitSignedTransaction,
+              ripple::doSubmitGrpc);
+  };
 
+  template <class Request, class Response>
+  std::shared_ptr<Processor> makeCallData(MakeListener<Request,Response> ml, Process<Request,Response> p)
+  {
+    auto ptr = std::make_shared<CallDataGen<Request,Response>>(&service_,cq_.get(),app_,ml,p);
+    return std::static_pointer_cast<Processor>(ptr);
+  }
 
-  
-  //create CallData object, add to list and set iterator data member
-//  template <class T>
-//  void makeAndPush(std::list<std::shared_ptr<Processor>>& data, MakeListener ml, Process p)
-//  {
-//    auto ptr = createCallDataAndListen<T>(&service_,cq_.get(),app_,ml,p);
-//    auto ptr = std::make_shared<T>(&service
-//    data.push_front(ptr);
-//    ptr->setIter(data.begin());
-//  }
-
+  template <class Request,class Response>
+  void makeAndPush(MakeListener<Request,Response> ml, Process<Request,Response> p)
+  {
+    auto ptr = makeCallData(ml,p);
+    requests_.push_front(ptr);
+    ptr->set_iter(requests_.begin());
+  }
 
   // This can be run in multiple threads if needed.
   void HandleRpcs() {
-    // Container for CallData instances
-    std::list<std::shared_ptr<Processor>> requests;
-    MakeListener<GetFeeRequest,FeeResponse> ml = &XRPLedgerAPI::AsyncService::RequestGetFee;
-    Process<GetFeeRequest,FeeResponse> p = ripple::doFeeGrpc;
-    CallDataGen<GetFeeRequest, FeeResponse> data{&service_,cq_.get(),app_,ml,p};
+      setup();
+      void* tag;  // uniquely identifies a request.
+      bool ok;
+      // Block waiting to read the next event from the completion queue. The
+      // event is uniquely identified by its tag, which in this case is the
+      // memory address of a CallData instance.
+      // The return value of Next should always be checked. This return value
+      // tells us whether there is any kind of event or cq_ is shutting down.
+      while (cq_->Next(&tag,&ok)) {
 
-    //create CallData object for each request type
-//    makeAndPush<AccountInfoCallData>(requests);
-//    makeAndPush<FeeCallData>(requests);
-//    makeAndPush<SubmitCallData>(requests);
-//    makeAndPush<TxCallData>(requests);
-//    makeAndPush<LedgerSequenceCallData>(requests);
-//
-    void* tag;  // uniquely identifies a request.
-    bool ok;
-    // Block waiting to read the next event from the completion queue. The
-    // event is uniquely identified by its tag, which in this case is the
-    // memory address of a CallData instance.
-    // The return value of Next should always be checked. This return value
-    // tells us whether there is any kind of event or cq_ is shutting down.
-    while (cq_->Next(&tag,&ok)) {
-
-      //if ok is false, this event was terminated as part of a shutdown sequence
-      //need to abort any further processing
-      if(!ok)
-      {
-        //abort first, then erase. Otherwise, erase can delete object
-        static_cast<Processor*>(tag)->abort();
-        requests.erase(static_cast<Processor*>(tag)->getIter());
-      }
-      else
-      {
-          auto ptr = static_cast<Processor*>(tag);
-          if(ptr->isProcessing())
+          //if ok is false, this event was terminated as part of a shutdown sequence
+          //need to abort any further processing
+          if(!ok)
           {
-              //ptr is now processing a request, so create a new CallData object
-              //to handle additional requests
-              auto cloned = ptr->clone();
-              requests.push_front(cloned);
-              //set iterator as data member for later lookup
-              cloned->setIter(requests.begin());
-              ptr->Proceed();
+              //abort first, then erase. Otherwise, erase can delete object
+              static_cast<Processor*>(tag)->abort();
+              requests_.erase(static_cast<Processor*>(tag)->get_iter());
           }
           else
           {
-              //perform any cleanup, if necessary
-              ptr->Proceed();
-              requests.erase(static_cast<Processor*>(tag)->getIter());
+              auto ptr = static_cast<Processor*>(tag);
+              if(ptr->isProcessing())
+              {
+                  //ptr is now processing a request, so create a new CallData object
+                  //to handle additional requests
+                  auto cloned = ptr->clone();
+                  requests_.push_front(cloned);
+                  //set iterator as data member for later lookup
+                  cloned->set_iter(requests_.begin());
+                  ptr->Proceed();
+              }
+              else
+              {
+                  //perform any cleanup, if necessary
+                  ptr->Proceed();
+                  requests_.erase(static_cast<Processor*>(tag)->get_iter());
+              }
           }
       }
-    }
   }
+
+  std::list<std::shared_ptr<Processor>> requests_;
 
   std::unique_ptr<ServerCompletionQueue> cq_;
   XRPLedgerAPI::AsyncService service_;
