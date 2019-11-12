@@ -149,47 +149,10 @@ error_code_i fillHandler (Context& context,
     if (handler->role_ == Role::ADMIN && context.role != Role::ADMIN)
         return rpcNO_PERMISSION;
 
-    if ((handler->condition_ & NEEDS_NETWORK_CONNECTION) &&
-        (context.netOps.getOperatingMode () < OperatingMode::SYNCING))
+    error_code_i res = conditionMet(handler->condition_,context);
+    if(res != rpcSUCCESS)
     {
-        JLOG (context.j.info())
-            << "Insufficient network mode for RPC: "
-            << context.netOps.strOperatingMode ();
-
-        return rpcNO_NETWORK;
-    }
-
-    if (context.app.getOPs().isAmendmentBlocked() &&
-         (handler->condition_ & NEEDS_CURRENT_LEDGER ||
-          handler->condition_ & NEEDS_CLOSED_LEDGER))
-    {
-        return rpcAMENDMENT_BLOCKED;
-    }
-
-    if (!context.app.config().standalone() &&
-        handler->condition_ & NEEDS_CURRENT_LEDGER)
-    {
-        if (context.ledgerMaster.getValidatedLedgerAge () >
-            Tuning::maxValidatedLedgerAge)
-        {
-            return rpcNO_CURRENT;
-        }
-
-        auto const cID = context.ledgerMaster.getCurrentLedgerIndex ();
-        auto const vID = context.ledgerMaster.getValidLedgerIndex ();
-
-        if (cID + 10 < vID)
-        {
-            JLOG (context.j.debug()) << "Current ledger ID(" << cID <<
-                ") is less than validated ledger ID(" << vID << ")";
-            return rpcNO_CURRENT;
-        }
-    }
-
-    if ((handler->condition_ & NEEDS_CLOSED_LEDGER) &&
-        !context.ledgerMaster.getClosedLedger ())
-    {
-        return rpcNO_CLOSED;
+        return res;
     }
 
     result = handler;

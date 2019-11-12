@@ -37,6 +37,7 @@ Status doCommand (RPC::Context&, Json::Value&);
 Role roleRequired (std::string const& method );
 
 
+
 } // RPC
 } // ripple
 
