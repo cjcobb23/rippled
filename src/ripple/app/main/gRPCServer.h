@@ -13,8 +13,14 @@
 #include <ripple/net/InfoSub.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 
 #include <boost/exception/diagnostic_information.hpp> 
+
+#include <ripple/rpc/impl/Handler.h>
+#include <ripple/rpc/impl/Tuning.h>
+
+#include <ripple/protocol/ErrorCodes.h>
 
 
 //TODO remove these from header
@@ -39,6 +45,9 @@ using io::xpring::TxResponse;
 using io::xpring::LedgerSequenceRequest;
 using io::xpring::LedgerSequenceResponse;
 using io::xpring::FeeResponse;
+
+namespace ripple
+{
 
 class Processor
 {
@@ -68,7 +77,7 @@ using BindListener = std::function<void(
 
 //typedef for handler
 template <class Request, class Response>
-using Handler = std::function<std::pair<Response,Status>(ripple::RPC::ContextGeneric<Request>&)>;
+using Handler = std::function<std::pair<Response,Status>(RPC::ContextGeneric<Request>&)>;
 
 
 //strips port from endpoint
@@ -95,7 +104,7 @@ class GRPCServerImpl final {
       cq_->Shutdown(); 
   }
 
-  GRPCServerImpl(ripple::Application& app) : app_(app) {}
+  GRPCServerImpl(Application& app) : app_(app) {}
 
   // There is no shutdown handling in this code.
   void Run() {
@@ -132,9 +141,11 @@ class GRPCServerImpl final {
       CallData(
               XRPLedgerAPI::AsyncService* service,
               ServerCompletionQueue* cq,
-              ripple::Application& app,
+              Application& app,
               BindListener<Request,Response> bind_listener,
-              Handler<Request,Response> handler)
+              Handler<Request,Response> handler,
+              RPC::Condition required_condition,
+              Resource::Charge load_type)
           : 
               service_(service),
               cq_(cq),
@@ -144,7 +155,9 @@ class GRPCServerImpl final {
               aborted_(false),
               responder_(&this->ctx_),
               bind_listener_(bind_listener),
-              handler_(handler)
+              handler_(handler),
+              required_condition_(required_condition),
+              load_type_(load_type)
       {
           //Bind a listener. When a request is received, "this" will be returned from CompletionQueue::Next
           bind_listener_(*this->service_,&this->ctx_,&request_,&responder_,this->cq_,this->cq_,this);
@@ -156,8 +169,8 @@ class GRPCServerImpl final {
       {
           if (status_ == PROCESSING) {
               std::shared_ptr<CallData<Request,Response>> this_s = this->shared_from_this();
-              app_.getJobQueue().postCoro(ripple::JobType::jtRPC, "gRPC-Client",
-                      [this_s](std::shared_ptr<ripple::JobQueue::Coro> coro)
+              app_.getJobQueue().postCoro(JobType::jtRPC, "gRPC-Client",
+                      [this_s](std::shared_ptr<JobQueue::Coro> coro)
                       {
                           std::lock_guard<std::mutex> lock(this_s->mut_);
 
@@ -202,13 +215,13 @@ class GRPCServerImpl final {
       {
           return std::static_pointer_cast<Processor>(
                   std::make_shared<CallData<Request,Response>>(
-                      this->service_, this->cq_,this->app_,bind_listener_,handler_));
+                      this->service_, this->cq_,this->app_,bind_listener_,handler_, required_condition_, load_type_));
       }
 
 
       private:
 
-      void process(std::shared_ptr<ripple::JobQueue::Coro> coro)
+      void process(std::shared_ptr<JobQueue::Coro> coro)
       {
           try
           {
@@ -221,20 +234,34 @@ class GRPCServerImpl final {
               }
               else
               {
+
                   auto loadType = this->getLoadType();
                   usage.charge(loadType);
                   auto role = this->getRole();
-                  ripple::Application& app = this->app_;
+                  Application& app = this->app_;
 
-                  ripple::RPC::ContextGeneric<Request> context {
+                  RPC::ContextGeneric<Request> context {
                       app.journal("gRPCServer"),
                           request_, app, loadType, app.getOPs(), app.getLedgerMaster(),
-                          usage, role, coro, ripple::InfoSub::pointer()};
+                          usage, role, coro, InfoSub::pointer()};
 
-                  std::pair<Response,Status> result = handler_(context);
 
-                  //TODO: what happens if server was shutdown but we try to respond?
-                  responder_.Finish(result.first, result.second, this);
+                  //Make sure we can currently handle the rpc
+                  error_code_i condition_met_res = 
+                      RPC::conditionMet(required_condition_, context);
+
+                  if(condition_met_res != rpcSUCCESS)
+                  {
+                    RPC::ErrorInfo error_info = RPC::get_error_info(condition_met_res);
+                    Status status{StatusCode::INTERNAL,error_info.message.c_str()};
+                    responder_.FinishWithError(status,this);
+                  }
+                  else
+                  {
+                      std::pair<Response,Status> result = handler_(context);
+                      //TODO: what happens if server was shutdown but we try to respond?
+                      responder_.Finish(result.first, result.second, this);
+                  }
               }
           }
           catch(std::exception const & ex)
@@ -245,19 +272,18 @@ class GRPCServerImpl final {
           status_ = FINISH;
       }
 
-      //TODO change to data member, pass value via ctor
-      ripple::Resource::Charge getLoadType()
+      Resource::Charge getLoadType()
       {
-          return ripple::Resource::feeReferenceRPC;
+          return load_type_;
       }
 
-      //TODO change to data member, pass value via ctor
-      ripple::Role getRole()
+      //for now, we are only supporting RPC's that require Role::USER for gRPC
+      Role getRole()
       {
-          return ripple::Role::USER;
+          return Role::USER;
       }
 
-      ripple::Resource::Consumer getUsage()
+      Resource::Consumer getUsage()
       {
           std::string peer = getEndpoint(ctx_.peer());
 
@@ -282,7 +308,7 @@ class GRPCServerImpl final {
       CallStatus status_;  // The current serving state.
 
       // reference to Application
-      ripple::Application& app_;
+      Application& app_;
 
       // iterator to requests list, for lifetime management
       boost::optional<std::list<std::shared_ptr<Processor>>::iterator> iter_;
@@ -304,42 +330,67 @@ class GRPCServerImpl final {
 
       // Function that processes a request
       Handler<Request,Response> handler_;
+
+      RPC::Condition required_condition_;
+
+      Resource::Charge load_type_;
   }; //CallData
 
   //create a CallData instance for each RPC
   //When adding a new RPC method, add it here
+  //First argument is the grpc codegen'd method to call to start listening for
+  //a given request type. Follows the pattern of Request<RPC Name>
+  //Second argument is the handler.
+  //Third argument is the necessary condition
+  //Fourth argument is the charge
   void setup()
   {
       makeAndPush<GetFeeRequest,FeeResponse>(
               &XRPLedgerAPI::AsyncService::RequestGetFee,
-              ripple::doFeeGrpc);
+              doFeeGrpc,
+              RPC::NEEDS_CURRENT_LEDGER,
+              Resource::feeReferenceRPC
+              );
 
       makeAndPush<GetAccountInfoRequest,AccountInfo>(
               &XRPLedgerAPI::AsyncService::RequestGetAccountInfo,
-              ripple::doAccountInfoGrpc);
+              doAccountInfoGrpc,
+              RPC::NO_CONDITION,
+              Resource::feeReferenceRPC);
 
       makeAndPush<TxRequest,TxResponse>(
               &XRPLedgerAPI::AsyncService::RequestTx,
-              ripple::doTxGrpc);
+              doTxGrpc,
+              RPC::NEEDS_NETWORK_CONNECTION,
+              Resource::feeReferenceRPC);
 
       makeAndPush<SubmitSignedTransactionRequest,SubmitSignedTransactionResponse>(
               &XRPLedgerAPI::AsyncService::RequestSubmitSignedTransaction,
-              ripple::doSubmitGrpc);
+              doSubmitGrpc,
+              RPC::NEEDS_CURRENT_LEDGER,
+              Resource::feeMediumBurdenRPC);
   };
+
+
 
   //make a CallData instance, returned as shared_ptr to base class (Processor)
   template <class Request, class Response>
-  std::shared_ptr<Processor> makeCallData(BindListener<Request,Response> bl, Handler<Request,Response> handler)
+  std::shared_ptr<Processor> makeCallData(
+          BindListener<Request,Response> bl,
+          Handler<Request,Response> handler,
+          RPC::Condition condition,
+          Resource::Charge load_type)
   {
-      auto ptr = std::make_shared<CallData<Request,Response>>(&service_,cq_.get(),app_,bl,handler);
+      auto ptr = std::make_shared<CallData<Request,Response>>(
+              &service_,cq_.get(),app_,bl,handler, condition, load_type);
       return std::static_pointer_cast<Processor>(ptr);
   }
 
   //make CallData instance and push to requests list
   template <class Request,class Response>
-  void makeAndPush(BindListener<Request,Response> bl, Handler<Request,Response> handler)
+  void makeAndPush(BindListener<Request,Response> bl, Handler<Request,Response> handler, RPC::Condition condition, Resource::Charge load_type)
   {
-      auto ptr = makeCallData(bl,handler);
+      auto ptr = makeCallData(bl,handler,condition,load_type);
       requests_.push_front(ptr);
       ptr->set_iter(requests_.begin());
   }
@@ -393,15 +444,15 @@ class GRPCServerImpl final {
   
   XRPLedgerAPI::AsyncService service_;
   
-  std::unique_ptr<Server> server_;
+  std::unique_ptr<grpc::Server> server_;
   
-  ripple::Application& app_;
+  Application& app_;
 }; //GRPCServerImpl
 
 class GRPCServer
 {
     public:
-    GRPCServer(ripple::Application& app) : impl_(app) {};
+    GRPCServer(Application& app) : impl_(app) {};
 
     void run()
     {
@@ -420,4 +471,5 @@ class GRPCServer
     GRPCServerImpl impl_;
     std::vector<std::thread> threads_;
 };
+} //namespace ripple
 #endif
