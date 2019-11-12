@@ -165,7 +165,6 @@ void populateSignerList(io::xpring::SignerList& proto, STObject const & obj);
 void populateQueueData(io::xpring::QueueData& proto,
         std::map<TxSeq, TxQ::AccountTxDetails const> const & txs);
 
-
 } // RPC
 } // ripple
 

@@ -43,12 +43,13 @@ namespace ripple
         return context.params;
     }
 
-    std::pair<io::xpring::FeeResponse,grpc::Status> doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
+    std::pair<io::xpring::FeeResponse,grpc::Status>
+    doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context)
     {
         io::xpring::FeeResponse reply;
-        Application& app = context.app;
         grpc::Status status = grpc::Status::OK; 
 
+        Application& app = context.app;
         auto const view = app.openLedger().current();
         if(!view)
         {
@@ -56,38 +57,42 @@ namespace ripple
             return {reply,status};
         }
 
-
         auto const metrics = app.getTxQ().getMetrics(*view);
 
-
+        //current ledger data
         reply.set_current_ledger_size(metrics.txInLedger);
         reply.set_current_queue_size(metrics.txCount);
         reply.set_expected_ledger_size(metrics.txPerLedger);
         reply.set_ledger_current_index(view->info().seq);
         reply.set_max_queue_size(*metrics.txQMaxSize);
 
+        //fee levels data
         io::xpring::FeeLevels& levels = *reply.mutable_levels();
         levels.set_median_level(metrics.medFeeLevel);
         levels.set_minimum_level(metrics.minProcessingFeeLevel);
         levels.set_open_ledger_level(metrics.openLedgerFeeLevel);
         levels.set_reference_level(metrics.referenceFeeLevel);
 
+        //fee data
         io::xpring::Fee& drops = *reply.mutable_drops();
         auto const baseFee = view->fees().base;
-        drops.set_base_fee(mulDiv(metrics.referenceFeeLevel, baseFee,metrics.referenceFeeLevel).second);
-        drops.set_minimum_fee(mulDiv(metrics.minProcessingFeeLevel,baseFee,metrics.referenceFeeLevel).second);
-        drops.set_median_fee(mulDiv(metrics.medFeeLevel, baseFee, metrics.referenceFeeLevel).second);
-     auto escalatedFee = mulDiv(
-        metrics.openLedgerFeeLevel, baseFee,
-            metrics.referenceFeeLevel).second;
-    if (mulDiv(escalatedFee, metrics.referenceFeeLevel,
-            baseFee).second < metrics.openLedgerFeeLevel)
-        ++escalatedFee;       
-    drops.set_open_ledger_fee(escalatedFee);
-
-
+        drops.set_base_fee(mulDiv(
+                    metrics.referenceFeeLevel,baseFee,
+                    metrics.referenceFeeLevel).second);
+        drops.set_minimum_fee(mulDiv(
+                    metrics.minProcessingFeeLevel,baseFee,
+                    metrics.referenceFeeLevel).second);
+        drops.set_median_fee(mulDiv(
+                    metrics.medFeeLevel, baseFee,
+                    metrics.referenceFeeLevel).second);
+        auto escalatedFee = mulDiv(
+                metrics.openLedgerFeeLevel, baseFee,
+                metrics.referenceFeeLevel).second;
+        if (mulDiv(escalatedFee, metrics.referenceFeeLevel,
+                    baseFee).second < metrics.openLedgerFeeLevel)
+            ++escalatedFee;       
+        drops.set_open_ledger_fee(escalatedFee);
 
         return {reply,status};
-
     }
 } // ripple

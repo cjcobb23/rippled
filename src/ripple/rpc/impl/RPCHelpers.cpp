@@ -814,7 +814,6 @@ chooseLedgerEntryType(Json::Value const& params)
 
 void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
 {
-    std::cout << "populating account root" << std::endl;
     if(obj.isFieldPresent(sfAccount))
     {
         AccountID account = obj.getAccountID(sfAccount);
@@ -876,7 +875,6 @@ void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
     {
         proto.set_transfer_rate(obj.getFieldU32(sfTransferRate));
     }
-    std::cout << "populated account root" << std::endl;
 }
 
 void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
@@ -924,7 +922,6 @@ void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
     {
         proto.set_high_quality_out(obj.getFieldU32(sfHighQualityOut));
     }
-
 }
 
 void populateOffer(io::xpring::Offer& proto, STObject const & obj)

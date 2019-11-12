@@ -167,31 +167,19 @@ std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context)
 {
     io::xpring::SubmitSignedTransactionResponse result;
+
     auto request = context.params;
     std::string const& tx = request.signed_transaction();
 
-
     Blob blob;
     blob.reserve(tx.size());
-
     for(size_t i = 0; i < tx.size(); ++i)
     {
         blob.push_back(tx[i]);
     }
 
-    //do we need to do this? I think we just need to cast to an array of bytes
-    //auto ret = strUnHex (tx);
-
-    if (!blob.size ())
-    {
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT, "could not decode hex"};
-        return {result, error_status};  
-    }
-
     SerialIter sitTrans (makeSlice(blob));
-
     std::shared_ptr<STTx const> stpTrans;
-
     try
     {
         stpTrans = std::make_shared<STTx const> (std::ref (sitTrans));
@@ -245,9 +233,6 @@ doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& co
 
     try
     {
-        result.set_transaction_blob(strHex (
-            tpTrans->getSTransaction ()->getSerializer ().peekData ()));
-
         if (temUNCERTAIN != tpTrans->getResult ())
         {
             std::string sToken;
@@ -258,6 +243,7 @@ doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& co
             result.set_engine_result(sToken);
             result.set_engine_result_code(TERtoInt(tpTrans->getResult()));
             result.set_engine_result_message(sHuman);
+
             uint256 hash = tpTrans->getID();
             std::string s;
             s.reserve(hash.size());
@@ -266,17 +252,13 @@ doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& co
                 s.push_back(*it);
             }
             result.set_hash(s);
-
         }
         return {result,grpc::Status::OK};
-
     }
     catch (std::exception& e)
     {
-
-        //TODO is this error message correct?
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-            "internal json?: " + std::string(e.what())};
+        grpc::Status error_status{grpc::StatusCode::INTERNAL,
+            "internal json : " + std::string(e.what())};
         return {result, error_status};
     }
     
