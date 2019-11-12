@@ -67,15 +67,3 @@ include(RippledValidatorKeys)
 
 # Include generated *.pb.h files
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-
-# Targets greeter_[async_](client|server)
-#foreach(_target
-#          greeter_client greeter_server
-#            greeter_async_client greeter_async_server)
-#          add_executable(${_target} "${_target}.cc"
-#                  ${hw_proto_srcs}
-#                      ${hw_grpc_srcs})
-#                    target_link_libraries(${_target}
-#                            ${_GRPC_GRPCPP_UNSECURE}
-#                                ${_PROTOBUF_LIBPROTOBUF})
-#                        endforeach()
