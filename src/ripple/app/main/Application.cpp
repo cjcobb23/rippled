@@ -65,7 +65,7 @@
 #include <ripple/beast/core/LexicalCast.h>
 
 #include <boost/algorithm/string/predicate.hpp>
-#include <ripple/app/main/gRPCServer.h>
+#include <ripple/app/main/GRPCServer.h>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/system/error_code.hpp>
 

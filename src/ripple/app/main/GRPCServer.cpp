@@ -17,7 +17,7 @@
 */
 //==============================================================================
 
-#include <ripple/app/main/gRPCServer.h>
+#include <ripple/app/main/GRPCServer.h>
 
 namespace ripple {
 
