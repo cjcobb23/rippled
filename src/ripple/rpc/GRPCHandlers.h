@@ -37,7 +37,7 @@ namespace ripple {
 std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status>
 doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
 
-std::pair<rpc::v1::GetFeeResponse,grpc::Status>
+std::pair<rpc::v1::GetFeeResponse, grpc::Status>
 doFeeGrpc(RPC::ContextGeneric<rpc::v1::GetFeeRequest>& context);
 
 std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>

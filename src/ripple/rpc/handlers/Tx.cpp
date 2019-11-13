@@ -157,19 +157,19 @@ void populateFields(T& proto,STObject const& obj, std::uint16_t type)
 {
     if(type == ltACCOUNT_ROOT)
     {
-        RPC::populateAccountRoot(*proto.mutable_account_root(),obj);
+        RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
     }
     else if(type == ltRIPPLE_STATE)
     {
-        RPC::populateRippleState(*proto.mutable_ripple_state(),obj);
+        RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
     }
     else if(type == ltOFFER)
     {
-        RPC::populateOffer(*proto.mutable_offer(),obj);
+        RPC::populateOffer(*proto.mutable_offer(), obj);
     }
     else if(type == ltDIR_NODE)
     {
-        RPC::populateDirectoryNode(*proto.mutable_directory_node(),obj);
+        RPC::populateDirectoryNode(*proto.mutable_directory_node(), obj);
     }
     else
     {
@@ -199,7 +199,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
         context.app.getMasterTransaction().fetch(hash, true);
     if(!txn)
     {
-        grpc::Status error_status{grpc::StatusCode::NOT_FOUND,"txn not found"};
+        grpc::Status error_status{grpc::StatusCode::NOT_FOUND, "txn not found"};
         return {result,error_status};
     }
 
@@ -217,7 +217,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     }
     else
     {
-        RPC::populateTransaction(*result.mutable_tx(),st_txn);
+        RPC::populateTransaction(*result.mutable_tx(), st_txn);
     }
 
     result.set_ledger_index(txn->getLedger());

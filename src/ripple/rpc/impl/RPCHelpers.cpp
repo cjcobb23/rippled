@@ -1147,7 +1147,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 rpc::v1::LedgerObject* final_fields_proto =
                     node->mutable_modified_node()->mutable_final_fields();
 
-                populateFields(*final_fields_proto,final_fields,type);
+                populateFields(*final_fields_proto, final_fields,type);
             }
             //previous fields
             if(obj.isFieldPresent(sfPreviousFields))
@@ -1158,7 +1158,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 rpc::v1::LedgerObject* prev_fields_proto =
                     node->mutable_modified_node()->mutable_previous_fields();
 
-                populateFields(*prev_fields_proto,prev_fields,type);
+                populateFields(*prev_fields_proto, prev_fields,type);
             }
 
             //prev txn id and prev txn ledger seq
@@ -1183,7 +1183,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 rpc::v1::LedgerObject* new_fields_proto =
                     node->mutable_created_node()->mutable_new_fields();
 
-                populateFields(*new_fields_proto,new_fields,type);
+                populateFields(*new_fields_proto, new_fields,type);
             }
         }
         //deleted node
@@ -1198,7 +1198,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 rpc::v1::LedgerObject* final_fields_proto =
                     node->mutable_deleted_node()->mutable_final_fields();
 
-                populateFields(*final_fields_proto,final_fields,type);
+                populateFields(*final_fields_proto, final_fields,type);
             }
         }
     }
@@ -1287,8 +1287,11 @@ void populateTransaction(
                     proto_element->set_issuer(toBase58(issuer));
                 }
             }
-            AccountID const & path_account = elt.getAccountID();
-            proto_element->set_account(toBase58(path_account));
+            else
+            {
+                AccountID const & path_account = elt.getAccountID();
+                proto_element->set_account(toBase58(path_account));
+            }
         }
     }
 }
