@@ -28,13 +28,9 @@
 #include <ripple/protocol/UintTypes.h>
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
-
-#include <ripple/rpc/GRPCHandlers.h>
-
-#include <grpc/status.h>
-
 #include <ripple/rpc/impl/RPCHelpers.h>
-
+#include <ripple/rpc/GRPCHandlers.h>
+#include <grpc/status.h>
 
 namespace ripple {
 
@@ -190,7 +186,8 @@ Json::Value doAccountInfo (RPC::Context& context)
     return result;
 }
 
-std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status> doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
+std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status> doAccountInfoGrpc(
+        RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
 {
     //Return values
     rpc::v1::GetAccountInfoResponse result;
@@ -242,6 +239,7 @@ std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status> doAccountInfoGrpc(RPC::
     {
         RPC::populateAccountRoot(*result.mutable_account_data(),*sleAccepted);
 
+        //signer lists
         if(params.signer_lists())
         {
             auto const sleSigners = ledger->read (keylet::signers (accountID));
@@ -253,6 +251,7 @@ std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status> doAccountInfoGrpc(RPC::
             }
         }
 
+        //queued transactions
         if(params.queue())
         {
             if(!ledger->open())
