@@ -350,7 +350,12 @@ link_directories(
   ${_CARES_LIB}
   ${_GRPC_LIB}
   )
-
+if (WIN32)
+  set(_ZLIB "${CMAKE_CURRENT_BINARY_DIR}/zlib/lib")
+  link_directories(
+    ${_ZLIB}
+  )
+endif()
 set(_GRPC_CPP_PLUGIN_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX})
 
 file(GLOB PROTOBUF_DEFINITION_FILES "proto/rpc/v1/*.proto")
@@ -1068,6 +1073,11 @@ target_link_libraries (rippled
   ${CMAKE_STATIC_LIBRARY_PREFIX}cares${CMAKE_STATIC_LIBRARY_SUFFIX}
   ${_PROTOBUF_LIBPROTOBUF}
   )
+if (WIN32)
+target_link_libraries (rippled
+  ${CMAKE_STATIC_LIBRARY_PREFIX}zlibstaticd${CMAKE_STATIC_LIBRARY_SUFFIX}
+  )
+endif()
 exclude_if_included (rippled)
 # define a macro for tests that might need to
 # be exluded or run differently in CI environment

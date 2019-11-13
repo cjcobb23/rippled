@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package rpc.v1;
 
-import "rpc/v1/meta.proto";
 import "rpc/v1/ledger_objects.proto";
 
 // A request to get info about an account.
