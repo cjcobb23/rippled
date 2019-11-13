@@ -364,14 +364,8 @@ foreach(file ${PROTOBUF_DEFINITION_FILES})
     get_filename_component(hw_proto "proto/rpc/v1/${proto_file}" ABSOLUTE)
     get_filename_component(hw_proto_path "${hw_proto}" PATH)
 
-    message("${hw_proto}")
-    message("${hw_proto_path}")
-
     string(FIND "${hw_proto_path}" "rpc/v1" pos)
-
     string(SUBSTRING ${hw_proto_path} 0 ${pos} trimmed_path)
-
-    message("${trimmed_path}")
 
     # Generated sources
     set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.pb.cc")
