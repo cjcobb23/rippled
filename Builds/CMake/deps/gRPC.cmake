@@ -12,6 +12,7 @@ ExternalProject_Add(c-ares
         -DCARES_STATIC:BOOL=ON
         -DCARES_STATIC_PIC:BOOL=ON
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/c-ares
+        -DCARES_MSVC_STATIC_RUNTIME:BOOL=ON
 )
 
 # Builds protobuf project from the git submodule.
@@ -21,7 +22,7 @@ ExternalProject_Add(protobuf
   CMAKE_CACHE_ARGS
         -Dprotobuf_BUILD_TESTS:BOOL=OFF
         -Dprotobuf_WITH_ZLIB:BOOL=OFF
-        -Dprotobuf_MSVC_STATIC_RUNTIME:BOOL=OFF
+        -Dprotobuf_MSVC_STATIC_RUNTIME:BOOL=ON
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/protobuf
 )
 
@@ -64,5 +65,6 @@ ExternalProject_Add(grpc
         -DgRPC_SSL_PROVIDER:STRING=package
         ${_CMAKE_ARGS_OPENSSL_ROOT_DIR}
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/grpc
+        -DgRPC_MSVC_STATIC_RUNTIME:BOOL=ON
   DEPENDS c-ares protobuf zlib
 )
