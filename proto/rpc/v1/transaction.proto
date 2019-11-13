@@ -5,7 +5,6 @@ package rpc.v1;
 import "rpc/v1/amount.proto";
 
 // A class encompassing all transactions.
-// Next field: 6.
 message Transaction {
     // The account originating the transaction.
     string account = 1;
