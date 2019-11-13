@@ -34,7 +34,6 @@
 #include <grpcpp/grpcpp.h>
 #include "rpc/v1/xrp_ledger.grpc.pb.h"
 
-
 namespace ripple {
 
 //Interface that CallData implements

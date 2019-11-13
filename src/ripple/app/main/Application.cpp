@@ -63,7 +63,7 @@
 #include <ripple/resource/Fees.h>
 #include <ripple/beast/asio/io_latency_probe.h>
 #include <ripple/beast/core/LexicalCast.h>
-#include <ripple/app/main/gRPCServer.h>
+#include <ripple/app/main/GRPCServer.h>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/system/error_code.hpp>
 #include <condition_variable>
