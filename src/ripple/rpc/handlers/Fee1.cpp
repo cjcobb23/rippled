@@ -21,15 +21,10 @@
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/TxQ.h>
 #include <ripple/rpc/Context.h>
+#include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/Feature.h>
-
-
 #include <ripple/basics/mulDiv.h>
-
-#include <ripple/rpc/GRPCHandlers.h>
-
-#include <ripple/app/misc/TxQ.h>
 
 namespace ripple
 {

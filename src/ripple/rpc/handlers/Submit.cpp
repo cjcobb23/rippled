@@ -26,7 +26,6 @@
 #include <ripple/resource/Fees.h>
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/TransactionSign.h>
-
 #include <ripple/rpc/GRPCHandlers.h>
 
 namespace ripple {
@@ -166,9 +165,13 @@ Json::Value doSubmit (RPC::Context& context)
 std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
 {
+    //return values
     rpc::v1::SubmitTransactionResponse result;
+    grpc::Status status = grpc::Status::OK;
 
+    //input
     auto request = context.params;
+
     std::string const& tx = request.signed_transaction();
 
     Blob blob;
@@ -253,7 +256,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
             }
             result.set_hash(s);
         }
-        return {result,grpc::Status::OK};
+        return {result,status};
     }
     catch (std::exception& e)
     {
@@ -261,7 +264,6 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
             "internal json : " + std::string(e.what())};
         return {result, error_status};
     }
-    
 }
 
 } // ripple

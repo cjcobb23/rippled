@@ -25,10 +25,9 @@
 #include <ripple/protocol/SecretKey.h>
 #include <ripple/rpc/impl/Tuning.h>
 #include <ripple/rpc/Status.h>
-#include <boost/optional.hpp>
 #include <ripple/app/misc/NetworkOPs.h>
-
 #include <rpc/v1/xrp_ledger.pb.h>
+#include <boost/optional.hpp>
 
 namespace Json {
 class Value;
@@ -152,7 +151,6 @@ setVersion(Object& parent)
 
 std::pair<RPC::Status, LedgerEntryType>
     chooseLedgerEntryType(Json::Value const& params);
-
 
 void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj);
 

@@ -384,9 +384,11 @@ ledgerFromRequest(T& ledger,
     return Status::OK;
 }
 
+//explicit instantiation of above function
 template
 Status
-ledgerFromRequest<>(std::shared_ptr<ReadView const>&, ContextGeneric<rpc::v1::GetAccountInfoRequest>&);
+ledgerFromRequest<>(std::shared_ptr<ReadView const>&,
+        ContextGeneric<rpc::v1::GetAccountInfoRequest>&);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,

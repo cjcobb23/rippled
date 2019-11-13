@@ -28,7 +28,6 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/DeliveredAmount.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
-
 #include <ripple/rpc/GRPCHandlers.h>
 
 namespace ripple {
@@ -156,9 +155,10 @@ Json::Value doTx (RPC::Context& context)
     return ret;
 }
 
-
+// @param[out] proto
+// @param[in] txn_st
 template <class T>
-void populateAmount(T& proto,STAmount const& amount)
+void populateAmount(T& proto, STAmount const& amount)
 {
     if(amount.native())
     {
@@ -178,40 +178,42 @@ void populateAmount(T& proto,STAmount const& amount)
     }
 }
 
+// @param[out] txn_proto
+// @param[in] txn_st
 void populateTransaction(
-        rpc::v1::Transaction* txn_proto,
+        rpc::v1::Transaction& proto,
         std::shared_ptr<STTx const> txn_st)
 {
 
     AccountID account = txn_st->getAccountID(sfAccount);
-    txn_proto->set_account(toBase58(account));
+    proto.set_account(toBase58(account));
 
     STAmount amount = txn_st->getFieldAmount(sfAmount);
-    populateAmount(*txn_proto->mutable_payment()->mutable_amount(),amount);
+    populateAmount(*proto.mutable_payment()->mutable_amount(),amount);
 
     AccountID account_dest = txn_st->getAccountID(sfDestination);
-    txn_proto->mutable_payment()->set_destination(toBase58(account_dest));
+    proto.mutable_payment()->set_destination(toBase58(account_dest));
 
     STAmount fee = txn_st->getFieldAmount(sfFee);
-    txn_proto->mutable_fee()->set_drops(fee.xrp().drops());
+    proto.mutable_fee()->set_drops(fee.xrp().drops());
 
-    txn_proto->set_sequence(txn_st->getFieldU32(sfSequence));
+    proto.set_sequence(txn_st->getFieldU32(sfSequence));
 
     Blob signingPubKey = txn_st->getFieldVL(sfSigningPubKey);
-    txn_proto->set_signing_public_key_hex(toBytes(signingPubKey));
+    proto.set_signing_public_key_hex(toBytes(signingPubKey));
 
-    txn_proto->set_flags(txn_st->getFieldU32(sfFlags));
+    proto.set_flags(txn_st->getFieldU32(sfFlags));
 
-    txn_proto->set_last_ledger_sequence(
+    proto.set_last_ledger_sequence(
             txn_st->getFieldU32(sfLastLedgerSequence));
 
     Blob blob = txn_st->getFieldVL(sfTxnSignature);
-    txn_proto->set_signature(toBytes(blob));
+    proto.set_signature(toBytes(blob));
 
     if(txn_st->isFieldPresent(sfSendMax))
     {
         STAmount const & send_max = txn_st->getFieldAmount(sfSendMax);
-        populateAmount(*txn_proto->mutable_send_max(),send_max);
+        populateAmount(*proto.mutable_send_max(),send_max);
     }
 
     //populate path data
@@ -220,14 +222,13 @@ void populateTransaction(
     {
         STPath const & path = *it;
 
-        rpc::v1::Path* proto_path = txn_proto->add_paths();
+        rpc::v1::Path* proto_path = proto.add_paths();
 
         for(auto it2 = path.begin(); it2 != path.end(); ++it2)
         {
             rpc::v1::PathElement* proto_element = proto_path->add_elements();
             STPathElement const & elt = *it2;
         
-            //TODO is this correct? 
             if(elt.isOffer())
             {
                 if(elt.hasCurrency())
@@ -247,12 +248,14 @@ void populateTransaction(
     }
 }
 
+//helper
 std::string ledgerEntryTypeString(std::uint16_t type)
 {
     return LedgerFormats::getInstance().findByType(
             safe_cast<LedgerEntryType>(type))->getName();
 }
 
+//helper
 std::string txnTypeString(TxType type)
 {
     return TxFormats::getInstance().findByType(type)->getName();
@@ -372,7 +375,6 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                     node->mutable_deleted_node()->mutable_final_fields();
 
                 populateFields(*final_fields_proto,final_fields,type);
-
             }
         }
     }
@@ -412,7 +414,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     }
     else
     {
-        populateTransaction(result.mutable_tx(),st_txn);
+        populateTransaction(*result.mutable_tx(),st_txn);
     }
 
     result.set_ledger_index(txn->getLedger());

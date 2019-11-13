@@ -17,18 +17,22 @@
 */
 //==============================================================================
 
-
+#include <grpcpp/grpcpp.h>
 #include "rpc/v1/xrp_ledger.pb.h"
 #include <ripple/rpc/Context.h>
-
-#include <grpcpp/grpcpp.h>
 
 #ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 #define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 
 namespace ripple {
 
-struct Context;
+/*
+ * These handlers are for gRPC. They each take in a protobuf message that is
+ * nested inside RPC::ContextGeneric<T>, where T is the request type
+ * The return value is the response type, as well as a status
+ * If the status is not Status::OK (meaning an error occurred), then only
+ * the status will be sent to the client, and the response will be ommitted
+ */
 
 std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status>
 doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
@@ -39,6 +43,7 @@ doFeeGrpc(RPC::ContextGeneric<rpc::v1::GetFeeRequest>& context);
 std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context);
 
+//NOTE, this only supports Payment transactions at this time
 std::pair<rpc::v1::TxResponse, grpc::Status>
 doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context);
 
