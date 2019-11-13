@@ -11,7 +11,31 @@ message LedgerObject {
         RippleState ripple_state = 2;
         Offer offer = 3;
         SignerList signer_list = 4;
+        DirectoryNode directory_node = 5;
     }   
+}
+
+message DirectoryNode {
+
+    uint32 flags = 1;
+
+    bytes root_index = 2;
+
+    repeated bytes indexes = 3;
+
+    uint64 index_next = 4;
+
+    uint64 index_previous = 5;
+
+    string owner = 6;
+
+    bytes taker_pays_currency = 7;
+
+    bytes taker_pays_issuer = 8;
+
+    bytes taker_gets_currency = 9;
+
+    bytes taker_gets_issuer = 10;
 }
 
 message SignerList {
@@ -40,6 +64,7 @@ message SignerEntry {
 }
 
 message AccountRoot {
+
     string account = 1;
 
     CurrencyAmount balance = 2;
@@ -71,6 +96,7 @@ message AccountRoot {
 }
 
 message RippleState {
+
     CurrencyAmount balance = 1;
 
     uint32 flags = 2;
@@ -94,6 +120,7 @@ message RippleState {
 }
 
 message Offer {
+
     string account = 1;
 
     uint32 sequence = 2;

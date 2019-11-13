@@ -155,116 +155,9 @@ Json::Value doTx (RPC::Context& context)
     return ret;
 }
 
-// @param[out] proto
-// @param[in] txn_st
-template <class T>
-void populateAmount(T& proto, STAmount const& amount)
-{
-    if(amount.native())
-    {
-        proto.mutable_xrp_amount()->
-            set_drops(amount.xrp().drops());
-    }
-    else
-    {
-        rpc::v1::FiatAmount* fiat =
-            proto.mutable_fiat_amount();
-        Issue const & issue = amount.issue();
-        Currency currency = issue.currency;
-        fiat->mutable_currency()->set_name(to_string(issue.currency));
-        fiat->mutable_currency()->set_code(toBytes(currency));
-        fiat->set_value(to_string(amount.iou()));
-        fiat->set_issuer(toBase58(issue.account));
-    }
-}
-
-// @param[out] txn_proto
-// @param[in] txn_st
-void populateTransaction(
-        rpc::v1::Transaction& proto,
-        std::shared_ptr<STTx const> txn_st)
-{
-
-    AccountID account = txn_st->getAccountID(sfAccount);
-    proto.set_account(toBase58(account));
-
-    STAmount amount = txn_st->getFieldAmount(sfAmount);
-    populateAmount(*proto.mutable_payment()->mutable_amount(),amount);
-
-    AccountID account_dest = txn_st->getAccountID(sfDestination);
-    proto.mutable_payment()->set_destination(toBase58(account_dest));
-
-    STAmount fee = txn_st->getFieldAmount(sfFee);
-    proto.mutable_fee()->set_drops(fee.xrp().drops());
-
-    proto.set_sequence(txn_st->getFieldU32(sfSequence));
-
-    Blob signingPubKey = txn_st->getFieldVL(sfSigningPubKey);
-    proto.set_signing_public_key_hex(toBytes(signingPubKey));
-
-    proto.set_flags(txn_st->getFieldU32(sfFlags));
-
-    proto.set_last_ledger_sequence(
-            txn_st->getFieldU32(sfLastLedgerSequence));
-
-    Blob blob = txn_st->getFieldVL(sfTxnSignature);
-    proto.set_signature(toBytes(blob));
-
-    if(txn_st->isFieldPresent(sfSendMax))
-    {
-        STAmount const & send_max = txn_st->getFieldAmount(sfSendMax);
-        populateAmount(*proto.mutable_send_max(),send_max);
-    }
-
-    //populate path data
-    STPathSet const & pathset = txn_st->getFieldPathSet(sfPaths);
-    for(auto it = pathset.begin(); it < pathset.end(); ++it)
-    {
-        STPath const & path = *it;
-
-        rpc::v1::Path* proto_path = proto.add_paths();
-
-        for(auto it2 = path.begin(); it2 != path.end(); ++it2)
-        {
-            rpc::v1::PathElement* proto_element = proto_path->add_elements();
-            STPathElement const & elt = *it2;
-        
-            if(elt.isOffer())
-            {
-                if(elt.hasCurrency())
-                {
-                   Currency const & currency = elt.getCurrency(); 
-                   proto_element->set_currency(to_string(currency));
-                }
-                if(elt.hasIssuer())
-                {
-                    AccountID const & issuer = elt.getIssuerID();
-                    proto_element->set_issuer(toBase58(issuer));
-                }
-            }
-            AccountID const & path_account = elt.getAccountID();
-            proto_element->set_account(toBase58(path_account));
-        }
-    }
-}
-
-//helper
-std::string ledgerEntryTypeString(std::uint16_t type)
-{
-    return LedgerFormats::getInstance().findByType(
-            safe_cast<LedgerEntryType>(type))->getName();
-}
-
-//helper
-std::string txnTypeString(TxType type)
-{
-    return TxFormats::getInstance().findByType(type)->getName();
-}
-
 template <class T>
 void populateFields(T& proto,STObject const& obj, std::uint16_t type)
 {
-    //TODO are these all of the ledger entry types that Payment could create?
     if(type == ltACCOUNT_ROOT)
     {
         RPC::populateAccountRoot(*proto.mutable_account_root(),obj);
@@ -277,107 +170,19 @@ void populateFields(T& proto,STObject const& obj, std::uint16_t type)
     {
         RPC::populateOffer(*proto.mutable_offer(),obj);
     }
+    else if(type == ltDIR_NODE)
+    {
+        RPC::populateDirectoryNode(*proto.mutable_directory_node(),obj);
+    }
     else
     {
         //Ledger object not supported
     }
 }
 
-void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
+std::string txnTypeString(TxType type)
 {
-    proto.set_transaction_index(txMeta->getIndex());
-    proto.set_transaction_result(
-            transToken(txMeta->getResultTER()));
-
-    if(txMeta->hasDeliveredAmount())
-    {
-        populateAmount(*proto.mutable_delivered_amount(),
-                txMeta->getDeliveredAmount());
-    }
-
-    STArray& nodes = txMeta->getNodes();
-    for(auto it = nodes.begin(); it != nodes.end(); ++it)
-    {
-        STObject & obj = *it;
-        rpc::v1::AffectedNode* node =
-            proto.add_affected_node();
-
-        //ledger index
-        uint256 ledger_index = obj.getFieldH256(sfLedgerIndex);
-        node->set_ledger_index(toBytes(ledger_index));
-
-        //ledger entry type
-        std::uint16_t type = obj.getFieldU16(sfLedgerEntryType);
-        std::string type_str = ledgerEntryTypeString(type);
-        node->set_ledger_entry_type(type_str);
-
-        //modified node
-        if(obj.getFName() == sfModifiedNode)
-        {
-            //final fields
-            if(obj.isFieldPresent(sfFinalFields))
-            {
-                STObject& final_fields =
-                    obj.getField(sfFinalFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* final_fields_proto =
-                    node->mutable_modified_node()->mutable_final_fields();
-
-                populateFields(*final_fields_proto,final_fields,type);
-            }
-            //previous fields
-            if(obj.isFieldPresent(sfPreviousFields))
-            {
-                STObject& prev_fields =
-                    obj.getField(sfPreviousFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* prev_fields_proto =
-                    node->mutable_modified_node()->mutable_previous_fields();
-
-                populateFields(*prev_fields_proto,prev_fields,type);
-            }
-
-            //prev txn id and prev txn ledger seq
-            uint256 prev_txn_id = obj.getFieldH256(sfPreviousTxnID);
-            node->mutable_modified_node()->
-                set_previous_txn_id(toBytes(prev_txn_id));
-
-            node->mutable_modified_node()->
-                set_previous_txn_ledger_sequence(
-                        obj.getFieldU32(sfPreviousTxnLgrSeq));
-
-        }
-        //created node
-        else if(obj.getFName() == sfCreatedNode)
-        {
-            //new fields
-            if(obj.isFieldPresent(sfNewFields))
-            {
-                STObject& new_fields =
-                    obj.getField(sfNewFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* new_fields_proto =
-                    node->mutable_created_node()->mutable_new_fields();
-
-                populateFields(*new_fields_proto,new_fields,type);
-            }
-        }
-        //deleted node
-        else if(obj.getFName() == sfDeletedNode)
-        {
-            //final fields
-            if(obj.isFieldPresent(sfFinalFields))
-            {
-                STObject& final_fields =
-                    obj.getField(sfNewFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* final_fields_proto =
-                    node->mutable_deleted_node()->mutable_final_fields();
-
-                populateFields(*final_fields_proto,final_fields,type);
-            }
-        }
-    }
+    return TxFormats::getInstance().findByType(type)->getName();
 }
 
 std::pair<rpc::v1::TxResponse, grpc::Status>
@@ -414,7 +219,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     }
     else
     {
-        populateTransaction(*result.mutable_tx(),st_txn);
+        RPC::populateTransaction(*result.mutable_tx(),st_txn);
     }
 
     result.set_ledger_index(txn->getLedger());
@@ -452,7 +257,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
                         ledger->info().seq,ledger->info().hash);
                 result.set_validated(validated);
 
-                populateMeta(*result.mutable_meta(), txMeta);
+                RPC::populateMeta(*result.mutable_meta(), txMeta);
             }
         }
     }
