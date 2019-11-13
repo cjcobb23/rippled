@@ -152,6 +152,11 @@ setVersion(Object& parent)
 std::pair<RPC::Status, LedgerEntryType>
     chooseLedgerEntryType(Json::Value const& params);
 
+/*
+ * For all of the below populate* functions, the proto argument is an
+ * output parameter, and is populated with the data stored in the
+ * serialized object
+ */    
 void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj);
 
 void populateRippleState(rpc::v1::RippleState& proto, STObject const & obj);
@@ -162,6 +167,16 @@ void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj);
 
 void populateQueueData(rpc::v1::QueueData& proto,
         std::map<TxSeq, TxQ::AccountTxDetails const> const & txs);
+
+void populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const & obj);
+
+void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
+
+void populateTransaction(rpc::v1::Transaction& proto,
+        std::shared_ptr<STTx const> txn_st);
+
+template <class T>
+void populateAmount(T& proto, STAmount const& amount);
 
 } // RPC
 } // ripple
