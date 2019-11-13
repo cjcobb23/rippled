@@ -50,19 +50,16 @@ using grpc::ServerCompletionQueue;
 using grpc::Status;
 using grpc::StatusCode;
 using grpc::CompletionQueue;
-using io::xpring::GetAccountInfoRequest;
-using io::xpring::AccountInfo;
-using io::xpring::XRPLedgerAPI;
-using io::xpring::XRPAmount;
-using io::xpring::GetFeeRequest;
-using io::xpring::Fee;
-using io::xpring::SubmitSignedTransactionRequest;
-using io::xpring::SubmitSignedTransactionResponse;
-using io::xpring::TxRequest;
-using io::xpring::TxResponse;
-using io::xpring::LedgerSequenceRequest;
-using io::xpring::LedgerSequenceResponse;
-using io::xpring::FeeResponse;
+using rpc::v1::GetAccountInfoRequest;
+using rpc::v1::GetAccountInfoResponse;
+using rpc::v1::XRPLedgerAPIService;
+using rpc::v1::XRPAmount;
+using rpc::v1::GetFeeRequest;
+using rpc::v1::GetFeeResponse;
+using rpc::v1::SubmitTransactionRequest;
+using rpc::v1::SubmitTransactionResponse;
+using rpc::v1::TxRequest;
+using rpc::v1::TxResponse;
 
 namespace ripple
 {
@@ -86,7 +83,7 @@ class Processor
 //Typedefs for function to bind a listener
 template <class Request, class Response>
 using BindListener = std::function<void(
-        XRPLedgerAPI::AsyncService&,
+        XRPLedgerAPIService::AsyncService&,
         ServerContext*,
         Request*,
         ServerAsyncResponseWriter<Response>*,
@@ -156,7 +153,7 @@ class GRPCServerImpl final {
       // server) and the completion queue "cq" used for asynchronous communication
       // with the gRPC runtime.
       CallData(
-              XRPLedgerAPI::AsyncService* service,
+              XRPLedgerAPIService::AsyncService* service,
               ServerCompletionQueue* cq,
               Application& app,
               BindListener<Request,Response> bind_listener,
@@ -228,7 +225,7 @@ class GRPCServerImpl final {
       private:
       // The means of communication with the gRPC runtime for an asynchronous
       // server.
-      XRPLedgerAPI::AsyncService* service_;
+      XRPLedgerAPIService::AsyncService* service_;
       // The producer-consumer queue for asynchronous server notifications.
       ServerCompletionQueue* cq_;
       // Context for the rpc, allowing to tweak aspects of it such as the use
@@ -307,7 +304,7 @@ class GRPCServerImpl final {
 
   std::unique_ptr<ServerCompletionQueue> cq_;
   
-  XRPLedgerAPI::AsyncService service_;
+  XRPLedgerAPIService::AsyncService service_;
   
   std::unique_ptr<grpc::Server> server_;
   

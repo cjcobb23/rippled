@@ -303,16 +303,16 @@ ledgerFromRequest(T& ledger, Context& context)
 template <class T>
 Status
 ledgerFromRequest(T& ledger,
-        ContextGeneric<io::xpring::GetAccountInfoRequest>& context)
+        ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
 {
     static auto const minSequenceGap = 10;
 
     ledger.reset();
 
-    io::xpring::GetAccountInfoRequest & request = context.params;
+    rpc::v1::GetAccountInfoRequest & request = context.params;
     auto& ledgerMaster = context.ledgerMaster;
 
-    using LedgerIndexCase = io::xpring::GetAccountInfoRequest::LedgerIndexCase;
+    using LedgerIndexCase = rpc::v1::GetAccountInfoRequest::LedgerIndexCase;
     LedgerIndexCase ledger_index_case =
         request.ledger_index_case();
 
@@ -397,7 +397,7 @@ ledgerFromRequest(T& ledger,
 
 template
 Status
-ledgerFromRequest<>(std::shared_ptr<ReadView const>&, ContextGeneric<io::xpring::GetAccountInfoRequest>&);
+ledgerFromRequest<>(std::shared_ptr<ReadView const>&, ContextGeneric<rpc::v1::GetAccountInfoRequest>&);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -823,7 +823,7 @@ chooseLedgerEntryType(Json::Value const& params)
     return result;
 }
 
-void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
+void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj)
 {
     if(obj.isFieldPresent(sfAccount))
     {
@@ -888,7 +888,7 @@ void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj)
     }
 }
 
-void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
+void populateRippleState(rpc::v1::RippleState& proto, STObject const & obj)
 {
     if(obj.isFieldPresent(sfBalance))
     {
@@ -935,7 +935,7 @@ void populateRippleState(io::xpring::RippleState& proto, STObject const & obj)
     }
 }
 
-void populateOffer(io::xpring::Offer& proto, STObject const & obj)
+void populateOffer(rpc::v1::Offer& proto, STObject const & obj)
 {
     if(obj.isFieldPresent(sfAccount))
     {
@@ -980,7 +980,7 @@ void populateOffer(io::xpring::Offer& proto, STObject const & obj)
     }
 }
 
-void populateSignerList(io::xpring::SignerList& proto, STObject const & obj)
+void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj)
 {
     proto.set_flags(obj.getFieldU32(sfFlags));
     proto.set_previous_txn_id(toBytes(obj.getFieldH256(sfPreviousTxnID)));
@@ -993,7 +993,7 @@ void populateSignerList(io::xpring::SignerList& proto, STObject const & obj)
 
     for(auto it = signer_entries.begin(); it != signer_entries.end(); ++it)
     {
-        io::xpring::SignerEntry& signer_entry_proto = 
+        rpc::v1::SignerEntry& signer_entry_proto = 
             *proto.add_signer_entry();
 
         signer_entry_proto.set_account(toBase58(it->getAccountID(sfAccount)));
@@ -1003,7 +1003,7 @@ void populateSignerList(io::xpring::SignerList& proto, STObject const & obj)
 
 }
 
-void populateQueueData(io::xpring::QueueData& proto, std::map<TxSeq, TxQ::AccountTxDetails const> const & txs)
+void populateQueueData(rpc::v1::QueueData& proto, std::map<TxSeq, TxQ::AccountTxDetails const> const & txs)
 {
     if(!txs.empty())
     {
@@ -1017,7 +1017,7 @@ void populateQueueData(io::xpring::QueueData& proto, std::map<TxSeq, TxQ::Accoun
 
         for (auto const& [txSeq, txDetails] : txs)
         {
-            io::xpring::QueuedTransaction& qt = 
+            rpc::v1::QueuedTransaction& qt = 
                 *proto.add_transaction();
 
             qt.set_seq(txSeq);

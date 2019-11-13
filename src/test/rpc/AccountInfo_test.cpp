@@ -325,7 +325,7 @@ public:
        Account const alice {"alice"};
        env.fund(XRP(1000), alice);
 
-       io::xpring::GetAccountInfoRequest request;
+       rpc::v1::GetAccountInfoRequest request;
        request.set_address(alice.human());
        Application& app = env.app();
        ripple::Resource::Charge loadType =
@@ -336,12 +336,12 @@ public:
 
        auto usage = ripple::Resource::Consumer();
 
-       ripple::RPC::ContextGeneric<io::xpring::GetAccountInfoRequest> context {
+       ripple::RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest> context {
            app.journal("Server"),
                request, app, loadType, app.getOPs(), app.getLedgerMaster(),
                usage, role, coro, ripple::InfoSub::pointer()};
 
-       std::pair<io::xpring::AccountInfo,grpc::Status> result = ripple::doAccountInfoGrpc(context);
+       std::pair<rpc::v1::GetAccountInfoResponse,grpc::Status> result = ripple::doAccountInfoGrpc(context);
        std::cout << result.first.DebugString() << std::endl;
        BEAST_EXPECT(result.first.account_data().balance().xrp_amount().drops() == 1000);
        std::cout << "done grpc" << std::endl;
