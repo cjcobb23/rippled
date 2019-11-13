@@ -23,7 +23,7 @@ namespace ripple {
 
 template <class Request,class Response>
 GRPCServerImpl::CallData<Request,Response>::CallData(
-              XRPLedgerAPI::AsyncService* service,
+              XRPLedgerAPIService::AsyncService* service,
               ServerCompletionQueue* cq,
               Application& app,
               BindListener<Request,Response> bind_listener,
@@ -174,27 +174,27 @@ void GRPCServerImpl::CallData<Request,Response>::process(std::shared_ptr<JobQueu
   //Fourth argument is the charge
   void GRPCServerImpl::setup()
   {
-      makeAndPush<GetFeeRequest,FeeResponse>(
-              &XRPLedgerAPI::AsyncService::RequestGetFee,
+      makeAndPush<GetFeeRequest,GetFeeResponse>(
+              &XRPLedgerAPIService::AsyncService::RequestGetFee,
               doFeeGrpc,
               RPC::NEEDS_CURRENT_LEDGER,
               Resource::feeReferenceRPC
               );
 
-      makeAndPush<GetAccountInfoRequest,AccountInfo>(
-              &XRPLedgerAPI::AsyncService::RequestGetAccountInfo,
+      makeAndPush<GetAccountInfoRequest,GetAccountInfoResponse>(
+              &XRPLedgerAPIService::AsyncService::RequestGetAccountInfo,
               doAccountInfoGrpc,
               RPC::NO_CONDITION,
               Resource::feeReferenceRPC);
 
       makeAndPush<TxRequest,TxResponse>(
-              &XRPLedgerAPI::AsyncService::RequestTx,
+              &XRPLedgerAPIService::AsyncService::RequestTx,
               doTxGrpc,
               RPC::NEEDS_NETWORK_CONNECTION,
               Resource::feeReferenceRPC);
 
-      makeAndPush<SubmitSignedTransactionRequest,SubmitSignedTransactionResponse>(
-              &XRPLedgerAPI::AsyncService::RequestSubmitSignedTransaction,
+      makeAndPush<SubmitTransactionRequest,SubmitTransactionResponse>(
+              &XRPLedgerAPIService::AsyncService::RequestSubmitTransaction,
               doSubmitGrpc,
               RPC::NEEDS_CURRENT_LEDGER,
               Resource::feeMediumBurdenRPC);

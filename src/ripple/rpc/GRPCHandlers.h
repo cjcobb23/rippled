@@ -30,17 +30,17 @@ namespace ripple {
 
 struct Context;
 
-std::pair<io::xpring::AccountInfo, grpc::Status>
-doAccountInfoGrpc(RPC::ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status>
+doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
 
-std::pair<io::xpring::FeeResponse,grpc::Status>
-doFeeGrpc(RPC::ContextGeneric<io::xpring::GetFeeRequest>& context);
+std::pair<rpc::v1::GetFeeResponse,grpc::Status>
+doFeeGrpc(RPC::ContextGeneric<rpc::v1::GetFeeRequest>& context);
 
-std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
-doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context);
+std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
+doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context);
 
-std::pair<io::xpring::TxResponse, grpc::Status>
-doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context);
+std::pair<rpc::v1::TxResponse, grpc::Status>
+doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context);
 
 } // ripple
 

@@ -167,7 +167,7 @@ void populateAmount(T& proto,STAmount const& amount)
     }
     else
     {
-        io::xpring::FiatAmount* fiat =
+        rpc::v1::FiatAmount* fiat =
             proto.mutable_fiat_amount();
         Issue const & issue = amount.issue();
         Currency currency = issue.currency;
@@ -179,7 +179,7 @@ void populateAmount(T& proto,STAmount const& amount)
 }
 
 void populateTransaction(
-        io::xpring::Transaction* txn_proto,
+        rpc::v1::Transaction* txn_proto,
         std::shared_ptr<STTx const> txn_st)
 {
 
@@ -220,11 +220,11 @@ void populateTransaction(
     {
         STPath const & path = *it;
 
-        io::xpring::Path* proto_path = txn_proto->add_paths();
+        rpc::v1::Path* proto_path = txn_proto->add_paths();
 
         for(auto it2 = path.begin(); it2 != path.end(); ++it2)
         {
-            io::xpring::PathElement* proto_element = proto_path->add_elements();
+            rpc::v1::PathElement* proto_element = proto_path->add_elements();
             STPathElement const & elt = *it2;
         
             //TODO is this correct? 
@@ -280,7 +280,7 @@ void populateFields(T& proto,STObject const& obj, std::uint16_t type)
     }
 }
 
-void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
+void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 {
     proto.set_transaction_index(txMeta->getIndex());
     proto.set_transaction_result(
@@ -296,7 +296,7 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     for(auto it = nodes.begin(); it != nodes.end(); ++it)
     {
         STObject & obj = *it;
-        io::xpring::AffectedNode* node =
+        rpc::v1::AffectedNode* node =
             proto.add_affected_node();
 
         //ledger index
@@ -317,7 +317,7 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 STObject& final_fields =
                     obj.getField(sfFinalFields).downcast<STObject>();
 
-                io::xpring::LedgerObject* final_fields_proto =
+                rpc::v1::LedgerObject* final_fields_proto =
                     node->mutable_modified_node()->mutable_final_fields();
 
                 populateFields(*final_fields_proto,final_fields,type);
@@ -328,7 +328,7 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 STObject& prev_fields =
                     obj.getField(sfPreviousFields).downcast<STObject>();
 
-                io::xpring::LedgerObject* prev_fields_proto =
+                rpc::v1::LedgerObject* prev_fields_proto =
                     node->mutable_modified_node()->mutable_previous_fields();
 
                 populateFields(*prev_fields_proto,prev_fields,type);
@@ -353,7 +353,7 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 STObject& new_fields =
                     obj.getField(sfNewFields).downcast<STObject>();
 
-                io::xpring::LedgerObject* new_fields_proto =
+                rpc::v1::LedgerObject* new_fields_proto =
                     node->mutable_created_node()->mutable_new_fields();
 
                 populateFields(*new_fields_proto,new_fields,type);
@@ -368,7 +368,7 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
                 STObject& final_fields =
                     obj.getField(sfNewFields).downcast<STObject>();
 
-                io::xpring::LedgerObject* final_fields_proto =
+                rpc::v1::LedgerObject* final_fields_proto =
                     node->mutable_deleted_node()->mutable_final_fields();
 
                 populateFields(*final_fields_proto,final_fields,type);
@@ -378,14 +378,14 @@ void populateMeta(io::xpring::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     }
 }
 
-std::pair<io::xpring::TxResponse, grpc::Status>
-doTxGrpc(RPC::ContextGeneric<io::xpring::TxRequest>& context)
+std::pair<rpc::v1::TxResponse, grpc::Status>
+doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
 {
     //return values
-    io::xpring::TxResponse result;
+    rpc::v1::TxResponse result;
     grpc::Status status = grpc::Status::OK;
 
-    io::xpring::TxRequest& request = context.params;
+    rpc::v1::TxRequest& request = context.params;
 
     std::string const& hash_bytes = request.hash();
     uint256 hash = uint256::fromVoid(hash_bytes.data());

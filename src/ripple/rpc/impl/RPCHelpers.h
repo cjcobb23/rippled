@@ -99,7 +99,7 @@ lookupLedger (std::shared_ptr<ReadView const>&, Context&, Json::Value& result);
 template <class T>
 Status
 ledgerFromRequest(T& ledger,
-        ContextGeneric<io::xpring::GetAccountInfoRequest>& context);
+        ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -154,15 +154,15 @@ std::pair<RPC::Status, LedgerEntryType>
     chooseLedgerEntryType(Json::Value const& params);
 
 
-void populateAccountRoot(io::xpring::AccountRoot& proto, STObject const & obj);
+void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj);
 
-void populateRippleState(io::xpring::RippleState& proto, STObject const & obj);
+void populateRippleState(rpc::v1::RippleState& proto, STObject const & obj);
 
-void populateOffer(io::xpring::Offer& proto, STObject const & obj);
+void populateOffer(rpc::v1::Offer& proto, STObject const & obj);
 
-void populateSignerList(io::xpring::SignerList& proto, STObject const & obj);
+void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj);
 
-void populateQueueData(io::xpring::QueueData& proto,
+void populateQueueData(rpc::v1::QueueData& proto,
         std::map<TxSeq, TxQ::AccountTxDetails const> const & txs);
 
 } // RPC

@@ -163,10 +163,10 @@ Json::Value doSubmit (RPC::Context& context)
     }
 }
 
-std::pair<io::xpring::SubmitSignedTransactionResponse, grpc::Status>
-doSubmitGrpc(RPC::ContextGeneric<io::xpring::SubmitSignedTransactionRequest>& context)
+std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
+doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
 {
-    io::xpring::SubmitSignedTransactionResponse result;
+    rpc::v1::SubmitTransactionResponse result;
 
     auto request = context.params;
     std::string const& tx = request.signed_transaction();
