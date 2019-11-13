@@ -72,10 +72,10 @@ namespace ripple
         rpc::v1::Fee& drops = *reply.mutable_drops();
         auto const baseFee = view->fees().base;
         drops.set_base_fee(mulDiv(
-                    metrics.referenceFeeLevel,baseFee,
+                    metrics.referenceFeeLevel, baseFee,
                     metrics.referenceFeeLevel).second);
         drops.set_minimum_fee(mulDiv(
-                    metrics.minProcessingFeeLevel,baseFee,
+                    metrics.minProcessingFeeLevel, baseFee,
                     metrics.referenceFeeLevel).second);
         drops.set_median_fee(mulDiv(
                     metrics.medFeeLevel, baseFee,

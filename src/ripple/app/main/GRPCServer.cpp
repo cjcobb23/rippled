@@ -45,7 +45,8 @@ GRPCServerImpl::CallData<Request,Response>::CallData(
       {
           //Bind a listener. When a request is received, "this" will be returned
           //from CompletionQueue::Next
-          bind_listener_(service_,&ctx_,&request_,&responder_,&cq_,&cq_,this);
+          bind_listener_(
+                  service_, &ctx_, &request_, &responder_, &cq_, &cq_, this);
       }
 
 
@@ -53,13 +54,14 @@ template <class Request,class Response>
 void GRPCServerImpl::CallData<Request,Response>::process()
 {
     if (status_ == PROCESSING) {
-        std::shared_ptr<CallData<Request,Response>> this_s = this->shared_from_this();
+        std::shared_ptr<CallData<Request,Response>> this_s =
+            this->shared_from_this();
         app_.getJobQueue().postCoro(JobType::jtRPC, "gRPC-Client",
                 [this_s](std::shared_ptr<JobQueue::Coro> coro)
                 {
                     std::lock_guard<std::mutex> lock(this_s->mut_);
 
-                    //Do nothing if the call has been aborted due to server shutdown
+                    //Do nothing if call has been aborted due to server shutdown
                     if(this_s->aborted_)
                         return;
 
@@ -75,7 +77,8 @@ void GRPCServerImpl::CallData<Request,Response>::process()
 }
 
 template <class Request,class Response>
-void GRPCServerImpl::CallData<Request,Response>::process(std::shared_ptr<JobQueue::Coro> coro)
+void GRPCServerImpl::CallData<Request,Response>::process(
+        std::shared_ptr<JobQueue::Coro> coro)
 {
     try
     {
@@ -94,10 +97,9 @@ void GRPCServerImpl::CallData<Request,Response>::process(std::shared_ptr<JobQueu
             auto role = getRole();
 
             RPC::ContextGeneric<Request> context {
-                app_.journal("gRPCServer"),
-                    request_, app_, loadType, app_.getOPs(), app_.getLedgerMaster(),
-                    usage, role, coro, InfoSub::pointer()};
-
+                app_.journal("gRPCServer"), request_, app_, loadType,
+                    app_.getOPs(), app_.getLedgerMaster(), usage, role, coro,
+                    InfoSub::pointer()};
 
             //Make sure we can currently handle the rpc
             error_code_i condition_met_res = 
@@ -105,14 +107,16 @@ void GRPCServerImpl::CallData<Request,Response>::process(std::shared_ptr<JobQueu
 
             if(condition_met_res != rpcSUCCESS)
             {
-                RPC::ErrorInfo error_info = RPC::get_error_info(condition_met_res);
-                grpc::Status status{grpc::StatusCode::INTERNAL,error_info.message.c_str()};
+                RPC::ErrorInfo error_info =
+                    RPC::get_error_info(condition_met_res);
+                grpc::Status status{grpc::StatusCode::INTERNAL,
+                    error_info.message.c_str()};
                 responder_.FinishWithError(status,this);
             }
             else
             {
                 std::pair<Response,grpc::Status> result = handler_(context);
-                //TODO: what happens if server was shutdown but we try to respond?
+                //TODO: what happens if server was shutdown before responding?
                 responder_.Finish(result.first, result.second, this);
             }
         }
@@ -135,7 +139,7 @@ void GRPCServerImpl::HandleRpcs() {
     // tells us whether there is any kind of event or cq_ is shutting down.
     while (cq_->Next(&tag,&ok)) {
 
-        //if ok is false, this event was terminated as part of a shutdown sequence
+        //if ok is false, event was terminated as part of a shutdown sequence
         //need to abort any further processing
         if(!ok)
         {
@@ -148,8 +152,8 @@ void GRPCServerImpl::HandleRpcs() {
             auto ptr = static_cast<Processor*>(tag);
             if(!ptr->isFinished())
             {
-                //ptr is now processing a request, so create a new CallData object
-                //to handle additional requests
+                //ptr is now processing a request, so create a new CallData
+                //object to handle additional requests
                 auto cloned = ptr->clone();
                 requests_.push_front(cloned);
                 //set iterator as data member for later lookup
@@ -175,26 +179,26 @@ void GRPCServerImpl::HandleRpcs() {
 //Fourth argument is the charge
 void GRPCServerImpl::setup()
 {
-    makeAndPush<rpc::v1::GetFeeRequest,rpc::v1::GetFeeResponse>(
+    makeAndPush<rpc::v1::GetFeeRequest, rpc::v1::GetFeeResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetFee,
             doFeeGrpc,
             RPC::NEEDS_CURRENT_LEDGER,
             Resource::feeReferenceRPC
             );
 
-    makeAndPush<rpc::v1::GetAccountInfoRequest,rpc::v1::GetAccountInfoResponse>(
+    makeAndPush<rpc::v1::GetAccountInfoRequest, rpc::v1::GetAccountInfoResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetAccountInfo,
             doAccountInfoGrpc,
             RPC::NO_CONDITION,
             Resource::feeReferenceRPC);
 
-    makeAndPush<rpc::v1::TxRequest,rpc::v1::TxResponse>(
+    makeAndPush<rpc::v1::TxRequest, rpc::v1::TxResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestTx,
             doTxGrpc,
             RPC::NEEDS_NETWORK_CONNECTION,
             Resource::feeReferenceRPC);
 
-    makeAndPush<rpc::v1::SubmitTransactionRequest,rpc::v1::SubmitTransactionResponse>(
+    makeAndPush<rpc::v1::SubmitTransactionRequest, rpc::v1::SubmitTransactionResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestSubmitTransaction,
             doSubmitGrpc,
             RPC::NEEDS_CURRENT_LEDGER,
