@@ -18,7 +18,7 @@
 //==============================================================================
 
 
-#include "xrp_ledger.pb.h"
+#include "rpc/v1/xrp_ledger.pb.h"
 #include <ripple/rpc/Context.h>
 
 #include <grpcpp/grpcpp.h>

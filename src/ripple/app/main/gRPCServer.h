@@ -22,7 +22,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "xrp_ledger.grpc.pb.h"
+#include "rpc/v1/xrp_ledger.grpc.pb.h"
 
 #include <ripple/core/JobQueue.h>
 #include <ripple/resource/Charge.h>

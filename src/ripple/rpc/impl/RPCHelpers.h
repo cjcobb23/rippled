@@ -28,7 +28,7 @@
 #include <boost/optional.hpp>
 #include <ripple/app/misc/NetworkOPs.h>
 
-#include <xrp_ledger.pb.h>
+#include <rpc/v1/xrp_ledger.pb.h>
 
 namespace Json {
 class Value;
