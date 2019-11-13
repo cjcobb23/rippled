@@ -77,8 +77,6 @@ generateSeed (std::string const& passPhrase)
     h(passPhrase.data(), passPhrase.size());
     auto const digest =
         sha512_half_hasher::result_type(h);
-
-    std::cout << "generating seed" << std::endl;
     return Seed({ digest.data(), 16 });
 }
 

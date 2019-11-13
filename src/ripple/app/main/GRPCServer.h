@@ -145,9 +145,12 @@ class GRPCServerImpl final {
   
         void process() override;
   
-  
         bool isFinished() override
         {
+            //checking the status while a request is in the middle of being
+            //processed will lead to indeterminate results. Lock here to 
+            //sequence checking status and processing
+            std::lock_guard<std::mutex> lock(mut_);
             return status_ == CallStatus::FINISH;
         }
   
@@ -194,7 +197,6 @@ class GRPCServerImpl final {
         Resource::Consumer getUsage()
         {
             std::string peer = getEndpoint(ctx_.peer());
-  
             boost::optional<beast::IP::Endpoint> endpoint =
                 beast::IP::Endpoint::from_string_checked(peer);
             return app_.getResourceManager().newInboundEndpoint(endpoint.get());
@@ -288,7 +290,6 @@ class GRPCServerImpl final {
   
     //list of current RPC requests being processed or listened for
     std::list<std::shared_ptr<Processor>> requests_;
-
 
     //CompletionQueue returns events that have occurred, or events that have
     //been cancelled

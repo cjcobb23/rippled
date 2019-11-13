@@ -17,12 +17,12 @@
 */
 //==============================================================================
 
+#ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
+#define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
+
 #include <grpcpp/grpcpp.h>
 #include "rpc/v1/xrp_ledger.pb.h"
 #include <ripple/rpc/Context.h>
-
-#ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
-#define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 
 namespace ripple {
 

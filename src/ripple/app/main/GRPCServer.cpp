@@ -61,9 +61,10 @@ void GRPCServerImpl::CallData<Request,Response>::process()
 
                     //Do nothing if the call has been aborted due to server shutdown
                     if(this_s->aborted_)
-                    return;
+                        return;
 
                     this_s->process(coro);
+                    this_s->status_ = FINISH;
                 });
     }
     else
@@ -121,7 +122,6 @@ void GRPCServerImpl::CallData<Request,Response>::process(std::shared_ptr<JobQueu
         grpc::Status status{grpc::StatusCode::INTERNAL,ex.what()};
         responder_.FinishWithError(status,this);
     }
-    status_ = FINISH;
 }
 
 void GRPCServerImpl::HandleRpcs() {

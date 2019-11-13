@@ -34,13 +34,6 @@ BasicApp::BasicApp(std::size_t numberOfThreads)
                         std::to_string(numberOfThreads));
                 this->io_service_.run();
             });
-
-//    threads_.emplace_back([]()
-//            {
-//            ServerImpl server;
-//            server.Run();
-//
-//            });
 }
 
 BasicApp::~BasicApp()
@@ -49,5 +42,3 @@ BasicApp::~BasicApp()
     for (auto& _ : threads_)
         _.join();
 }
-
-
