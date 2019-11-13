@@ -1,10 +1,8 @@
 syntax = "proto3";
 
-package io.xpring;
+package rpc.v1;
 
-import "payment.proto";
-import "amount.proto";
-import "xrp_amount.proto";
+import "rpc/v1/amount.proto";
 
 // A class encompassing all transactions.
 // Next field: 6.
@@ -49,4 +47,12 @@ message PathElement {
     string currency = 2;
 
     string issuer = 3;
+}
+
+message Payment {
+    // The amount of currency to pay, in either fiat or XRP.
+    CurrencyAmount amount = 1;
+
+    // The destination of the payment.
+    string destination = 3;
 }

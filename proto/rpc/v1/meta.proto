@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package rpc.v1;
+
+import "rpc/v1/amount.proto";
+import "rpc/v1/ledger_objects.proto";
+
+message Meta {
+    // index in ledger
+    uint64 transaction_index = 1;
+
+    // result code indicating whether txn succeeded or failed
+    string transaction_result = 2;
+
+   repeated AffectedNode affected_node = 3;
+
+   CurrencyAmount delivered_amount = 4;
+}
+
+message AffectedNode {
+
+    string ledger_entry_type = 1;
+
+    bytes ledger_index = 2;
+
+    oneof node {
+        CreatedNode created_node = 3;
+        DeletedNode deleted_node = 4;
+        ModifiedNode modified_node = 5;
+    }
+}
+
+message CreatedNode {
+
+    LedgerObject new_fields = 1;
+
+}
+
+message DeletedNode {
+
+    LedgerObject final_fields = 1;
+
+}
+
+message ModifiedNode {
+
+    LedgerObject final_fields = 1;
+
+    LedgerObject previous_fields = 2;
+
+    bytes previous_txn_id = 3;
+
+    uint32 previous_txn_ledger_sequence = 4;
+
+}
