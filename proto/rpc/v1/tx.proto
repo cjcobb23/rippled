@@ -1,9 +1,18 @@
 syntax = "proto3";
 
-package io.xpring;
+package rpc.v1;
 
-import "transaction.proto";
-import "meta.proto";
+import "rpc/v1/transaction.proto";
+import "rpc/v1/meta.proto";
+
+message TxRequest {
+    // the hash of the transaction
+    bytes hash = 1;
+
+    // if true, return data in binary format
+    // TODO: does this make sense for protobuf?
+    bool binary = 2;
+}
 
 message TxResponse {
 

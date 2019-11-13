@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package rpc.v1;
+
+message CurrencyAmount {
+    oneof amount {
+        XRPAmount xrp_amount = 1;
+        FiatAmount fiat_amount = 2;
+    }
+}
+
+// A representation of an amount of XRP.
+message XRPAmount {
+    // A numeric string representing the number of drops of XRP.
+    uint64 drops = 1;
+}
+
+// A representation of an amount of currency in fiat.
+message FiatAmount {
+    // The currency used to value the amount.
+    Currency currency = 1;
+
+    // The value of the amount.
+    string value = 2;
+
+    // Unique account address of the entity issuing the currency.
+    string issuer = 3;
+}
+
+// Available currencies.
+message Currency {
+
+    string name = 1;
+    bytes code = 2;
+}

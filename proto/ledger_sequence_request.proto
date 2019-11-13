@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package io.xpring;
-
-message LedgerSequenceRequest {
-
-}
