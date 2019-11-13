@@ -353,7 +353,7 @@ link_directories(
 
 set(_GRPC_CPP_PLUGIN_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX})
 
-file(GLOB PROTOBUF_DEFINITION_FILES "proto/*.proto")
+file(GLOB PROTOBUF_DEFINITION_FILES "proto/rpc/v1/*.proto")
 
 foreach(file ${PROTOBUF_DEFINITION_FILES})
     string(REGEX MATCH ^.*\/ prefix ${file})
@@ -361,26 +361,35 @@ foreach(file ${PROTOBUF_DEFINITION_FILES})
     string(SUBSTRING ${file} ${prefix_length} -1 proto_file)
     string(REGEX MATCH ^[^.]* proto_prefix ${proto_file})
     # Proto file
-    get_filename_component(hw_proto "proto/${proto_file}" ABSOLUTE)
+    get_filename_component(hw_proto "proto/rpc/v1/${proto_file}" ABSOLUTE)
     get_filename_component(hw_proto_path "${hw_proto}" PATH)
 
+    message("${hw_proto}")
+    message("${hw_proto_path}")
+
+    string(FIND "${hw_proto_path}" "rpc/v1" pos)
+
+    string(SUBSTRING ${hw_proto_path} 0 ${pos} trimmed_path)
+
+    message("${trimmed_path}")
+
     # Generated sources
-    set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.pb.cc")
-    set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.pb.h")
-    set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.grpc.pb.cc")
-    set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/${proto_prefix}.grpc.pb.h")
+    set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.pb.cc")
+    set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.pb.h")
+    set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.grpc.pb.cc")
+    set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.grpc.pb.h")
     add_custom_command(
         OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
         COMMAND ${_PROTOBUF_PROTOC}
         ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
             --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
-            -I "${hw_proto_path}"
+            -I "${trimmed_path}"
             --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
             "${hw_proto}"
         DEPENDS "${hw_proto}")
 
-    list(APPEND PROTOBUF_SRCS "${proto_prefix}.pb.cc")
-    list(APPEND PROTOBUF_SRCS "${proto_prefix}.grpc.pb.cc")
+    list(APPEND PROTOBUF_SRCS "rpc/v1/${proto_prefix}.pb.cc")
+    list(APPEND PROTOBUF_SRCS "rpc/v1/${proto_prefix}.grpc.pb.cc")
 endforeach()
 
 #[===================================================================[
