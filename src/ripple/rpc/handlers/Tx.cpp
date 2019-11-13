@@ -63,7 +63,6 @@ isValidated(LedgerMaster& ledgerMaster, std::uint32_t seq, uint256 const& hash)
         return false;
 
     return ledgerMaster.getHashBySeq (seq) == hash;
-
 }
 
 static
@@ -72,8 +71,6 @@ isValidated (RPC::Context& context, std::uint32_t seq, uint256 const& hash)
 {
     return isValidated(context.ledgerMaster, seq, hash);
 }
-
-
 
 bool
 getMetaHex (Ledger const& ledger,
@@ -192,6 +189,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     rpc::v1::TxResponse result;
     grpc::Status status = grpc::Status::OK;
 
+    //input
     rpc::v1::TxRequest& request = context.params;
 
     std::string const& hash_bytes = request.hash();

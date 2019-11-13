@@ -25,7 +25,6 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/Status.h>
 
-
 namespace ripple {
 namespace RPC {
 
@@ -35,8 +34,6 @@ struct Context;
 Status doCommand (RPC::Context&, Json::Value&);
 
 Role roleRequired (std::string const& method );
-
-
 
 } // RPC
 } // ripple
