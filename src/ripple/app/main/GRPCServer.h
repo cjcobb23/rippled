@@ -142,8 +142,11 @@ class GRPCServerImpl final {
         cq_->Shutdown(); 
     }
   
-    //setup the server and begin handling rpcs
-    void Run();
+    //setup the server and listeners
+    void start();
+
+    //the main event loop
+    void handleRpcs();
   
     private:
   
@@ -286,7 +289,7 @@ class GRPCServerImpl final {
   
   
     //Create a CallData object for each RPC
-    void setup();
+    void setupListeners();
   
     //make a CallData instance, returned as shared_ptr to base class (Processor)
     template <class Request, class Response>
@@ -314,8 +317,6 @@ class GRPCServerImpl final {
         ptr->set_iter(requests_.begin());
     }
   
-    //the main event loop
-    void HandleRpcs();
   
 }; //GRPCServerImpl
 
@@ -329,9 +330,12 @@ class GRPCServer
 
     void run()
     {
+        //Start the server and setup listeners
+        impl_.start();
         thread_ = std::thread([this]()
                 {
-                    this->impl_.Run();
+                    //Start the event loop and begin handling requests
+                    this->impl_.handleRpcs();
                 });
     }
     ~GRPCServer()
