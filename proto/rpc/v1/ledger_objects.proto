@@ -44,7 +44,7 @@ message SignerList {
 
     bytes previous_txn_id = 2;
 
-    uint64 previous_txn_ledger_sequence = 3;
+    uint32 previous_txn_ledger_sequence = 3;
 
     uint64 owner_node = 4;
 
