@@ -975,7 +975,8 @@ void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj)
 {
     proto.set_flags(obj.getFieldU32(sfFlags));
     proto.set_previous_txn_id(toBytes(obj.getFieldH256(sfPreviousTxnID)));
-    proto.set_previous_txn_ledger_sequence(obj.getFieldU32(sfPreviousTxnLgrSeq));
+    proto.set_previous_txn_ledger_sequence(
+            obj.getFieldU32(sfPreviousTxnLgrSeq));
     proto.set_owner_node(obj.getFieldU64(sfOwnerNode));
     proto.set_signer_list_id(obj.getFieldU32(sfSignerListID));
     proto.set_signer_quorum(obj.getFieldU32(sfSignerQuorum));
