@@ -149,7 +149,7 @@ class GRPCServerImpl final {
   
     // Class encompasing the state and logic needed to serve a request.
     template <class Request,class Response>
-    class CallData : 
+    class CallData :
         public Processor, 
         public std::enable_shared_from_this<CallData<Request,Response>>
     {
@@ -157,51 +157,51 @@ class GRPCServerImpl final {
         // The means of communication with the gRPC runtime for an asynchronous
         // server.
         rpc::v1::XRPLedgerAPIService::AsyncService& service_;
-  
+
         // The producer-consumer queue for asynchronous server notifications.
         grpc::ServerCompletionQueue& cq_;
-  
+
         // Context for the rpc, allowing to tweak aspects of it such as the use
         // of compression, authentication, as well as to send metadata back to
         // the client.
         grpc::ServerContext ctx_;
-  
+
         // Possible states of the RPC
         enum CallStatus { PROCESSING, FINISH };
         // The current serving state.
         CallStatus status_;
-  
+
         // reference to Application
         Application& app_;
-  
+
         // iterator pointing to this object in the requests list
         // for lifetime management
         boost::optional<std::list<std::shared_ptr<Processor>>::iterator> iter_;
-  
+
         // mutex for signaling abort
         std::mutex mut_;
-  
+
         // whether the call should be aborted, due to server shutdown
         bool aborted_;
-  
+
         // What we get from the client.
         Request request_;
-  
+
         // What we send back to the client.
         Response reply_;
-  
+
         // The means to get back to the client.
         grpc::ServerAsyncResponseWriter<Response> responder_;
-  
+
         // Function that creates a listener for specific request type
         BindListener<Request,Response> bind_listener_;
-  
+
         // Function that processes a request
         Handler<Request,Response> handler_;
-  
+
         //Condition required for this RPC
         RPC::Condition required_condition_;
-  
+
         //Load type for this RPC
         Resource::Charge load_type_;
 
