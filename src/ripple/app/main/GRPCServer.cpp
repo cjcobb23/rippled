@@ -21,13 +21,13 @@
 
 namespace ripple {
 
-template <class Request,class Response>
-GRPCServerImpl::CallData<Request,Response>::CallData(
+template <class Request, class Response>
+GRPCServerImpl::CallData<Request, Response>::CallData(
               rpc::v1::XRPLedgerAPIService::AsyncService& service,
               grpc::ServerCompletionQueue& cq,
               Application& app,
-              BindListener<Request,Response> bind_listener,
-              Handler<Request,Response> handler,
+              BindListener<Request, Response> bind_listener,
+              Handler<Request, Response> handler,
               RPC::Condition required_condition,
               Resource::Charge load_type)
           : 
@@ -50,11 +50,11 @@ GRPCServerImpl::CallData<Request,Response>::CallData(
       }
 
 
-template <class Request,class Response>
-void GRPCServerImpl::CallData<Request,Response>::process()
+template <class Request, class Response>
+void GRPCServerImpl::CallData<Request, Response>::process()
 {
     if (status_ == PROCESSING) {
-        std::shared_ptr<CallData<Request,Response>> this_s =
+        std::shared_ptr<CallData<Request, Response>> this_s =
             this->shared_from_this();
         app_.getJobQueue().postCoro(JobType::jtRPC, "gRPC-Client",
                 [this_s](std::shared_ptr<JobQueue::Coro> coro)
@@ -73,11 +73,10 @@ void GRPCServerImpl::CallData<Request,Response>::process()
     {
         BOOST_ASSERT(false);
     }
-
 }
 
-template <class Request,class Response>
-void GRPCServerImpl::CallData<Request,Response>::process(
+template <class Request, class Response>
+void GRPCServerImpl::CallData<Request, Response>::process(
         std::shared_ptr<JobQueue::Coro> coro)
 {
     try
@@ -220,11 +219,11 @@ void GRPCServerImpl::start() {
     setupListeners();
 }
 
-template<class Request,class Response>
-std::shared_ptr<Processor> GRPCServerImpl::CallData<Request,Response>::clone()
+template<class Request, class Response>
+std::shared_ptr<Processor> GRPCServerImpl::CallData<Request, Response>::clone()
 {
   return std::static_pointer_cast<Processor>(
-          std::make_shared<CallData<Request,Response>>(
+          std::make_shared<CallData<Request, Response>>(
               service_,
               cq_,
               app_,
