@@ -222,7 +222,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     try
     {
         //TODO: expand protobuf definition to include fail hard
-        auto const failType = NetworkOPs::doFailHard(false);
+        auto const failType = NetworkOPs::doFailHard(request.fail_hard());
 
         context.netOps.processTransaction (
             tpTrans, isUnlimited (context.role), true, failType);
