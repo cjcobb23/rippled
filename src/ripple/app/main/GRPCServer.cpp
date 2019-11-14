@@ -128,8 +128,7 @@ void GRPCServerImpl::CallData<Request,Response>::process(
     }
 }
 
-void GRPCServerImpl::HandleRpcs() {
-    setup();
+void GRPCServerImpl::handleRpcs() {
     void* tag;  // uniquely identifies a request.
     bool ok;
     // Block waiting to read the next event from the completion queue. The
@@ -177,7 +176,7 @@ void GRPCServerImpl::HandleRpcs() {
 //Second argument is the handler.
 //Third argument is the necessary condition
 //Fourth argument is the charge
-void GRPCServerImpl::setup()
+void GRPCServerImpl::setupListeners()
 {
     makeAndPush<rpc::v1::GetFeeRequest, rpc::v1::GetFeeResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetFee,
@@ -205,7 +204,7 @@ void GRPCServerImpl::setup()
             Resource::feeMediumBurdenRPC);
 };
 
-void GRPCServerImpl::Run() {
+void GRPCServerImpl::start() {
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(server_address_, grpc::InsecureServerCredentials());
@@ -217,8 +216,8 @@ void GRPCServerImpl::Run() {
     cq_ = builder.AddCompletionQueue();
     // Finally assemble the server.
     server_ = builder.BuildAndStart();
-    // Proceed to the server's main loop.
-    HandleRpcs();
+    //create necessary listeners
+    setupListeners();
 }
 
 template<class Request,class Response>
