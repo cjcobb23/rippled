@@ -24,6 +24,7 @@
 #include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/resource/Charge.h>
 #include <ripple/resource/Fees.h>
+#include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {
 namespace test {
@@ -318,42 +319,172 @@ public:
         }
     }
 
-   void testGrpc()
-   {
-       using namespace jtx;
-       Env env(*this);
-       Account const alice {"alice"};
-       env.fund(XRP(1000), alice);
 
-       rpc::v1::GetAccountInfoRequest request;
-       request.set_address(alice.human());
-       Application& app = env.app();
-       ripple::Resource::Charge loadType =
-           ripple::Resource::feeReferenceRPC;
+    //gRPC stuff
+    class GetAccountInfoClient : public GRPCTestClientBase
+    {
+    public:
+        rpc::v1::GetAccountInfoRequest request;
+        rpc::v1::GetAccountInfoResponse reply;
 
-       std::shared_ptr<JobQueue::Coro> coro;
-       auto role = ripple::Role::USER;
+        void GetAccountInfo()
+        {
+            status = stub_->GetAccountInfo(&context, request, &reply);
+        }
+    };
 
-       auto usage = ripple::Resource::Consumer();
+    void testSimpleGrpc()
+    {
+        testcase ("Alice 1B drops");
 
-       ripple::RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest> context {
-           app.journal("Server"),
-               request, app, loadType, app.getOPs(), app.getLedgerMaster(),
-               usage, role, coro, ripple::InfoSub::pointer()};
+        using namespace jtx;
+        Env env(*this);
 
-       std::pair<rpc::v1::GetAccountInfoResponse,grpc::Status> result = ripple::doAccountInfoGrpc(context);
-       std::cout << result.first.DebugString() << std::endl;
-       BEAST_EXPECT(result.first.account_data().balance().xrp_amount().drops() == 1000);
-       std::cout << "done grpc" << std::endl;
+        Account const alice {"alice"};
+        env.fund(drops(1000*1000*1000), alice);
+        GetAccountInfoClient client;
+        client.request.set_address(alice.human());
+        client.GetAccountInfo();
+        //TODO Peng and CJ, remove all console prints before PR
+        std::cout << "request: " << client.request.DebugString() << std::endl;
+        std::cout << "reply: " << client.reply.DebugString() << std::endl;
+        if( !BEAST_EXPECT(client.status.ok()))
+            return;
+        BEAST_EXPECT(client.reply.account_data().balance().xrp_amount().drops() == 1000*1000*1000);
+    }
 
-   }
+    void testErrorsGrpc()
+    {
+        testcase("error cases: bad address, or not in the ledger");
+
+        using namespace jtx;
+        Env env(*this);
+        {
+            //no account
+            GetAccountInfoClient client;
+            client.request.set_address("deadbeef");
+            client.GetAccountInfo();
+            std::cout << "request: " << client.request.DebugString() << std::endl;
+            std::cout << "reply: " << client.reply.DebugString() << std::endl;
+            BEAST_EXPECT(!client.status.ok());
+        }
+        {
+            Account const bogie{"bogie"};
+            GetAccountInfoClient client;
+            client.request.set_address(bogie.human());
+            client.GetAccountInfo();
+            std::cout << "request: " << client.request.DebugString() << std::endl;
+            std::cout << "reply: " << client.reply.DebugString() << std::endl;
+            BEAST_EXPECT(!client.status.ok());
+        }
+    }
+
+    void testSignerListsGrpc()
+    {
+        testcase ("singer lists");
+
+        using namespace jtx;
+        Env env(*this);
+
+        Account const alice {"alice"};
+        env.fund(drops(1000*1000*1000), alice);
+
+        {
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_signer_lists(true);
+            client.GetAccountInfo();
+            if( !BEAST_EXPECT(client.status.ok()))
+                return;
+            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 0);
+        }
+
+        // Give alice a SignerList.
+        Account const bogie {"bogie"};
+        Json::Value const smallSigners = signers(alice, 2, { { bogie, 3 } });
+        env(smallSigners);
+        {
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_signer_lists(false);
+            client.GetAccountInfo();
+            if( !BEAST_EXPECT(client.status.ok()))
+                return;
+            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 0);
+        }
+        {
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_signer_lists(true);
+            client.GetAccountInfo();
+            std::cout << "request: " << client.request.DebugString() << std::endl;
+            std::cout << "reply: " << client.reply.DebugString() << std::endl;
+            if( !BEAST_EXPECT(client.status.ok()))
+            {
+                std::cout << client.status.error_code() << ": "
+                          << client.status.error_message() << std::endl;
+                return;
+            }
+            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 1);
+        }
+
+        // Give alice a big signer list
+        Account const demon {"demon"};
+        Account const ghost {"ghost"};
+        Account const haunt {"haunt"};
+        Account const jinni {"jinni"};
+        Account const phase {"phase"};
+        Account const shade {"shade"};
+        Account const spook {"spook"};
+        Json::Value const bigSigners = signers(alice, 4, {
+                {bogie, 1}, {demon, 1}, {ghost, 1}, {haunt, 1},
+                {jinni, 1}, {phase, 1}, {shade, 1}, {spook, 1}, });
+        env(bigSigners);
+
+        std::set<std::string> accounts;
+        accounts.insert(bogie.human());
+        accounts.insert(demon.human());
+        accounts.insert(ghost.human());
+        accounts.insert(haunt.human());
+        accounts.insert(jinni.human());
+        accounts.insert(phase.human());
+        accounts.insert(shade.human());
+        accounts.insert(spook.human());
+        {
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_signer_lists(true);
+            client.GetAccountInfo();
+            std::cout << "request: " << client.request.DebugString() << std::endl;
+            std::cout << "reply: " << client.reply.DebugString() << std::endl;
+            if( !BEAST_EXPECT(client.status.ok()))
+            {
+                std::cout << client.status.error_code() << ": "
+                          << client.status.error_message() << std::endl;
+                return;
+            }
+            auto & signer_list =  client.reply.signer_list();
+            BEAST_EXPECT(signer_list.signer_quorum() == 4);
+            BEAST_EXPECT(signer_list.signer_entry_size() == 8);
+            for (int i = 0; i < 8; ++i)
+            {
+                BEAST_EXPECT(signer_list.signer_entry(i).signer_weight() == 1);
+                //TODO CJ, as discussed, the next test can be removed if does not make sense
+                //so do all accounts related
+                BEAST_EXPECT(accounts.erase(signer_list.signer_entry(i).account()) == 1);
+            }
+            BEAST_EXPECT(accounts.size() == 0);
+        }
+    }
 
     void run() override
     {
         testErrors();
         testSignerLists();
         testSignerListsV2();
-        //testGrpc();
+        testSimpleGrpc();
+        testErrorsGrpc();
+        testSignerListsGrpc();
     }
 };
 
@@ -361,4 +492,3 @@ BEAST_DEFINE_TESTSUITE(AccountInfo,app,ripple);
 
 }
 }
-
