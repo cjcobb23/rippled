@@ -128,7 +128,6 @@ void GRPCServerImpl::CallData<Request, Response>::process(
             else
             {
                 std::pair<Response,grpc::Status> result = handler_(context);
-                //TODO: what happens if server was shutdown before responding?
                 responder_.Finish(result.first, result.second, this);
             }
         }
@@ -185,14 +184,17 @@ void GRPCServerImpl::handleRpcs() {
 }
 
 //create a CallData instance for each RPC
-//When adding a new RPC method, add it here
-//First argument is the grpc codegen'd method to call to start listening for
-//a given request type. Follows the pattern of Request<RPC Name>
-//Second argument is the handler.
-//Third argument is the necessary condition
-//Fourth argument is the charge
 void GRPCServerImpl::setupListeners()
 {
+   /*
+    * When adding a new RPC method, add it here
+    * First argument is the grpc codegen'd method to call to start listening for
+    * It is always of the form :
+    * rpc::v1::XRPLedgerAPIService::AsyncService::Request[RPC NAME]
+    * Second argument is the handler, defined in rpc/GRPCHandlers.h
+    * Third argument is the necessary condition
+    * Fourth argument is the charge
+    */
     makeAndPush<rpc::v1::GetFeeRequest, rpc::v1::GetFeeResponse>(
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetFee,
             doFeeGrpc,
