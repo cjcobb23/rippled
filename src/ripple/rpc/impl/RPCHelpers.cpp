@@ -962,11 +962,6 @@ void populateOffer(rpc::v1::Offer& proto, STObject const & obj)
         STAmount amount = obj.getFieldAmount(sfTakerGets);
         populateAmount(*proto.mutable_taker_gets(),amount);
     }
-    //TODO: do we need to handle the below fields? What is the difference 
-    //between the below fields (in the comment) and the above two fields?
-    //sfTakerPaysCurrency, sfTakerPaysIssuer,
-    //sfTakerGetsCurrency, sfTakerGetsIssuer
-
     if(obj.isFieldPresent(sfBookDirectory))
     {
         proto.set_book_directory(
@@ -984,12 +979,18 @@ void populateOffer(rpc::v1::Offer& proto, STObject const & obj)
 
 void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj)
 {
+
     proto.set_flags(obj.getFieldU32(sfFlags));
+
     proto.set_previous_txn_id(toBytes(obj.getFieldH256(sfPreviousTxnID)));
+
     proto.set_previous_txn_ledger_sequence(
             obj.getFieldU32(sfPreviousTxnLgrSeq));
+
     proto.set_owner_node(obj.getFieldU64(sfOwnerNode));
+
     proto.set_signer_list_id(obj.getFieldU32(sfSignerListID));
+
     proto.set_signer_quorum(obj.getFieldU32(sfSignerQuorum));
 
     STArray const & signer_entries = obj.getFieldArray(sfSignerEntries);
@@ -1001,7 +1002,6 @@ void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj)
 
         signer_entry_proto.set_account(toBase58(it->getAccountID(sfAccount)));
         signer_entry_proto.set_signer_weight(it->getFieldU16(sfSignerWeight));
-
     }
 
 }
@@ -1014,7 +1014,6 @@ void populateQueueData(rpc::v1::QueueData& proto,
         proto.set_txn_count(txs.size());
         proto.set_lowest_sequence(txs.begin()->first);
         proto.set_highest_sequence(txs.rbegin()->first);
-
 
         boost::optional<bool> anyAuthChanged(false);
         boost::optional<XRPAmount> totalSpend(0);

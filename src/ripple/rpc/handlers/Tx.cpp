@@ -173,7 +173,7 @@ void populateFields(T& proto,STObject const& obj, std::uint16_t type)
     }
     else
     {
-        //Ledger object not supported
+        //Ledger object not supported by protobuf/grpc yet
     }
 }
 
@@ -195,6 +195,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     std::string const& hash_bytes = request.hash();
     uint256 hash = uint256::fromVoid(hash_bytes.data());
     
+    //get the transaction
     std::shared_ptr<Transaction> txn =
         context.app.getMasterTransaction().fetch(hash, true);
     if(!txn)
@@ -210,6 +211,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
             "txn type not supported: " + txnTypeString(st_txn->getTxnType())}; 
     }
 
+    //populate transaction data
     if(request.binary())
     {
         Serializer s = st_txn->getSerializer();
@@ -221,8 +223,10 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     }
 
     result.set_ledger_index(txn->getLedger());
+
     std::shared_ptr<Ledger const> ledger = 
         context.ledgerMaster.getLedgerBySeq(txn->getLedger());
+    //get meta data
     if(ledger)
     { 
         if(request.binary())

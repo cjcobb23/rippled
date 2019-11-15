@@ -174,6 +174,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
 
     std::string const& tx = request.signed_transaction();
 
+    //convert to blob
     Blob blob;
     blob.reserve(tx.size());
     for(size_t i = 0; i < tx.size(); ++i)
@@ -181,6 +182,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
         blob.push_back(tx[i]);
     }
 
+    //serialize
     SerialIter sitTrans (makeSlice(blob));
     std::shared_ptr<STTx const> stpTrans;
     try
@@ -194,6 +196,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
         return {result, error_status};  
     }
 
+    //check validity
     {
         if (!context.app.checkSigs())
             forceValidity(context.app.getHashRouter(),
@@ -223,6 +226,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     {
         auto const failType = NetworkOPs::doFailHard(request.fail_hard());
 
+        //submit to network
         context.netOps.processTransaction (
             tpTrans, isUnlimited (context.role), true, failType);
     }
@@ -235,6 +239,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
 
     try
     {
+        //return preliminary result
         if (temUNCERTAIN != tpTrans->getResult ())
         {
             std::string sToken;

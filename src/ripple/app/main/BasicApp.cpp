@@ -20,7 +20,6 @@
 #include <ripple/app/main/BasicApp.h>
 #include <ripple/beast/core/CurrentThreadName.h>
 
-
 BasicApp::BasicApp(std::size_t numberOfThreads)
 {
     work_.emplace (io_service_);

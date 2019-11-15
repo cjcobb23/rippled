@@ -27,8 +27,6 @@
 #include <ripple/app/misc/NetworkOPs.h>
 #include <vector>
 
-
-
 namespace Json {
 class Object;
 }
@@ -71,7 +69,7 @@ Json::Value makeObjectValue (
 std::vector<char const*> getHandlerNames();
 
 template <class T>
-error_code_i conditionMet(Condition condition_required,T& context)
+error_code_i conditionMet(Condition condition_required, T& context)
 {
   if ((condition_required & NEEDS_NETWORK_CONNECTION) &&
       (context.netOps.getOperatingMode () < OperatingMode::SYNCING))
