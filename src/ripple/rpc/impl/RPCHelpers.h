@@ -175,8 +175,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
 void populateTransaction(rpc::v1::Transaction& proto,
         std::shared_ptr<STTx const> txn_st);
 
-template <class T>
-void populateAmount(T& proto, STAmount const& amount);
+void populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount);
 
 } // RPC
 } // ripple

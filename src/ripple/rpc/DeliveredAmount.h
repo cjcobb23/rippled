@@ -21,6 +21,7 @@
 #define RIPPLE_RPC_DELIVEREDAMOUNT_H_INCLUDED
 
 #include <memory>
+#include <rpc/v1/amount.pb.h>
 
 namespace Json {
 class Value;
@@ -36,6 +37,9 @@ class STTx;
 namespace RPC {
 
 struct Context;
+
+template<class T>
+struct ContextGeneric;
 
 /**
    Add a `delivered_amount` field to the `meta` input/output parameter.
@@ -57,6 +61,14 @@ void
 insertDeliveredAmount(
     Json::Value& meta,
     Context&,
+    std::shared_ptr<Transaction>,
+    TxMeta const&);
+
+template <class T>
+void
+insertDeliveredAmount(
+    rpc::v1::CurrencyAmount& proto,
+    ContextGeneric<T>&,
     std::shared_ptr<Transaction>,
     TxMeta const&);
 

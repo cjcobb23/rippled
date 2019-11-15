@@ -260,6 +260,11 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
                 result.set_validated(validated);
 
                 RPC::populateMeta(*result.mutable_meta(), txMeta);
+                insertDeliveredAmount(
+                        *result.mutable_meta()->mutable_delivered_amount(),
+                        context,
+                        txn,
+                        *txMeta);
             }
         }
     }

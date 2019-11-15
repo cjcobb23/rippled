@@ -1124,12 +1124,6 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     proto.set_transaction_result(
             transToken(txMeta->getResultTER()));
 
-    if(txMeta->hasDeliveredAmount())
-    {
-        populateAmount(*proto.mutable_delivered_amount(),
-                txMeta->getDeliveredAmount());
-    }
-
     STArray& nodes = txMeta->getNodes();
     for(auto it = nodes.begin(); it != nodes.end(); ++it)
     {
@@ -1215,8 +1209,7 @@ void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     }
 }
 
-template <class T>
-void populateAmount(T& proto, STAmount const& amount)
+void populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount)
 {
     if(amount.native())
     {
