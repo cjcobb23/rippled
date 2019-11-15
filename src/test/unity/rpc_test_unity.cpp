@@ -48,6 +48,7 @@
 #include <test/rpc/RPCOverload_test.cpp>
 #include <test/rpc/ServerInfo_test.cpp>
 #include <test/rpc/Status_test.cpp>
+#include <test/rpc/Submit_test.cpp>
 #include <test/rpc/Subscribe_test.cpp>
 #include <test/rpc/TransactionEntry_test.cpp>
 #include <test/rpc/TransactionHistory_test.cpp>

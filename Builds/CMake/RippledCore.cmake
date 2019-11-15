@@ -1038,6 +1038,7 @@ else ()
     src/test/rpc/RobustTransaction_test.cpp
     src/test/rpc/ServerInfo_test.cpp
     src/test/rpc/Status_test.cpp
+    src/test/rpc/Submit_test.cpp
     src/test/rpc/Subscribe_test.cpp
     src/test/rpc/TransactionEntry_test.cpp
     src/test/rpc/TransactionHistory_test.cpp
