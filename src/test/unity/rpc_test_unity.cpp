@@ -30,9 +30,9 @@
 #include <test/rpc/DepositAuthorized_test.cpp>
 #include <test/rpc/DeliveredAmount_test.cpp>
 #include <test/rpc/Feature_test.cpp>
+#include <test/rpc/Fee_test.cpp>
 #include <test/rpc/GatewayBalances_test.cpp>
 #include <test/rpc/GetCounts_test.cpp>
-#include <test/rpc/GRPC_test.cpp>
 #include <test/rpc/JSONRPC_test.cpp>
 #include <test/rpc/KeyGeneration_test.cpp>
 #include <test/rpc/LedgerClosed_test.cpp>
@@ -53,4 +53,5 @@
 #include <test/rpc/Subscribe_test.cpp>
 #include <test/rpc/TransactionEntry_test.cpp>
 #include <test/rpc/TransactionHistory_test.cpp>
+#include <test/rpc/Tx_test.cpp>
 #include <test/rpc/ValidatorRPC_test.cpp>

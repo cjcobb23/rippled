@@ -1030,9 +1030,9 @@ else ()
     src/test/rpc/DepositAuthorized_test.cpp
     src/test/rpc/DeliveredAmount_test.cpp
     src/test/rpc/Feature_test.cpp
+    src/test/rpc/Fee_test.cpp
     src/test/rpc/GatewayBalances_test.cpp
     src/test/rpc/GetCounts_test.cpp
-    src/test/rpc/GRPC_test.cpp
     src/test/rpc/JSONRPC_test.cpp
     src/test/rpc/KeyGeneration_test.cpp
     src/test/rpc/LedgerClosed_test.cpp
@@ -1053,6 +1053,7 @@ else ()
     src/test/rpc/Subscribe_test.cpp
     src/test/rpc/TransactionEntry_test.cpp
     src/test/rpc/TransactionHistory_test.cpp
+    src/test/rpc/Tx_test.cpp
     src/test/rpc/ValidatorRPC_test.cpp
     #[===============================[
        nounity, test sources:
