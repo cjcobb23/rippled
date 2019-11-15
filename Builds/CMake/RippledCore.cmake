@@ -1032,6 +1032,7 @@ else ()
     src/test/rpc/Feature_test.cpp
     src/test/rpc/GatewayBalances_test.cpp
     src/test/rpc/GetCounts_test.cpp
+    src/test/rpc/GRPC_test.cpp
     src/test/rpc/JSONRPC_test.cpp
     src/test/rpc/KeyGeneration_test.cpp
     src/test/rpc/LedgerClosed_test.cpp
