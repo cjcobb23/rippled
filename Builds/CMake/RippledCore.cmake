@@ -1098,6 +1098,7 @@ if (is_ci)
   target_compile_definitions(rippled PRIVATE RIPPLED_RUNNING_IN_CI)
 endif ()
 
+if(NOT WIN32)
 set_source_files_properties(src/ripple/unity/app_main1.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
 set_source_files_properties(src/ripple/unity/app_misc_impl.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
 set_source_files_properties(src/ripple/unity/app_misc.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
@@ -1128,3 +1129,4 @@ set_source_files_properties(rpc/v1/tx.pb.cc PROPERTIES COMPILE_FLAGS -Wno-sugges
 set_source_files_properties(rpc/v1/tx.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
 set_source_files_properties(rpc/v1/xrp_ledger.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
 set_source_files_properties(rpc/v1/xrp_ledger.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
+endif()
