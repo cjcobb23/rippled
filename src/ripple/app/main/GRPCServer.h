@@ -108,7 +108,8 @@ class GRPCServerImpl final {
     Application& app_;
 
     //address of where to run the server
-    std::string server_address_;
+    //this is the default value, if ip and port are not in config
+    std::string server_address_ = "0.0.0.0:50051";
 
 
     //typedef for function to bind a listener
@@ -132,8 +133,35 @@ class GRPCServerImpl final {
 
     //server_address is of the form "ip:port"
     //example = "0.0.0.0:50051"
-    GRPCServerImpl(Application& app, std::string const & server_address) :
-        app_(app), server_address_(server_address) {}
+    GRPCServerImpl(Application& app) :
+        app_(app)
+    {
+
+        //if present, get endpoint from config
+        if(app_.config().exists("port_grpc"))
+        {
+            Section section = app_.config().section("port_grpc");
+
+            //get the default values of ip and port
+            std::size_t colon_pos = server_address_.find(':');
+            std::string ip_str = server_address_.substr(0,colon_pos);
+            std::string port_str = server_address_.substr(colon_pos+1);
+
+            std::pair<std::string,bool> ip_pair = section.find("ip");
+            if(ip_pair.second)
+            {
+                ip_str = ip_pair.first;
+            }
+
+            std::pair<std::string,bool> port_pair = section.find("port");
+            if(port_pair.second)
+            {
+                port_str = port_pair.first;
+            }
+
+            server_address_ = ip_str + ":" + port_str;
+        }
+    }
   
     void shutdown()
     {
@@ -323,10 +351,9 @@ class GRPCServerImpl final {
 
 class GRPCServer
 {
-    std::string server_address = "0.0.0.0:50051";
 
     public:
-    GRPCServer(Application& app) : impl_(app,server_address) {};
+    GRPCServer(Application& app) : impl_(app) {};
 
     void run()
     {

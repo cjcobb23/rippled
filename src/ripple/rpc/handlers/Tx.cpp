@@ -194,6 +194,9 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
 
     std::string const& hash_bytes = request.hash();
     uint256 hash = uint256::fromVoid(hash_bytes.data());
+
+    //hash is included in the response
+    result.set_hash(request.hash());
     
     //get the transaction
     std::shared_ptr<Transaction> txn =
