@@ -42,13 +42,26 @@ GRPCServerImpl::CallData<Request, Response>::CallData(
               handler_(handler),
               required_condition_(required_condition),
               load_type_(load_type)
-      {
-          //Bind a listener. When a request is received, "this" will be returned
-          //from CompletionQueue::Next
-          bind_listener_(
-                  service_, &ctx_, &request_, &responder_, &cq_, &cq_, this);
-      }
+{
+      //Bind a listener. When a request is received, "this" will be returned
+      //from CompletionQueue::Next
+      bind_listener_(
+              service_, &ctx_, &request_, &responder_, &cq_, &cq_, this);
+}
 
+template<class Request, class Response>
+std::shared_ptr<Processor> GRPCServerImpl::CallData<Request, Response>::clone()
+{
+  return std::static_pointer_cast<Processor>(
+          std::make_shared<CallData<Request, Response>>(
+              service_,
+              cq_,
+              app_,
+              bind_listener_,
+              handler_,
+              required_condition_,
+              load_type_));
+}
 
 template <class Request, class Response>
 void GRPCServerImpl::CallData<Request, Response>::process()
@@ -126,6 +139,9 @@ void GRPCServerImpl::CallData<Request, Response>::process(
         responder_.FinishWithError(status,this);
     }
 }
+
+
+
 
 void GRPCServerImpl::handleRpcs() {
     void* tag;  // uniquely identifies a request.
@@ -219,18 +235,34 @@ void GRPCServerImpl::start() {
     setupListeners();
 }
 
-template<class Request, class Response>
-std::shared_ptr<Processor> GRPCServerImpl::CallData<Request, Response>::clone()
+GRPCServerImpl::GRPCServerImpl(Application& app) :
+    app_(app)
 {
-  return std::static_pointer_cast<Processor>(
-          std::make_shared<CallData<Request, Response>>(
-              service_,
-              cq_,
-              app_,
-              bind_listener_,
-              handler_,
-              required_condition_,
-              load_type_));
+
+    //if present, get endpoint from config
+    if(app_.config().exists("port_grpc"))
+    {
+        Section section = app_.config().section("port_grpc");
+
+        //get the default values of ip and port
+        std::size_t colon_pos = server_address_.find(':');
+        std::string ip_str = server_address_.substr(0,colon_pos);
+        std::string port_str = server_address_.substr(colon_pos+1);
+
+        std::pair<std::string,bool> ip_pair = section.find("ip");
+        if(ip_pair.second)
+        {
+            ip_str = ip_pair.first;
+        }
+
+        std::pair<std::string,bool> port_pair = section.find("port");
+        if(port_pair.second)
+        {
+            port_str = port_pair.first;
+        }
+
+        server_address_ = ip_str + ":" + port_str;
+    }
 }
 
 } //namespace ripple

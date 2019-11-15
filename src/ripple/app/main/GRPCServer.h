@@ -131,37 +131,7 @@ class GRPCServerImpl final {
     public:
     ~GRPCServerImpl() {}
 
-    //server_address is of the form "ip:port"
-    //example = "0.0.0.0:50051"
-    GRPCServerImpl(Application& app) :
-        app_(app)
-    {
-
-        //if present, get endpoint from config
-        if(app_.config().exists("port_grpc"))
-        {
-            Section section = app_.config().section("port_grpc");
-
-            //get the default values of ip and port
-            std::size_t colon_pos = server_address_.find(':');
-            std::string ip_str = server_address_.substr(0,colon_pos);
-            std::string port_str = server_address_.substr(colon_pos+1);
-
-            std::pair<std::string,bool> ip_pair = section.find("ip");
-            if(ip_pair.second)
-            {
-                ip_str = ip_pair.first;
-            }
-
-            std::pair<std::string,bool> port_pair = section.find("port");
-            if(port_pair.second)
-            {
-                port_str = port_pair.first;
-            }
-
-            server_address_ = ip_str + ":" + port_str;
-        }
-    }
+    GRPCServerImpl(Application& app);
   
     void shutdown()
     {
