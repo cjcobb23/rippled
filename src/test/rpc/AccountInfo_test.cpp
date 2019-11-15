@@ -25,6 +25,7 @@
 #include <ripple/resource/Charge.h>
 #include <ripple/resource/Fees.h>
 #include <test/rpc/GRPCTestClientBase.h>
+#include <test/jtx/WSClient.h>
 
 namespace ripple {
 namespace test {
@@ -335,53 +336,74 @@ public:
 
     void testSimpleGrpc()
     {
-        testcase ("Alice 1B drops");
+        testcase ("gRPC simple");
 
         using namespace jtx;
         Env env(*this);
-
         Account const alice {"alice"};
         env.fund(drops(1000*1000*1000), alice);
-        GetAccountInfoClient client;
-        client.request.set_address(alice.human());
-        client.GetAccountInfo();
-        //TODO Peng and CJ, remove all console prints before PR
-        std::cout << "request: " << client.request.DebugString() << std::endl;
-        std::cout << "reply: " << client.reply.DebugString() << std::endl;
-        if( !BEAST_EXPECT(client.status.ok()))
-            return;
-        BEAST_EXPECT(client.reply.account_data().balance().xrp_amount().drops() == 1000*1000*1000);
+
+        {
+            //most simple case
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.GetAccountInfo();
+            if( !BEAST_EXPECT(client.status.ok()))
+                return;
+            BEAST_EXPECT(client.reply.account_data().account() == alice.human());
+        }
+        {
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_queue(true);
+            client.request.set_ledger_index_seq(3);
+            client.GetAccountInfo();
+            if( !BEAST_EXPECT(client.status.ok()))
+                return;
+            BEAST_EXPECT(client.reply.account_data().balance().xrp_amount().drops() == 1000*1000*1000);
+            BEAST_EXPECT(client.reply.account_data().account() == alice.human());
+            BEAST_EXPECT(client.reply.account_data().sequence() == 2);
+            BEAST_EXPECT(client.reply.queue_data().txn_count() == 0);
+        }
     }
 
     void testErrorsGrpc()
     {
-        testcase("error cases: bad address, or not in the ledger");
+        testcase("gRPC errors");
 
         using namespace jtx;
         Env env(*this);
+        Account const alice {"alice"};
+        env.fund(drops(1000*1000*1000), alice);
+
         {
-            //no account
+            //bad address
             GetAccountInfoClient client;
             client.request.set_address("deadbeef");
             client.GetAccountInfo();
-            std::cout << "request: " << client.request.DebugString() << std::endl;
-            std::cout << "reply: " << client.reply.DebugString() << std::endl;
             BEAST_EXPECT(!client.status.ok());
         }
         {
+            //no account
             Account const bogie{"bogie"};
             GetAccountInfoClient client;
             client.request.set_address(bogie.human());
             client.GetAccountInfo();
-            std::cout << "request: " << client.request.DebugString() << std::endl;
-            std::cout << "reply: " << client.reply.DebugString() << std::endl;
             BEAST_EXPECT(!client.status.ok());
+        }
+        {
+            //bad ledger_index
+            GetAccountInfoClient client;
+            client.request.set_address(alice.human());
+            client.request.set_ledger_index_seq(0);
+            client.GetAccountInfo();
+            BEAST_EXPECT( !client.status.ok());
         }
     }
 
     void testSignerListsGrpc()
     {
-        testcase ("singer lists");
+        testcase ("gRPC singer lists");
 
         using namespace jtx;
         Env env(*this);
@@ -417,14 +439,11 @@ public:
             client.request.set_address(alice.human());
             client.request.set_signer_lists(true);
             client.GetAccountInfo();
-            std::cout << "request: " << client.request.DebugString() << std::endl;
-            std::cout << "reply: " << client.reply.DebugString() << std::endl;
             if( !BEAST_EXPECT(client.status.ok()))
             {
-                std::cout << client.status.error_code() << ": "
-                          << client.status.error_message() << std::endl;
                 return;
             }
+            BEAST_EXPECT(client.reply.account_data().owner_count() == 1);
             BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 1);
         }
 
@@ -455,22 +474,17 @@ public:
             client.request.set_address(alice.human());
             client.request.set_signer_lists(true);
             client.GetAccountInfo();
-            std::cout << "request: " << client.request.DebugString() << std::endl;
-            std::cout << "reply: " << client.reply.DebugString() << std::endl;
             if( !BEAST_EXPECT(client.status.ok()))
             {
-                std::cout << client.status.error_code() << ": "
-                          << client.status.error_message() << std::endl;
                 return;
             }
+            BEAST_EXPECT(client.reply.account_data().owner_count() == 1);
             auto & signer_list =  client.reply.signer_list();
             BEAST_EXPECT(signer_list.signer_quorum() == 4);
             BEAST_EXPECT(signer_list.signer_entry_size() == 8);
             for (int i = 0; i < 8; ++i)
             {
                 BEAST_EXPECT(signer_list.signer_entry(i).signer_weight() == 1);
-                //TODO CJ, as discussed, the next test can be removed if does not make sense
-                //so do all accounts related
                 BEAST_EXPECT(accounts.erase(signer_list.signer_entry(i).account()) == 1);
             }
             BEAST_EXPECT(accounts.size() == 0);
