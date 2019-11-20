@@ -152,31 +152,6 @@ Json::Value doTx (RPC::Context& context)
     return ret;
 }
 
-template <class T>
-void populateFields(T& proto,STObject const& obj, std::uint16_t type)
-{
-    if(type == ltACCOUNT_ROOT)
-    {
-        RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
-    }
-    else if(type == ltRIPPLE_STATE)
-    {
-        RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
-    }
-    else if(type == ltOFFER)
-    {
-        RPC::populateOffer(*proto.mutable_offer(), obj);
-    }
-    else if(type == ltDIR_NODE)
-    {
-        RPC::populateDirectoryNode(*proto.mutable_directory_node(), obj);
-    }
-    else
-    {
-        //Ledger object not supported by protobuf/grpc yet
-    }
-}
-
 std::string txnTypeString(TxType type)
 {
     return TxFormats::getInstance().findByType(type)->getName();

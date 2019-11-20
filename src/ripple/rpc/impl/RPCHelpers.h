@@ -22,10 +22,13 @@
 
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/ledger/TxMeta.h>
+
 #include <ripple/protocol/SecretKey.h>
+#include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/Tuning.h>
 #include <ripple/rpc/Status.h>
 #include <ripple/app/misc/NetworkOPs.h>
+#include <ripple/app/misc/TxQ.h>
 #include <rpc/v1/xrp_ledger.pb.h>
 #include <boost/optional.hpp>
 
@@ -156,7 +159,7 @@ std::pair<RPC::Status, LedgerEntryType>
  * For all of the below populate* functions, the proto argument is an
  * output parameter, and is populated with the data stored in the
  * serialized object
- */    
+ */
 void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj);
 
 void populateRippleState(rpc::v1::RippleState& proto, STObject const & obj);

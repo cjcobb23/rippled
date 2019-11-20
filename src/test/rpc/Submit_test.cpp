@@ -20,6 +20,7 @@
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/jss.h>
 #include <test/jtx.h>
+#include <test/jtx/WSClient.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/resource/Charge.h>

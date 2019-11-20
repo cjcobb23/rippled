@@ -24,6 +24,7 @@
 #include <ripple/rpc/RPCHandler.h>
 #include <ripple/rpc/Status.h>
 #include <ripple/rpc/impl/Tuning.h>
+#include <ripple/app/ledger/LedgerMaster.h>
 #include <ripple/app/misc/NetworkOPs.h>
 #include <vector>
 

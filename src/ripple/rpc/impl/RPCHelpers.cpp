@@ -1118,6 +1118,31 @@ std::string ledgerEntryTypeString(std::uint16_t type)
             safe_cast<LedgerEntryType>(type))->getName();
 }
 
+template <class T>
+void populateFields(T& proto,STObject const& obj, std::uint16_t type)
+{
+    if(type == ltACCOUNT_ROOT)
+    {
+        RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
+    }
+    else if(type == ltRIPPLE_STATE)
+    {
+        RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
+    }
+    else if(type == ltOFFER)
+    {
+        RPC::populateOffer(*proto.mutable_offer(), obj);
+    }
+    else if(type == ltDIR_NODE)
+    {
+        RPC::populateDirectoryNode(*proto.mutable_directory_node(), obj);
+    }
+    else
+    {
+        //Ledger object not supported by protobuf/grpc yet
+    }
+}
+
 void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 {
     proto.set_transaction_index(txMeta->getIndex());
