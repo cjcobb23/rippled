@@ -63,6 +63,3 @@ include(RippledCov)
 include(RippledMultiConfig)
 include(RippledDocs)
 include(RippledValidatorKeys)
-
-# Include generated *.pb.h files
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")

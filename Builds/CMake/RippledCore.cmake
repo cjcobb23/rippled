@@ -134,8 +134,6 @@ target_include_directories (xrpl_core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ripple>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/grpc>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/proto>
     # this one is for beast/legacy files:
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/beast/extras>
     $<INSTALL_INTERFACE:include>)
@@ -340,57 +338,6 @@ install (
     src/beast/extras/beast/unit_test/detail/const_container.hpp
   DESTINATION include/beast/unit_test/detail)
 
-### protobuf and grpc
-
-set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
-set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
-set(_CARES_LIB "${CMAKE_CURRENT_BINARY_DIR}/c-ares/lib")
-set(_GRPC_LIB "${CMAKE_CURRENT_BINARY_DIR}/grpc/lib")
-link_directories(
-  ${_CARES_LIB}
-  ${_GRPC_LIB}
-  )
-if (WIN32)
-  set(_ZLIB "${CMAKE_CURRENT_BINARY_DIR}/zlib/lib")
-  link_directories(
-    ${_ZLIB}
-  )
-endif()
-set(_GRPC_CPP_PLUGIN_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX})
-
-file(GLOB PROTOBUF_DEFINITION_FILES "proto/rpc/v1/*.proto")
-
-foreach(file ${PROTOBUF_DEFINITION_FILES})
-    string(REGEX MATCH ^.*\/ prefix ${file})
-    string(LENGTH ${prefix} prefix_length)
-    string(SUBSTRING ${file} ${prefix_length} -1 proto_file)
-    string(REGEX MATCH ^[^.]* proto_prefix ${proto_file})
-    # Proto file
-    get_filename_component(hw_proto "proto/rpc/v1/${proto_file}" ABSOLUTE)
-    get_filename_component(hw_proto_path "${hw_proto}" PATH)
-
-    string(FIND "${hw_proto_path}" "rpc/v1" pos)
-    string(SUBSTRING ${hw_proto_path} 0 ${pos} trimmed_path)
-
-    # Generated sources
-    set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.pb.cc")
-    set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.pb.h")
-    set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.grpc.pb.cc")
-    set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/rpc/v1/${proto_prefix}.grpc.pb.h")
-    add_custom_command(
-        OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
-        COMMAND ${_PROTOBUF_PROTOC}
-        ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
-            --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
-            -I "${trimmed_path}"
-            --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
-            "${hw_proto}"
-        DEPENDS "${hw_proto}")
-
-    list(APPEND PROTOBUF_SRCS "rpc/v1/${proto_prefix}.pb.cc")
-    list(APPEND PROTOBUF_SRCS "rpc/v1/${proto_prefix}.grpc.pb.cc")
-endforeach()
-
 #[===================================================================[
    rippled executable
 #]===================================================================]
@@ -401,12 +348,8 @@ endforeach()
    add_executable with no sources
 #]=========================================================]
 add_executable (rippled src/ripple/app/main/Application.h)
-target_include_directories(rippled PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/grpc/include)
-add_dependencies (rippled grpc)
 if (unity)
   target_sources (rippled PRIVATE
-    ${PROTOBUF_SRCS}
     #[===============================[
        unity, main sources
     #]===============================]
@@ -464,7 +407,6 @@ if (unity)
     src/test/unity/csf_unity.cpp)
 else ()
   target_sources (rippled PRIVATE
-    ${PROTOBUF_SRCS}
     #[===============================[
        nounity, main sources:
          subdir: app
@@ -1079,18 +1021,7 @@ target_link_libraries (rippled
   Ripple::opts
   Ripple::libs
   Ripple::xrpl_core
-  ${CMAKE_STATIC_LIBRARY_PREFIX}grpc++_unsecure${CMAKE_STATIC_LIBRARY_SUFFIX}
-  ${CMAKE_STATIC_LIBRARY_PREFIX}grpc_unsecure${CMAKE_STATIC_LIBRARY_SUFFIX}
-  ${CMAKE_STATIC_LIBRARY_PREFIX}gpr${CMAKE_STATIC_LIBRARY_SUFFIX}
-  ${CMAKE_STATIC_LIBRARY_PREFIX}address_sorting${CMAKE_STATIC_LIBRARY_SUFFIX}
-  ${CMAKE_STATIC_LIBRARY_PREFIX}cares${CMAKE_STATIC_LIBRARY_SUFFIX}
-  ${_PROTOBUF_LIBPROTOBUF}
   )
-if (WIN32)
-target_link_libraries (rippled
-  ${CMAKE_STATIC_LIBRARY_PREFIX}zlibstaticd${CMAKE_STATIC_LIBRARY_SUFFIX}
-  )
-endif()
 exclude_if_included (rippled)
 # define a macro for tests that might need to
 # be exluded or run differently in CI environment
@@ -1098,35 +1029,3 @@ if (is_ci)
   target_compile_definitions(rippled PRIVATE RIPPLED_RUNNING_IN_CI)
 endif ()
 
-if(NOT WIN32)
-set_source_files_properties(src/ripple/unity/app_main1.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/ripple/unity/app_misc_impl.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/ripple/unity/app_misc.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/ripple/unity/app_ledger_impl.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/ripple/unity/rpcx1.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/ripple/unity/rpcx2.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/app_test_unity1.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/app_test_unity2.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/basics_test_unity.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/beast_test_unity1.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/protocol_test_unity.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(src/test/unity/rpc_test_unity.cpp PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/account_info.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/account_info.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/amount.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/amount.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/fee.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/fee.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/ledger_objects.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/ledger_objects.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/meta.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/meta.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/submit.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/submit.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/transaction.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/transaction.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/tx.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/tx.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/xrp_ledger.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-set_source_files_properties(rpc/v1/xrp_ledger.grpc.pb.cc PROPERTIES COMPILE_FLAGS -Wno-suggest-override)
-endif()
