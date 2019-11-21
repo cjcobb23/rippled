@@ -30,8 +30,7 @@ if (grpc_FOUND AND NOT local_grpc)
     endif()
     find_library(_found_${libname_}
       NAMES ${_search}
-      HINTS ${grpc_LIBRARY_DIRS}
-      NO_DEFAULT_PATH)
+      HINTS ${grpc_LIBRARY_DIRS})
     if (_found_${libname_})
       message (STATUS "importing ${libname_} as ${_found_${libname_}}")
     else ()
@@ -57,8 +56,7 @@ if (grpc_FOUND AND NOT local_grpc)
     endif()
     find_library(_cares
       NAMES ${_search}
-      HINTS ${cares_LIBRARY_DIRS}
-      NO_DEFAULT_PATH)
+      HINTS ${cares_LIBRARY_DIRS})
     if (NOT _cares)
       message (FATAL_ERROR "using pkg-config for grpc, can't find c-ares")
     endif ()
@@ -188,6 +186,8 @@ else ()
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
       -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:-DCMAKE_VERBOSE_MAKEFILE=ON>
+      $<$<BOOL:${CMAKE_TOOLCHAIN_FILE}>:-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}>
+      $<$<BOOL:${VCPKG_TARGET_TRIPLET}>:-DVCPKG_TARGET_TRIPLET=${VCPKG_TARGET_TRIPLET}>
       -DCMAKE_DEBUG_POSTFIX=_d
       $<$<NOT:$<BOOL:${is_multiconfig}>>:-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}>
       -DgRPC_BUILD_TESTS=OFF

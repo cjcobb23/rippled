@@ -225,6 +225,8 @@ matrix:
       addons:
         homebrew:
           packages:
+            - protobuf
+            - grpc
             - bash
             - ninja
             - cmake
