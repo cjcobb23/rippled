@@ -172,7 +172,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
 
     //hash is included in the response
     result.set_hash(request.hash());
-    
+
     //get the transaction
     std::shared_ptr<Transaction> txn =
         context.app.getMasterTransaction().fetch(hash, true);
@@ -186,7 +186,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
     if(st_txn->getTxnType() != ttPAYMENT)
     {
         grpc::Status error_status{grpc::StatusCode::UNIMPLEMENTED,
-            "txn type not supported: " + txnTypeString(st_txn->getTxnType())}; 
+            "txn type not supported: " + txnTypeString(st_txn->getTxnType())};
     }
 
     //populate transaction data
@@ -202,11 +202,11 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
 
     result.set_ledger_index(txn->getLedger());
 
-    std::shared_ptr<Ledger const> ledger = 
+    std::shared_ptr<Ledger const> ledger =
         context.ledgerMaster.getLedgerBySeq(txn->getLedger());
     //get meta data
     if(ledger)
-    { 
+    {
         if(request.binary())
         {
             SHAMapTreeNode::TNType type;
@@ -217,8 +217,7 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
             {
                 SerialIter it (item->slice());
                 it.getVL (); // skip transaction
-                Slice slice = makeSlice(it.getVL ());
-                result.set_meta_bytes(toBytes(slice));
+                result.set_meta_bytes(toBytes(makeSlice(it.getVL ())));
 
                 bool validated = isValidated(context.ledgerMaster,
                         ledger->info().seq,ledger->info().hash);
