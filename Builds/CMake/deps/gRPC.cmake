@@ -88,6 +88,7 @@ else ()
       -DCARES_STATIC=ON
       -DCARES_STATIC_PIC=ON
       -DCARES_INSTALL=ON
+      -DCARES_MSVC_STATIC_RUNTIME=ON
       $<$<BOOL:${MSVC}>:
         "-DCMAKE_C_FLAGS=-GR -Gd -fp:precise -FS -MP"
       >
@@ -126,8 +127,10 @@ else ()
        zlib (grpc requires)
     #]===========================]
     if (MSVC)
+      set (zlib_debug_postfix "d") # zlib cmake sets this internally for MSVC, so we really don't have a choice
       set (zlib_base "zlibstatic")
     else ()
+      set (zlib_debug_postfix "_d")
       set (zlib_base "z")
     endif ()
     ExternalProject_Add (zlib_src
@@ -137,7 +140,7 @@ else ()
       CMAKE_ARGS
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:-DCMAKE_VERBOSE_MAKEFILE=ON>
-        -DCMAKE_DEBUG_POSTFIX=_d
+        -DCMAKE_DEBUG_POSTFIX=${zlib_debug_postfix}
         $<$<NOT:$<BOOL:${is_multiconfig}>>:-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}>
         -DCMAKE_INSTALL_PREFIX=<BINARY_DIR>/_installed_
         -DBUILD_SHARED_LIBS=OFF
@@ -158,7 +161,7 @@ else ()
         ${CMAKE_COMMAND} -E env --unset=DESTDIR ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
       BUILD_BYPRODUCTS
         <BINARY_DIR>/_installed_/lib/${ep_lib_prefix}${zlib_base}${ep_lib_suffix}
-        <BINARY_DIR>/_installed_/lib/${ep_lib_prefix}${zlib_base}_d${ep_lib_suffix}
+        <BINARY_DIR>/_installed_/lib/${ep_lib_prefix}${zlib_base}${zlib_debug_postfix}${ep_lib_suffix}
     )
     exclude_if_included (zlib_src)
     ExternalProject_Get_Property (zlib_src BINARY_DIR)
@@ -168,7 +171,7 @@ else ()
     file (MAKE_DIRECTORY ${BINARY_DIR}/_installed_/include)
     set_target_properties (ZLIB::ZLIB PROPERTIES
       IMPORTED_LOCATION_DEBUG
-        ${BINARY_DIR}/_installed_/lib/${ep_lib_prefix}${zlib_base}_d${ep_lib_suffix}
+        ${BINARY_DIR}/_installed_/lib/${ep_lib_prefix}${zlib_base}${zlib_debug_postfix}${ep_lib_suffix}
       IMPORTED_LOCATION_RELEASE
         ${BINARY_DIR}/_installed_/lib/${ep_lib_prefix}${zlib_base}${ep_lib_suffix}
       INTERFACE_INCLUDE_DIRECTORIES
