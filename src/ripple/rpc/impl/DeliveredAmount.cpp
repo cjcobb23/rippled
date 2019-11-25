@@ -246,7 +246,12 @@ void insertDeliveredAmount(
     }
 }
 
-
+template
+void insertDeliveredAmount<>(
+        rpc::v1::CurrencyAmount&,
+        ContextGeneric<rpc::v1::TxRequest>&,
+        std::shared_ptr<Transaction>,
+        TxMeta const&);
 
 } // RPC
 } // ripple

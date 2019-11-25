@@ -67,6 +67,21 @@ public:
         env.trust(bob["USD"](TestData::fund), alice);
         env.close();
 
+        auto toBinary = [](std::string const & text)
+        {
+            std::string binary;
+            for(size_t i = 0; i < text.size(); ++i)
+            {
+                unsigned int c = charUnHex(text[i]);
+                c = c << 4;
+                ++i;
+                c = c | charUnHex(text[i]);
+                binary.push_back(c);
+            }
+
+            return binary;
+        };
+
         // use a websocket client to fill transaction blobs
         auto wsc = makeWSClient(env.app().config());
         {
@@ -79,13 +94,13 @@ public:
                 return;
             if( !BEAST_EXPECT(jreply_xrp[jss::result].isMember(jss::tx_blob)))
                 return;
-            testData.xrp_tx_blob = textBlobToActualBlob(
+            testData.xrp_tx_blob = toBinary(
                     jreply_xrp[jss::result][jss::tx_blob].asString());
             if( !BEAST_EXPECT(jreply_xrp[jss::result].isMember(jss::tx_json)))
                 return;
             if( !BEAST_EXPECT(jreply_xrp[jss::result][jss::tx_json].isMember(jss::hash)))
                 return;
-            testData.xrp_tx_hash = textBlobToActualBlob(
+            testData.xrp_tx_hash = toBinary(
                     jreply_xrp[jss::result][jss::tx_json][jss::hash].asString());
         }
         {
@@ -98,13 +113,13 @@ public:
                 return;
             if (!BEAST_EXPECT(jreply_usd[jss::result].isMember(jss::tx_blob)))
                 return;
-            testData.usd_tx_blob = textBlobToActualBlob(
+            testData.usd_tx_blob = toBinary(
                     jreply_usd[jss::result][jss::tx_blob].asString());
             if (!BEAST_EXPECT(jreply_usd[jss::result].isMember(jss::tx_json)))
                 return;
             if (!BEAST_EXPECT(jreply_usd[jss::result][jss::tx_json].isMember(jss::hash)))
                 return;
-            testData.usd_tx_hash = textBlobToActualBlob(
+            testData.usd_tx_hash = toBinary(
                     jreply_usd[jss::result][jss::tx_json][jss::hash].asString());
         }
     }
