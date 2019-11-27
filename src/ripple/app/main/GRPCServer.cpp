@@ -22,6 +22,22 @@
 
 namespace ripple {
 
+namespace {
+
+// helper function. strips port from endpoint string
+[[maybe_unused]] std::string
+getEndpoint(std::string const& peer) {
+    std::size_t first = peer.find_first_of(":");
+    std::size_t last = peer.find_last_of(":");
+    std::string peer_clean(peer);
+    if (first != last)
+    {
+        peer_clean = peer.substr(first + 1);
+    }
+    return peer_clean;
+}
+}  // namespace
+
 template <class Request, class Response>
 GRPCServerImpl::CallData<Request, Response>::CallData(
     rpc::v1::XRPLedgerAPIService::AsyncService& service,
@@ -33,15 +49,14 @@ GRPCServerImpl::CallData<Request, Response>::CallData(
     Resource::Charge load_type)
     : service_(service)
     , cq_(cq)
-    , status_(PROCESSING)
+    , finished_(false)
     , app_(app)
-    , iter_(boost::none)
     , aborted_(false)
     , responder_(&ctx_)
-    , bind_listener_(bind_listener)
-    , handler_(handler)
-    , required_condition_(required_condition)
-    , load_type_(load_type)
+    , bind_listener_(std::move(bind_listener))
+    , handler_(std::move(handler))
+    , required_condition_(std::move(required_condition))
+    , load_type_(std::move(load_type))
 {
     // Bind a listener. When a request is received, "this" will be returned
     // from CompletionQueue::Next
@@ -52,22 +67,21 @@ template <class Request, class Response>
 std::shared_ptr<Processor>
 GRPCServerImpl::CallData<Request, Response>::clone()
 {
-    return std::static_pointer_cast<Processor>(
-        std::make_shared<CallData<Request, Response>>(
-            service_,
-            cq_,
-            app_,
-            bind_listener_,
-            handler_,
-            required_condition_,
-            load_type_));
+    return std::make_shared<CallData<Request, Response>>(
+        service_,
+        cq_,
+        app_,
+        bind_listener_,
+        handler_,
+        required_condition_,
+        load_type_);
 }
 
 template <class Request, class Response>
 void
 GRPCServerImpl::CallData<Request, Response>::process()
 {
-    if (status_ == PROCESSING)
+    if (!finished_)
     {
         std::shared_ptr<CallData<Request, Response>> this_s =
             this->shared_from_this();
@@ -82,7 +96,7 @@ GRPCServerImpl::CallData<Request, Response>::process()
                     return;
 
                 this_s->process(coro);
-                this_s->status_ = FINISH;
+                this_s->finished_ = true;
             });
     }
     else
@@ -148,9 +162,105 @@ GRPCServerImpl::CallData<Request, Response>::process(
     }
 }
 
+template <class Request, class Response>
+bool
+GRPCServerImpl::CallData<Request, Response>::isFinished()
+{
+    // checking the status while a request is in the middle of being
+    // processed will lead to indeterminate results. Lock here to
+    // sequence checking status and processing
+    std::lock_guard<std::mutex> lock(mut_);
+    return finished_;
+}
+
+template <class Request, class Response>
+void
+GRPCServerImpl::CallData<Request, Response>::abort()
+{
+    std::lock_guard<std::mutex> lock(mut_);
+    aborted_ = true;
+}
+
+template <class Request, class Response>
+Resource::Charge
+GRPCServerImpl::CallData<Request, Response>::getLoadType()
+{
+    return load_type_;
+}
+
+template <class Request, class Response>
+Role
+GRPCServerImpl::CallData<Request, Response>::getRole()
+{
+    return Role::USER;
+}
+
+template <class Request, class Response>
+Resource::Consumer
+GRPCServerImpl::CallData<Request, Response>::getUsage()
+{
+    std::string peer = getEndpoint(ctx_.peer());
+    boost::optional<beast::IP::Endpoint> endpoint =
+        beast::IP::Endpoint::from_string_checked(peer);
+    return app_.getResourceManager().newInboundEndpoint(endpoint.get());
+}
+
+GRPCServerImpl::GRPCServerImpl(Application& app) : app_(app)
+{
+    // if present, get endpoint from config
+    if (app_.config().exists("port_grpc"))
+    {
+        Section section = app_.config().section("port_grpc");
+
+        std::pair<std::string, bool> ipPair = section.find("ip");
+        if (!ipPair.second)
+            return;
+
+        std::pair<std::string, bool> portPair = section.find("port");
+        if (!portPair.second)
+            return;
+        try
+        {
+            beast::IP::Endpoint endpoint(
+                boost::asio::ip::make_address(ipPair.first),
+                std::stoi(portPair.first));
+
+            server_address_ = endpoint.to_string();
+        }
+        catch (std::exception const& ex)
+        {
+        }
+    }
+}
+
+void
+GRPCServerImpl::shutdown()
+{
+    server_->Shutdown();
+    // Always shutdown the completion queue after the server.
+    cq_->Shutdown();
+}
+
 void
 GRPCServerImpl::handleRpcs()
 {
+    // This collection should really be an unordered_set. However, to delete
+    // from the unordered_set, we need a shared_ptr, but cq_.Next() (see below
+    // while loop) sets the tag to a raw pointer.
+    std::vector<std::shared_ptr<Processor>> requests = setupListeners();
+
+    auto erase = [&requests](Processor* ptr) {
+        auto it = std::find_if(
+            requests.begin(),
+            requests.end(),
+            [ptr](std::shared_ptr<Processor>& sPtr) {
+                return sPtr.get() == ptr;
+            });
+        BOOST_ASSERT(it != requests.end());
+        *it = requests.back();
+        requests.pop_back();
+    };
+
     void* tag;  // uniquely identifies a request.
     bool ok;
     // Block waiting to read the next event from the completion queue. The
@@ -165,8 +275,9 @@ GRPCServerImpl::handleRpcs()
         if (!ok)
         {
             // abort first, then erase. Otherwise, erase can delete object
-            static_cast<Processor*>(tag)->abort();
-            requests_.erase(static_cast<Processor*>(tag)->get_iter());
+            auto ptr = static_cast<Processor*>(tag);
+            ptr->abort();
+            erase(ptr);
         }
         else
         {
@@ -176,66 +287,91 @@ GRPCServerImpl::handleRpcs()
                 // ptr is now processing a request, so create a new CallData
                 // object to handle additional requests
                 auto cloned = ptr->clone();
-                requests_.push_front(cloned);
-                // set iterator as data member for later lookup
-                cloned->set_iter(requests_.begin());
+                requests.push_back(cloned);
                 // process the request
                 ptr->process();
             }
             else
             {
-                // rpc is finished, delete CallData object
-                requests_.erase(static_cast<Processor*>(tag)->get_iter());
+                erase(ptr);
             }
         }
     }
 }
 
 // create a CallData instance for each RPC
-void
+std::vector<std::shared_ptr<Processor>>
 GRPCServerImpl::setupListeners()
 {
-    /*
-     * When adding a new RPC method, add it here
-     * First argument is the grpc codegen'd method to call to start listening
-     * for It is always of the form :
-     * rpc::v1::XRPLedgerAPIService::AsyncService::Request[RPC NAME]
-     * Second argument is the handler, defined in rpc/GRPCHandlers.h
-     * Third argument is the necessary condition
-     * Fourth argument is the charge
-     */
-    makeAndPush<rpc::v1::GetFeeRequest, rpc::v1::GetFeeResponse>(
-        &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetFee,
-        doFeeGrpc,
-        RPC::NEEDS_CURRENT_LEDGER,
-        Resource::feeReferenceRPC);
+    std::vector<std::shared_ptr<Processor>> requests;
 
-    makeAndPush<
-        rpc::v1::GetAccountInfoRequest,
-        rpc::v1::GetAccountInfoResponse>(
-        &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetAccountInfo,
-        doAccountInfoGrpc,
-        RPC::NO_CONDITION,
-        Resource::feeReferenceRPC);
+    auto addToRequests = [&requests](auto callData) {
+        requests.push_back(std::move(callData));
+    };
 
-    makeAndPush<rpc::v1::TxRequest, rpc::v1::TxResponse>(
-        &rpc::v1::XRPLedgerAPIService::AsyncService::RequestTx,
-        doTxGrpc,
-        RPC::NEEDS_NETWORK_CONNECTION,
-        Resource::feeReferenceRPC);
+    {
+        using cd = CallData<rpc::v1::GetFeeRequest, rpc::v1::GetFeeResponse>;
 
-    makeAndPush<
-        rpc::v1::SubmitTransactionRequest,
-        rpc::v1::SubmitTransactionResponse>(
-        &rpc::v1::XRPLedgerAPIService::AsyncService::RequestSubmitTransaction,
-        doSubmitGrpc,
-        RPC::NEEDS_CURRENT_LEDGER,
-        Resource::feeMediumBurdenRPC);
+        addToRequests(std::make_shared<cd>(
+            service_,
+            *cq_,
+            app_,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetFee,
+            doFeeGrpc,
+            RPC::NEEDS_CURRENT_LEDGER,
+            Resource::feeReferenceRPC));
+    }
+    {
+        using cd = CallData<
+            rpc::v1::GetAccountInfoRequest,
+            rpc::v1::GetAccountInfoResponse>;
+
+        addToRequests(std::make_shared<cd>(
+            service_,
+            *cq_,
+            app_,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetAccountInfo,
+            doAccountInfoGrpc,
+            RPC::NEEDS_CURRENT_LEDGER,
+            Resource::feeReferenceRPC));
+    }
+    {
+        using cd = CallData<rpc::v1::TxRequest, rpc::v1::TxResponse>;
+
+        addToRequests(std::make_shared<cd>(
+            service_,
+            *cq_,
+            app_,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::RequestTx,
+            doTxGrpc,
+            RPC::NEEDS_CURRENT_LEDGER,
+            Resource::feeReferenceRPC));
+    }
+    {
+        using cd = CallData<
+            rpc::v1::SubmitTransactionRequest,
+            rpc::v1::SubmitTransactionResponse>;
+
+        addToRequests(std::make_shared<cd>(
+            service_,
+            *cq_,
+            app_,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::
+                RequestSubmitTransaction,
+            doSubmitGrpc,
+            RPC::NEEDS_CURRENT_LEDGER,
+            Resource::feeMediumBurdenRPC));
+    }
+    return requests;
 };
 
-void
+bool
 GRPCServerImpl::start()
 {
+    // if config does not specify a grpc server address, don't start
+    if (server_address_ == "")
+        return false;
+
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(
@@ -248,35 +384,29 @@ GRPCServerImpl::start()
     cq_ = builder.AddCompletionQueue();
     // Finally assemble the server.
     server_ = builder.BuildAndStart();
-    // create necessary listeners
-    setupListeners();
+
+    return true;
 }
 
-GRPCServerImpl::GRPCServerImpl(Application& app) : app_(app)
+void
+GRPCServer::run()
 {
-    // if present, get endpoint from config
-    if (app_.config().exists("port_grpc"))
+    // Start the server and setup listeners
+    if (running_ = impl_.start())
     {
-        Section section = app_.config().section("port_grpc");
+        thread_ = std::thread([this]() {
+            // Start the event loop and begin handling requests
+            this->impl_.handleRpcs();
+        });
+    }
+}
 
-        // get the default values of ip and port
-        std::size_t colon_pos = server_address_.find(':');
-        std::string ip_str = server_address_.substr(0, colon_pos);
-        std::string port_str = server_address_.substr(colon_pos + 1);
-
-        std::pair<std::string, bool> ip_pair = section.find("ip");
-        if (ip_pair.second)
-        {
-            ip_str = ip_pair.first;
-        }
-
-        std::pair<std::string, bool> port_pair = section.find("port");
-        if (port_pair.second)
-        {
-            port_str = port_pair.first;
-        }
-
-        server_address_ = ip_str + ":" + port_str;
+GRPCServer::~GRPCServer()
+{
+    if (running_)
+    {
+        impl_.shutdown();
+        thread_.join();
     }
 }
 

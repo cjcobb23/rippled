@@ -49,17 +49,6 @@ public:
     virtual void
     process() = 0;
 
-    // store an iterator to this object
-    // all Processor objects are stored in a std::list, and the iterator points
-    // to that objects position in the list. When object finishes processing a
-    // request, the iterator is used to delete the object from the list
-    virtual void
-    set_iter(std::list<std::shared_ptr<Processor>>::iterator const& it) = 0;
-
-    // get iterator to this object. see above comment
-    virtual std::list<std::shared_ptr<Processor>>::iterator
-    get_iter() = 0;
-
     // abort processing this request. called when server shutsdown
     virtual void
     abort() = 0;
@@ -77,47 +66,28 @@ public:
     isFinished() = 0;
 };
 
-namespace {
-
-// helper function. strips port from endpoint string
-[[maybe_unused]] std::string
-getEndpoint(std::string const& peer) {
-    std::size_t first = peer.find_first_of(":");
-    std::size_t last = peer.find_last_of(":");
-    std::string peer_clean(peer);
-    if (first != last)
-    {
-        peer_clean = peer.substr(first + 1);
-    }
-    return peer_clean;
-}
-
-}  // namespace
-
 class GRPCServerImpl final
 {
 private:
-    // list of current RPC requests being processed or listened for
-    std::list<std::shared_ptr<Processor>> requests_;
-
     // CompletionQueue returns events that have occurred, or events that have
     // been cancelled
     std::unique_ptr<grpc::ServerCompletionQueue> cq_;
 
+    std::vector<std::shared_ptr<Processor>> requests_;
+
     // The gRPC service defined by the .proto files
     rpc::v1::XRPLedgerAPIService::AsyncService service_;
 
-    // gRPC server
     std::unique_ptr<grpc::Server> server_;
 
-    // referernce to ripple::Application
     Application& app_;
 
     // address of where to run the server
-    // this is the default value, if ip and port are not in config
-    std::string server_address_ = "0.0.0.0:50051";
+    std::string server_address_;
 
     // typedef for function to bind a listener
+    // This is always of the form:
+    // rpc::v1::XRPLedgerAPIService::AsyncService::Request[RPC NAME]
     template <class Request, class Response>
     using BindListener = std::function<void(
         rpc::v1::XRPLedgerAPIService::AsyncService&,
@@ -129,6 +99,7 @@ private:
         void*)>;
 
     // typedef for actual handler (that populates a response)
+    // handlers are defined in rpc/GRPCHandlers.h
     template <class Request, class Response>
     using Handler = std::function<std::pair<Response, grpc::Status>(
         RPC::ContextGeneric<Request>&)>;
@@ -141,20 +112,20 @@ public:
     GRPCServerImpl(Application& app);
 
     void
-    shutdown()
-    {
-        server_->Shutdown();
-        // Always shutdown the completion queue after the server.
-        cq_->Shutdown();
-    }
+    shutdown();
 
     // setup the server and listeners
-    void
+    // returns true if server started successfully
+    bool
     start();
 
     // the main event loop
     void
     handleRpcs();
+
+    // Create a CallData object for each RPC
+    std::vector<std::shared_ptr<Processor>>
+    setupListeners();
 
 private:
     // Class encompasing the state and logic needed to serve a request.
@@ -176,17 +147,11 @@ private:
         // the client.
         grpc::ServerContext ctx_;
 
-        // Possible states of the RPC
-        enum CallStatus { PROCESSING, FINISH };
-        // The current serving state.
-        CallStatus status_;
+        // true if finished processing request
+        bool finished_;
 
         // reference to Application
         Application& app_;
-
-        // iterator pointing to this object in the requests list
-        // for lifetime management
-        boost::optional<std::list<std::shared_ptr<Processor>>::iterator> iter_;
 
         // mutex for signaling abort
         std::mutex mut_;
@@ -216,9 +181,7 @@ private:
         Resource::Charge load_type_;
 
     public:
-        virtual ~CallData()
-        {
-        }
+        virtual ~CallData() = default;
 
         // Take in the "service" instance (in this case representing an
         // asynchronous server) and the completion queue "cq" used for
@@ -232,41 +195,14 @@ private:
             RPC::Condition required_condition,
             Resource::Charge load_type);
 
-        void
+        virtual void
         process() override;
 
-        bool
-        isFinished() override
-        {
-            // checking the status while a request is in the middle of being
-            // processed will lead to indeterminate results. Lock here to
-            // sequence checking status and processing
-            std::lock_guard<std::mutex> lock(mut_);
-            return status_ == CallStatus::FINISH;
-        }
+        virtual bool
+        isFinished() override;
 
         virtual void
-        abort() override
-        {
-            std::lock_guard<std::mutex> lock(mut_);
-            aborted_ = true;
-        }
-
-        void
-        set_iter(
-            std::list<std::shared_ptr<Processor>>::iterator const& it) override
-        {
-            iter_ = it;
-        }
-
-        std::list<std::shared_ptr<Processor>>::iterator
-        get_iter() override
-        {
-            if (!iter_)
-                BOOST_ASSERT(false);
-
-            return iter_.get();
-        }
+        abort() override;
 
         std::shared_ptr<Processor>
         clone() override;
@@ -278,64 +214,19 @@ private:
 
         // return load type of this RPC
         Resource::Charge
-        getLoadType()
-        {
-            return load_type_;
-        }
+        getLoadType();
 
         // return the Role required for this RPC
         // for now, we are only supporting RPC's that require Role::USER for
         // gRPC
         Role
-        getRole()
-        {
-            return Role::USER;
-        }
+        getRole();
 
         // register endpoint with ResourceManager and return usage
         Resource::Consumer
-        getUsage()
-        {
-            std::string peer = getEndpoint(ctx_.peer());
-            boost::optional<beast::IP::Endpoint> endpoint =
-                beast::IP::Endpoint::from_string_checked(peer);
-            return app_.getResourceManager().newInboundEndpoint(endpoint.get());
-        }
+        getUsage();
 
     };  // CallData
-
-    // Create a CallData object for each RPC
-    void
-    setupListeners();
-
-    // make a CallData instance, returned as shared_ptr to base class
-    // (Processor)
-    template <class Request, class Response>
-    std::shared_ptr<Processor>
-    makeCallData(
-        BindListener<Request, Response> bl,
-        Handler<Request, Response> handler,
-        RPC::Condition condition,
-        Resource::Charge load_type)
-    {
-        auto ptr = std::make_shared<CallData<Request, Response>>(
-            service_, *cq_, app_, bl, handler, condition, load_type);
-        return std::static_pointer_cast<Processor>(ptr);
-    }
-
-    // make CallData instance and push to requests list
-    template <class Request, class Response>
-    void
-    makeAndPush(
-        BindListener<Request, Response> bl,
-        Handler<Request, Response> handler,
-        RPC::Condition condition,
-        Resource::Charge load_type)
-    {
-        auto ptr = makeCallData(bl, handler, condition, load_type);
-        requests_.push_front(ptr);
-        ptr->set_iter(requests_.begin());
-    }
 
 };  // GRPCServerImpl
 
@@ -345,24 +236,14 @@ public:
     GRPCServer(Application& app) : impl_(app){};
 
     void
-    run()
-    {
-        // Start the server and setup listeners
-        impl_.start();
-        thread_ = std::thread([this]() {
-            // Start the event loop and begin handling requests
-            this->impl_.handleRpcs();
-        });
-    }
-    ~GRPCServer()
-    {
-        impl_.shutdown();
-        thread_.join();
-    }
+    run();
+
+    ~GRPCServer();
 
 private:
     GRPCServerImpl impl_;
     std::thread thread_;
+    bool running_;
 };
 }  // namespace ripple
 #endif
