@@ -21,20 +21,25 @@
 #define RIPPLED_GRPCTESTCLIENTBASE_H
 
 #include <rpc/v1/xrp_ledger.grpc.pb.h>
+#include <test/jtx/envconfig.h>
 
 namespace ripple {
+namespace test {
 
-    struct GRPCTestClientBase
-    {
-        GRPCTestClientBase()
+struct GRPCTestClientBase
+{
+    GRPCTestClientBase(std::string const& port)
         : stub_(rpc::v1::XRPLedgerAPIService::NewStub(grpc::CreateChannel(
-                "localhost:50051", grpc::InsecureChannelCredentials())))
-        {}
+              std::string(getEnvLocalhostAddr()) + ":" + port,
+              grpc::InsecureChannelCredentials())))
+    {
+    }
 
-        grpc::Status status;
-        grpc::ClientContext context;
-        std::unique_ptr<rpc::v1::XRPLedgerAPIService::Stub> stub_;
-    };
+    grpc::Status status;
+    grpc::ClientContext context;
+    std::unique_ptr<rpc::v1::XRPLedgerAPIService::Stub> stub_;
+};
 
-} // ripple
-#endif //RIPPLED_GRPCTESTCLIENTBASE_H
+}  // namespace test
+}  // namespace ripple
+#endif  // RIPPLED_GRPCTESTCLIENTBASE_H

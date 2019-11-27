@@ -17,36 +17,37 @@
 */
 //==============================================================================
 
+#include <ripple/app/ledger/LedgerMaster.h>
+#include <ripple/app/misc/TxQ.h>
+#include <ripple/basics/mulDiv.h>
+#include <ripple/core/DatabaseCon.h>
+#include <ripple/protocol/ErrorCodes.h>
+#include <ripple/protocol/jss.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 #include <test/jtx.h>
 #include <test/jtx/Env.h>
 #include <test/jtx/envconfig.h>
-#include <ripple/protocol/jss.h>
-#include <ripple/core/DatabaseCon.h>
-#include <ripple/protocol/ErrorCodes.h>
-#include <ripple/app/misc/TxQ.h>
-#include <ripple/basics/mulDiv.h>
-#include <ripple/rpc/impl/RPCHelpers.h>
-#include <ripple/app/ledger/LedgerMaster.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
 #include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {
+namespace test {
 
 class Tx_test : public beast::unit_test::suite
 {
-
-    void cmpAmount(const rpc::v1::CurrencyAmount &proto_amount, STAmount amount)
+    void
+    cmpAmount(const rpc::v1::CurrencyAmount& proto_amount, STAmount amount)
     {
         if (amount.native())
         {
-            BEAST_EXPECT(proto_amount.xrp_amount().drops()
-                == amount.xrp().drops());
+            BEAST_EXPECT(
+                proto_amount.xrp_amount().drops() == amount.xrp().drops());
         }
         else
         {
             rpc::v1::FiatAmount fiat = proto_amount.fiat_amount();
-            Issue const & issue = amount.issue();
+            Issue const& issue = amount.issue();
             Currency currency = issue.currency;
             BEAST_EXPECT(fiat.currency().name() == to_string(currency));
             BEAST_EXPECT(fiat.currency().code() == toBytes(currency));
@@ -55,7 +56,8 @@ class Tx_test : public beast::unit_test::suite
         }
     }
 
-    void cmpTx(const rpc::v1::Transaction &proto, std::shared_ptr<STTx const> txn_st)
+    void
+    cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txn_st)
     {
         AccountID account = txn_st->getAccountID(sfAccount);
         BEAST_EXPECT(proto.account() == toBase58(account));
@@ -76,60 +78,66 @@ class Tx_test : public beast::unit_test::suite
 
         BEAST_EXPECT(proto.flags() == txn_st->getFieldU32(sfFlags));
 
-        BEAST_EXPECT(proto.last_ledger_sequence()
-                == txn_st->getFieldU32(sfLastLedgerSequence));
+        BEAST_EXPECT(
+            proto.last_ledger_sequence() ==
+            txn_st->getFieldU32(sfLastLedgerSequence));
 
         Blob blob = txn_st->getFieldVL(sfTxnSignature);
         BEAST_EXPECT(proto.signature() == toBytes(blob));
 
-        if(txn_st->isFieldPresent(sfSendMax))
+        if (txn_st->isFieldPresent(sfSendMax))
         {
-            STAmount const & send_max = txn_st->getFieldAmount(sfSendMax);
+            STAmount const& send_max = txn_st->getFieldAmount(sfSendMax);
             cmpAmount(proto.send_max(), send_max);
         }
 
-        //populate path data
-        STPathSet const & pathset = txn_st->getFieldPathSet(sfPaths);
+        // populate path data
+        STPathSet const& pathset = txn_st->getFieldPathSet(sfPaths);
         int ind = 0;
-        for(auto it = pathset.begin(); it < pathset.end(); ++it)
+        for (auto it = pathset.begin(); it < pathset.end(); ++it)
         {
-            STPath const & path = *it;
+            STPath const& path = *it;
 
-            const rpc::v1::Path &proto_path = proto.paths(ind++);
+            const rpc::v1::Path& proto_path = proto.paths(ind++);
 
             int ind2 = 0;
-            for(auto it2 = path.begin(); it2 != path.end(); ++it2)
+            for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                const rpc::v1::PathElement &proto_element = proto_path.elements(ind2++);
-                STPathElement const & elt = *it2;
+                const rpc::v1::PathElement& proto_element =
+                    proto_path.elements(ind2++);
+                STPathElement const& elt = *it2;
 
-                if(elt.isOffer())
+                if (elt.isOffer())
                 {
-                    if(elt.hasCurrency())
+                    if (elt.hasCurrency())
                     {
-                        Currency const & currency = elt.getCurrency();
-                        BEAST_EXPECT(proto_element.currency() == to_string(currency));
+                        Currency const& currency = elt.getCurrency();
+                        BEAST_EXPECT(
+                            proto_element.currency() == to_string(currency));
                     }
-                    if(elt.hasIssuer())
+                    if (elt.hasIssuer())
                     {
-                        AccountID const & issuer = elt.getIssuerID();
-                        BEAST_EXPECT(proto_element.issuer() == toBase58(issuer));
+                        AccountID const& issuer = elt.getIssuerID();
+                        BEAST_EXPECT(
+                            proto_element.issuer() == toBase58(issuer));
                     }
                 }
                 else
                 {
-                    AccountID const & path_account = elt.getAccountID();
-                    BEAST_EXPECT(proto_element.account() == toBase58(path_account));
+                    AccountID const& path_account = elt.getAccountID();
+                    BEAST_EXPECT(
+                        proto_element.account() == toBase58(path_account));
                 }
             }
         }
     }
 
-    void cmpMeta(const rpc::v1::Meta &proto, std::shared_ptr<TxMeta> txMeta)
+    void
+    cmpMeta(const rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     {
         BEAST_EXPECT(proto.transaction_index() == txMeta->getIndex());
-        BEAST_EXPECT(proto.transaction_result() ==
-                transToken(txMeta->getResultTER()));
+        BEAST_EXPECT(
+            proto.transaction_result() == transToken(txMeta->getResultTER()));
 
         if (txMeta->hasDeliveredAmount())
         {
@@ -137,27 +145,23 @@ class Tx_test : public beast::unit_test::suite
         }
     }
 
-    //gRPC stuff
+    // gRPC stuff
     class GrpcTxClient : public GRPCTestClientBase
     {
     public:
         rpc::v1::TxRequest request;
         rpc::v1::TxResponse reply;
 
-        void Tx()
+        GrpcTxClient(std::string const& port) : GRPCTestClientBase(port)
+        {
+        }
+
+        void
+        Tx()
         {
             status = stub_->Tx(&context, request, &reply);
         }
     };
-
-    std::pair<bool, rpc::v1::TxResponse> grpcTx(const uint256 &hash, bool binary)
-    {
-        GrpcTxClient client;
-        client.request.set_hash(&hash, sizeof(hash));
-        client.request.set_binary(binary);
-        client.Tx();
-        return std::pair<bool, rpc::v1::TxResponse>(client.status.ok(), client.reply);
-    }
 
     void
     testTxGrpc()
@@ -165,12 +169,21 @@ class Tx_test : public beast::unit_test::suite
         testcase("Test Tx Grpc");
 
         using namespace test::jtx;
+        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
+        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
+        Env env(*this, std::move(config));
 
-        //const char* NOT_FOUND = RPC::get_error_info(rpcTXN_NOT_FOUND).token;
+        auto grpcTx = [&grpcPort](auto hash, auto binary) {
+            GrpcTxClient client(grpcPort);
+            client.request.set_hash(&hash, sizeof(hash));
+            client.request.set_binary(binary);
+            client.Tx();
+            return std::pair<bool, rpc::v1::TxResponse>(
+                client.status.ok(), client.reply);
+        };
 
-        Env env(*this);
-        Account A1 {"A1"};
-        Account A2 {"A2"};
+        Account A1{"A1"};
+        Account A2{"A2"};
         env.fund(XRP(10000), A1);
         env.fund(XRP(10000), A2);
         env.close();
@@ -190,14 +203,14 @@ class Tx_test : public beast::unit_test::suite
         auto const endLegSeq = env.closed()->info().seq;
 
         // Find the existing transactions
-        auto &ledgerMaster = env.app().getLedgerMaster();
+        auto& ledgerMaster = env.app().getLedgerMaster();
         int index = startLegSeq;
         for (auto&& tx : txns)
         {
             auto id = tx->getTransactionID();
             auto ledger = ledgerMaster.getLedgerBySeq(index);
 
-            for (bool b : { false, true })
+            for (bool b : {false, true})
             {
                 auto const result = grpcTx(id, b);
 
@@ -207,7 +220,8 @@ class Tx_test : public beast::unit_test::suite
                 if (b)
                 {
                     Serializer s = tx->getSerializer();
-                    BEAST_EXPECT(result.second.tx_bytes() == toBytes(s.peekData()));
+                    BEAST_EXPECT(
+                        result.second.tx_bytes() == toBytes(s.peekData()));
                 }
                 else
                 {
@@ -231,7 +245,7 @@ class Tx_test : public beast::unit_test::suite
 
         // Find not existing transaction
         auto const tx = env.jt(noop(A1), seq(env.seq(A1))).stx;
-        for (bool b : { false, true })
+        for (bool b : {false, true})
         {
             auto const result = grpcTx(tx->getTransactionID(), b);
 
@@ -247,7 +261,7 @@ class Tx_test : public beast::unit_test::suite
                 << deletedLedger << ";";
         }
 
-        for (bool b : { false, true })
+        for (bool b : {false, true})
         {
             auto const result = grpcTx(tx->getTransactionID(), b);
 
@@ -255,14 +269,14 @@ class Tx_test : public beast::unit_test::suite
         }
     }
 
-
 public:
-    void run () override
+    void
+    run() override
     {
         testTxGrpc();
     }
 };
 
-BEAST_DEFINE_TESTSUITE (Tx, app, ripple);
-
-}  // ripple
+BEAST_DEFINE_TESTSUITE(Tx, app, ripple);
+}  // namespace test
+}  // namespace ripple

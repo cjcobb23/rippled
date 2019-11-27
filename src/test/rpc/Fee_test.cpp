@@ -17,43 +17,50 @@
 */
 //==============================================================================
 
+#include <ripple/app/ledger/LedgerMaster.h>
+#include <ripple/app/misc/TxQ.h>
+#include <ripple/basics/mulDiv.h>
+#include <ripple/core/DatabaseCon.h>
+#include <ripple/protocol/ErrorCodes.h>
+#include <ripple/protocol/jss.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 #include <test/jtx.h>
 #include <test/jtx/Env.h>
 #include <test/jtx/envconfig.h>
-#include <ripple/protocol/jss.h>
-#include <ripple/core/DatabaseCon.h>
-#include <ripple/protocol/ErrorCodes.h>
-#include <ripple/app/misc/TxQ.h>
-#include <ripple/basics/mulDiv.h>
-#include <ripple/rpc/impl/RPCHelpers.h>
-#include <ripple/app/ledger/LedgerMaster.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
 #include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {
+namespace test {
 
 class Fee_test : public beast::unit_test::suite
 {
-
     class GrpcFeeClient : public GRPCTestClientBase
     {
     public:
         rpc::v1::GetFeeRequest request;
         rpc::v1::GetFeeResponse reply;
 
-        void GetFee()
+        GrpcFeeClient(std::string const& grpcPort)
+            : GRPCTestClientBase(grpcPort)
+        {
+        }
+
+        void
+        GetFee()
         {
             status = stub_->GetFee(&context, request, &reply);
         }
     };
 
-    std::pair<bool, rpc::v1::GetFeeResponse> grpcGetFee()
+    std::pair<bool, rpc::v1::GetFeeResponse>
+    grpcGetFee(std::string const& grpcPort)
     {
-        GrpcFeeClient client;
+        GrpcFeeClient client(grpcPort);
         client.GetFee();
-        return std::pair<bool, rpc::v1::GetFeeResponse>(client.status.ok(),
-                client.reply);
+        return std::pair<bool, rpc::v1::GetFeeResponse>(
+            client.status.ok(), client.reply);
     }
 
     void
@@ -62,10 +69,11 @@ class Fee_test : public beast::unit_test::suite
         testcase("Test Fee Grpc");
 
         using namespace test::jtx;
-
-        Env env(*this);
-        Account A1 {"A1"};
-        Account A2 {"A2"};
+        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
+        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
+        Env env(*this, std::move(config));
+        Account A1{"A1"};
+        Account A2{"A2"};
         env.fund(XRP(10000), A1);
         env.fund(XRP(10000), A2);
         env.close();
@@ -82,54 +90,64 @@ class Fee_test : public beast::unit_test::suite
 
         auto const metrics = env.app().getTxQ().getMetrics(*env.current());
 
-        auto const result = grpcGetFee();
+        auto const result = grpcGetFee(grpcPort);
 
         BEAST_EXPECT(result.first == true);
 
         auto reply = result.second;
 
-        //current ledger data
+        // current ledger data
         BEAST_EXPECT(reply.current_ledger_size() == metrics.txInLedger);
         BEAST_EXPECT(reply.current_queue_size() == metrics.txCount);
         BEAST_EXPECT(reply.expected_ledger_size() == metrics.txPerLedger);
         BEAST_EXPECT(reply.ledger_current_index() == view->info().seq);
         BEAST_EXPECT(reply.max_queue_size() == *metrics.txQMaxSize);
 
-        //fee levels data
+        // fee levels data
         rpc::v1::FeeLevels& levels = *reply.mutable_levels();
         BEAST_EXPECT(levels.median_level() == metrics.medFeeLevel);
         BEAST_EXPECT(levels.minimum_level() == metrics.minProcessingFeeLevel);
         BEAST_EXPECT(levels.open_ledger_level() == metrics.openLedgerFeeLevel);
         BEAST_EXPECT(levels.reference_level() == metrics.referenceFeeLevel);
 
-        //fee data
+        // fee data
         rpc::v1::Fee& drops = *reply.mutable_drops();
         auto const baseFee = view->fees().base;
-        BEAST_EXPECT(drops.base_fee() == mulDiv(
-                    metrics.referenceFeeLevel, baseFee,
-                    metrics.referenceFeeLevel).second);
-        BEAST_EXPECT(drops.minimum_fee() == mulDiv(
-                    metrics.minProcessingFeeLevel, baseFee,
-                    metrics.referenceFeeLevel).second);
-        BEAST_EXPECT(drops.median_fee() == mulDiv(
-                    metrics.medFeeLevel, baseFee,
-                    metrics.referenceFeeLevel).second);
-        auto escalatedFee = mulDiv(
-                metrics.openLedgerFeeLevel, baseFee,
-                metrics.referenceFeeLevel).second;
-        if (mulDiv(escalatedFee, metrics.referenceFeeLevel,
-                    baseFee).second < metrics.openLedgerFeeLevel)
+        BEAST_EXPECT(
+            drops.base_fee() ==
+            mulDiv(
+                metrics.referenceFeeLevel, baseFee, metrics.referenceFeeLevel)
+                .second);
+        BEAST_EXPECT(
+            drops.minimum_fee() ==
+            mulDiv(
+                metrics.minProcessingFeeLevel,
+                baseFee,
+                metrics.referenceFeeLevel)
+                .second);
+        BEAST_EXPECT(
+            drops.median_fee() ==
+            mulDiv(metrics.medFeeLevel, baseFee, metrics.referenceFeeLevel)
+                .second);
+        auto escalatedFee =
+            mulDiv(
+                metrics.openLedgerFeeLevel, baseFee, metrics.referenceFeeLevel)
+                .second;
+        if (mulDiv(escalatedFee, metrics.referenceFeeLevel, baseFee).second <
+            metrics.openLedgerFeeLevel)
             ++escalatedFee;
         BEAST_EXPECT(drops.open_ledger_fee() == escalatedFee);
     }
 
 public:
-    void run () override
+    void
+    run() override
     {
         testFeeGrpc();
     }
 };
 
-BEAST_DEFINE_TESTSUITE (Fee, app, ripple);
+BEAST_DEFINE_TESTSUITE(Fee, app, ripple);
 
-}  // ripple
+}  // namespace test
+}  // namespace ripple

@@ -392,7 +392,7 @@ void
 GRPCServer::run()
 {
     // Start the server and setup listeners
-    if (running_ = impl_.start())
+    if ((running_ = impl_.start()))
     {
         thread_ = std::thread([this]() {
             // Start the event loop and begin handling requests
