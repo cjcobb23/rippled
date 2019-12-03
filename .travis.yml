@@ -230,6 +230,7 @@ matrix:
             - bash
             - ninja
             - cmake
+            - wget
             - openssl@1.1
           update: true
       install:

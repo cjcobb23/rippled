@@ -166,7 +166,7 @@ write (Streambuf& streambuf,
     ::google::protobuf::Message const& m, int type,
         std::size_t blockBytes)
 {
-    auto const size = m.ByteSize();
+    auto const size = m.ByteSizeLong();
     std::array<std::uint8_t, 6> v;
     v[0] = static_cast<std::uint8_t>((size >> 24) & 0xFF);
     v[1] = static_cast<std::uint8_t>((size >> 16) & 0xFF);
