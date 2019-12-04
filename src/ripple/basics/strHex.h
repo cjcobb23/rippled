@@ -94,14 +94,6 @@ inline std::string strHex (const std::uint64_t uiHost)
     auto const end   = begin + sizeof(uBig);
     return strHex(begin, end);
 }
-
-//converts data to a string of bytes
-template <class T>
-std::string toBytes(T const & data)
-{
-    const char* bytes = reinterpret_cast<const char*>(data.data());
-    return {bytes,data.size()};
-}
 }
 
 #endif

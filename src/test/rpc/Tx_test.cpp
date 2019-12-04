@@ -97,7 +97,7 @@ class Tx_test : public beast::unit_test::suite
             txn_st->getFieldU32(sfLastLedgerSequence));
 
         Blob blob = txn_st->getFieldVL(sfTxnSignature);
-        BEAST_EXPECT(proto.signature() == toBytes(blob));
+        BEAST_EXPECT(proto.signature() == toByteString(blob));
 
         if (txn_st->isFieldPresent(sfSendMax))
         {

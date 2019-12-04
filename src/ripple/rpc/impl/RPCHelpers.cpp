@@ -850,8 +850,8 @@ populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
     }
     if (obj.isFieldPresent(sfPreviousTxnID))
     {
-        proto.set_previous_transaction_id(
-            toBytes(obj.getFieldH256(sfPreviousTxnID)));
+        auto field = obj.getFieldH256(sfPreviousTxnID);
+        proto.set_previous_transaction_id(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfPreviousTxnLgrSeq))
     {
@@ -860,19 +860,23 @@ populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
     }
     if (obj.isFieldPresent(sfAccountTxnID))
     {
-        proto.set_account_txn_id(toBytes(obj.getFieldH256(sfAccountTxnID)));
+        auto field = obj.getFieldH256(sfAccountTxnID);
+        proto.set_account_txn_id(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfDomain))
     {
-        proto.set_domain(toBytes(obj.getFieldVL(sfDomain)));
+        auto field = obj.getFieldH256(sfDomain);
+        proto.set_domain(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfEmailHash))
     {
-        proto.set_email_hash(toBytes(obj.getFieldH128(sfEmailHash)));
+        auto field = obj.getFieldH128(sfEmailHash);
+        proto.set_email_hash(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfMessageKey))
     {
-        proto.set_message_key(toBytes(obj.getFieldVL(sfMessageKey)));
+        auto field = obj.getFieldVL(sfMessageKey);
+        proto.set_message_key(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfRegularKey))
     {
@@ -964,7 +968,8 @@ populateOffer(rpc::v1::Offer& proto, STObject const& obj)
     }
     if (obj.isFieldPresent(sfBookDirectory))
     {
-        proto.set_book_directory(toBytes(obj.getFieldVL(sfBookDirectory)));
+        auto field = obj.getFieldVL(sfBookDirectory);
+        proto.set_book_directory(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfBookNode))
     {
@@ -981,7 +986,8 @@ populateSignerList(rpc::v1::SignerList& proto, STObject const& obj)
 {
     proto.set_flags(obj.getFieldU32(sfFlags));
 
-    proto.set_previous_txn_id(toBytes(obj.getFieldH256(sfPreviousTxnID)));
+    auto prevTxnID = obj.getFieldH256(sfPreviousTxnID);
+    proto.set_previous_txn_id(prevTxnID.data(), prevTxnID.size());
 
     proto.set_previous_txn_ledger_sequence(
         obj.getFieldU32(sfPreviousTxnLgrSeq));
@@ -1094,13 +1100,13 @@ populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
         for (size_t i = 0; i < vec.size(); ++i)
         {
             uint256 const& elt = vec[i];
-            proto.add_indexes(toBytes(elt));
+            proto.add_indexes(elt.data(), elt.size());
         }
     }
     if (obj.isFieldPresent(sfRootIndex))
     {
-        uint256 root_index = obj.getFieldH256(sfRootIndex);
-        proto.set_root_index(toBytes(root_index));
+        uint256 rootIndex = obj.getFieldH256(sfRootIndex);
+        proto.set_root_index(rootIndex.data(), rootIndex.size());
     }
     if (obj.isFieldPresent(sfIndexNext))
     {
@@ -1205,8 +1211,8 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
         rpc::v1::AffectedNode* node = proto.add_affected_nodes();
 
         // ledger index
-        uint256 ledger_index = obj.getFieldH256(sfLedgerIndex);
-        node->set_ledger_index(toBytes(ledger_index));
+        uint256 ledgerIndex = obj.getFieldH256(sfLedgerIndex);
+        node->set_ledger_index(ledgerIndex.data(), ledgerIndex.size());
 
         // ledger entry type
         std::uint16_t lgrType = obj.getFieldU16(sfLedgerEntryType);
@@ -1239,9 +1245,9 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
             }
 
             // prev txn id and prev txn ledger seq
-            uint256 prev_txn_id = obj.getFieldH256(sfPreviousTxnID);
+            uint256 prevTxnId = obj.getFieldH256(sfPreviousTxnID);
             node->mutable_modified_node()->set_previous_txn_id(
-                toBytes(prev_txn_id));
+                prevTxnId.data(), prevTxnId.size());
 
             node->mutable_modified_node()->set_previous_txn_ledger_sequence(
                 obj.getFieldU32(sfPreviousTxnLgrSeq));
