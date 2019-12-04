@@ -82,7 +82,6 @@ private:
 
     Application& app_;
 
-    // address of where to run the server
     std::string serverAddress_;
 
     // typedef for function to bind a listener
@@ -123,7 +122,7 @@ public:
     void
     handleRpcs();
 
-    // Create a CallData object for each RPC
+    // Create a CallData object for each RPC. Return created objects in vector
     std::vector<std::shared_ptr<Processor>>
     setupListeners();
 
@@ -150,7 +149,6 @@ private:
         // true if finished processing request
         bool finished_;
 
-        // reference to Application
         Application& app_;
 
         // mutex for signaling abort

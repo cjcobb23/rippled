@@ -3,7 +3,6 @@ syntax = "proto3";
 package rpc.v1;
 
 import "rpc/v1/amount.proto";
-import "rpc/v1/account_info.proto";
 
 // A class encompassing all transactions.
 message Transaction {

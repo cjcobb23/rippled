@@ -314,9 +314,9 @@ ledgerFromRequest(
     auto& ledgerMaster = context.ledgerMaster;
 
     using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
-    LedgerCase ledger_case = request.ledger().ledger_case();
+    LedgerCase ledgerCase = request.ledger().ledger_case();
 
-    if (ledger_case == LedgerCase::kHash)
+    if (ledgerCase == LedgerCase::kHash)
     {
         uint256 ledgerHash = uint256::fromVoid(request.ledger().hash().data());
         if (ledgerHash.size() != request.ledger().hash().size())
@@ -326,7 +326,7 @@ ledgerFromRequest(
         if (ledger == nullptr)
             return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
     }
-    else if (ledger_case == LedgerCase::kSequence)
+    else if (ledgerCase == LedgerCase::kSequence)
     {
         ledger = ledgerMaster.getLedgerBySeq(request.ledger().sequence());
 
@@ -348,8 +348,8 @@ ledgerFromRequest(
         }
     }
     else if (
-        ledger_case == LedgerCase::kShortcut ||
-        ledger_case == LedgerCase::LEDGER_NOT_SET)
+        ledgerCase == LedgerCase::kShortcut ||
+        ledgerCase == LedgerCase::LEDGER_NOT_SET)
     {
         if (isValidatedOld(ledgerMaster, context.app.config().standalone()))
             return {rpcNO_NETWORK, "InsufficientNetworkMode"};

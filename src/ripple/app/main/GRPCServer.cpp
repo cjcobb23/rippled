@@ -24,7 +24,7 @@ namespace ripple {
 
 namespace {
 
-// helper function. strips port from endpoint string
+// helper function. strips port and scheme from endpoint string
 [[maybe_unused]] std::string
 getEndpoint(std::string const& peer) {
     std::size_t first = peer.find_first_of(":");
