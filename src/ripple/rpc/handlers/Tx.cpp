@@ -152,11 +152,6 @@ Json::Value doTx (RPC::Context& context)
     return ret;
 }
 
-std::string txnTypeString(TxType type)
-{
-    return TxFormats::getInstance().findByType(type)->getName();
-}
-
 std::pair<rpc::v1::GetTxResponse, grpc::Status>
 doTxGrpc(RPC::ContextGeneric<rpc::v1::GetTxRequest>& context)
 {
@@ -167,8 +162,8 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::GetTxRequest>& context)
     // input
     rpc::v1::GetTxRequest& request = context.params;
 
-    std::string const& hash_bytes = request.hash();
-    uint256 hash = uint256::fromVoid(hash_bytes.data());
+    std::string const& hashBytes = request.hash();
+    uint256 hash = uint256::fromVoid(hashBytes.data());
 
     // hash is included in the response
     result.set_hash(request.hash());
@@ -178,27 +173,33 @@ doTxGrpc(RPC::ContextGeneric<rpc::v1::GetTxRequest>& context)
         context.app.getMasterTransaction().fetch(hash, true);
     if (!txn)
     {
-        grpc::Status error_status{grpc::StatusCode::NOT_FOUND, "txn not found"};
-        return {result, error_status};
+        grpc::Status errorStatus{grpc::StatusCode::NOT_FOUND, "txn not found"};
+        return {result, errorStatus};
     }
 
-    std::shared_ptr<STTx const> st_txn = txn->getSTransaction();
-    if (st_txn->getTxnType() != ttPAYMENT)
+    std::shared_ptr<STTx const> stTxn = txn->getSTransaction();
+    if (stTxn->getTxnType() != ttPAYMENT)
     {
-        grpc::Status error_status{
-            grpc::StatusCode::UNIMPLEMENTED,
-            "txn type not supported: " + txnTypeString(st_txn->getTxnType())};
+        auto getTypeStr = [&stTxn]() {
+            return TxFormats::getInstance()
+                .findByType(stTxn->getTxnType())
+                ->getName();
+        };
+
+        grpc::Status errorStatus{grpc::StatusCode::UNIMPLEMENTED,
+                                 "txn type not supported: " + getTypeStr()};
+        return {result, errorStatus};
     }
 
     // populate transaction data
     if (request.binary())
     {
-        Serializer s = st_txn->getSerializer();
+        Serializer s = stTxn->getSerializer();
         result.set_transaction_binary(s.data(), s.size());
     }
     else
     {
-        RPC::populateTransaction(*result.mutable_transaction(), st_txn);
+        RPC::populateTransaction(*result.mutable_transaction(), stTxn);
     }
 
     result.set_ledger_index(txn->getLedger());

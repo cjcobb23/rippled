@@ -29,12 +29,12 @@ namespace {
 getEndpoint(std::string const& peer) {
     std::size_t first = peer.find_first_of(":");
     std::size_t last = peer.find_last_of(":");
-    std::string peer_clean(peer);
+    std::string peerClean(peer);
     if (first != last)
     {
-        peer_clean = peer.substr(first + 1);
+        peerClean = peer.substr(first + 1);
     }
-    return peer_clean;
+    return peerClean;
 }
 }  // namespace
 
@@ -43,24 +43,24 @@ GRPCServerImpl::CallData<Request, Response>::CallData(
     rpc::v1::XRPLedgerAPIService::AsyncService& service,
     grpc::ServerCompletionQueue& cq,
     Application& app,
-    BindListener<Request, Response> bind_listener,
+    BindListener<Request, Response> bindListener,
     Handler<Request, Response> handler,
-    RPC::Condition required_condition,
-    Resource::Charge load_type)
+    RPC::Condition requiredCondition,
+    Resource::Charge loadType)
     : service_(service)
     , cq_(cq)
     , finished_(false)
     , app_(app)
     , aborted_(false)
     , responder_(&ctx_)
-    , bind_listener_(std::move(bind_listener))
+    , bindListener_(std::move(bindListener))
     , handler_(std::move(handler))
-    , required_condition_(std::move(required_condition))
-    , load_type_(std::move(load_type))
+    , requiredCondition_(std::move(requiredCondition))
+    , loadType_(std::move(loadType))
 {
     // Bind a listener. When a request is received, "this" will be returned
     // from CompletionQueue::Next
-    bind_listener_(service_, &ctx_, &request_, &responder_, &cq_, &cq_, this);
+    bindListener_(service_, &ctx_, &request_, &responder_, &cq_, &cq_, this);
 }
 
 template <class Request, class Response>
@@ -71,10 +71,10 @@ GRPCServerImpl::CallData<Request, Response>::clone()
         service_,
         cq_,
         app_,
-        bind_listener_,
+        bindListener_,
         handler_,
-        required_condition_,
-        load_type_);
+        requiredCondition_,
+        loadType_);
 }
 
 template <class Request, class Response>
@@ -83,20 +83,20 @@ GRPCServerImpl::CallData<Request, Response>::process()
 {
     if (!finished_)
     {
-        std::shared_ptr<CallData<Request, Response>> this_s =
+        std::shared_ptr<CallData<Request, Response>> thisShared =
             this->shared_from_this();
         app_.getJobQueue().postCoro(
             JobType::jtRPC,
             "gRPC-Client",
-            [this_s](std::shared_ptr<JobQueue::Coro> coro) {
-                std::lock_guard<std::mutex> lock(this_s->mut_);
+            [thisShared](std::shared_ptr<JobQueue::Coro> coro) {
+                std::lock_guard<std::mutex> lock(thisShared->mut_);
 
                 // Do nothing if call has been aborted due to server shutdown
-                if (this_s->aborted_)
+                if (thisShared->aborted_)
                     return;
 
-                this_s->process(coro);
-                this_s->finished_ = true;
+                thisShared->process(coro);
+                thisShared->finished_ = true;
             });
     }
     else
@@ -137,15 +137,14 @@ GRPCServerImpl::CallData<Request, Response>::process(
                                                  InfoSub::pointer()};
 
             // Make sure we can currently handle the rpc
-            error_code_i condition_met_res =
-                RPC::conditionMet(required_condition_, context);
+            error_code_i conditionMetRes =
+                RPC::conditionMet(requiredCondition_, context);
 
-            if (condition_met_res != rpcSUCCESS)
+            if (conditionMetRes != rpcSUCCESS)
             {
-                RPC::ErrorInfo error_info =
-                    RPC::get_error_info(condition_met_res);
+                RPC::ErrorInfo errorInfo = RPC::get_error_info(conditionMetRes);
                 grpc::Status status{grpc::StatusCode::INTERNAL,
-                                    error_info.message.c_str()};
+                                    errorInfo.message.c_str()};
                 responder_.FinishWithError(status, this);
             }
             else
@@ -185,7 +184,7 @@ template <class Request, class Response>
 Resource::Charge
 GRPCServerImpl::CallData<Request, Response>::getLoadType()
 {
-    return load_type_;
+    return loadType_;
 }
 
 template <class Request, class Response>
@@ -225,7 +224,7 @@ GRPCServerImpl::GRPCServerImpl(Application& app) : app_(app)
                 boost::asio::ip::make_address(ipPair.first),
                 std::stoi(portPair.first));
 
-            server_address_ = endpoint.to_string();
+            serverAddress_ = endpoint.to_string();
         }
         catch (std::exception const& ex)
         {
@@ -270,18 +269,17 @@ GRPCServerImpl::handleRpcs()
     // tells us whether there is any kind of event or cq_ is shutting down.
     while (cq_->Next(&tag, &ok))
     {
+        auto ptr = static_cast<Processor*>(tag);
         // if ok is false, event was terminated as part of a shutdown sequence
         // need to abort any further processing
         if (!ok)
         {
             // abort first, then erase. Otherwise, erase can delete object
-            auto ptr = static_cast<Processor*>(tag);
             ptr->abort();
             erase(ptr);
         }
         else
         {
-            auto ptr = static_cast<Processor*>(tag);
             if (!ptr->isFinished())
             {
                 // ptr is now processing a request, so create a new CallData
@@ -369,13 +367,12 @@ bool
 GRPCServerImpl::start()
 {
     // if config does not specify a grpc server address, don't start
-    if (server_address_ == "")
+    if (serverAddress_ == "")
         return false;
 
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
-    builder.AddListeningPort(
-        server_address_, grpc::InsecureServerCredentials());
+    builder.AddListeningPort(serverAddress_, grpc::InsecureServerCredentials());
     // Register "service_" as the instance through which we'll communicate with
     // clients. In this case it corresponds to an *asynchronous* service.
     builder.RegisterService(&service_);

@@ -83,7 +83,7 @@ private:
     Application& app_;
 
     // address of where to run the server
-    std::string server_address_;
+    std::string serverAddress_;
 
     // typedef for function to bind a listener
     // This is always of the form:
@@ -169,16 +169,16 @@ private:
         grpc::ServerAsyncResponseWriter<Response> responder_;
 
         // Function that creates a listener for specific request type
-        BindListener<Request, Response> bind_listener_;
+        BindListener<Request, Response> bindListener_;
 
         // Function that processes a request
         Handler<Request, Response> handler_;
 
         // Condition required for this RPC
-        RPC::Condition required_condition_;
+        RPC::Condition requiredCondition_;
 
         // Load type for this RPC
-        Resource::Charge load_type_;
+        Resource::Charge loadType_;
 
     public:
         virtual ~CallData() = default;
@@ -190,10 +190,10 @@ private:
             rpc::v1::XRPLedgerAPIService::AsyncService& service,
             grpc::ServerCompletionQueue& cq,
             Application& app,
-            BindListener<Request, Response> bind_listener,
+            BindListener<Request, Response> bindListener,
             Handler<Request, Response> handler,
-            RPC::Condition required_condition,
-            Resource::Charge load_type);
+            RPC::Condition requiredCondition,
+            Resource::Charge loadType);
 
         virtual void
         process() override;

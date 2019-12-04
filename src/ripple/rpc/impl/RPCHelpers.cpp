@@ -998,15 +998,15 @@ populateSignerList(rpc::v1::SignerList& proto, STObject const& obj)
 
     proto.set_signer_quorum(obj.getFieldU32(sfSignerQuorum));
 
-    STArray const& signer_entries = obj.getFieldArray(sfSignerEntries);
+    STArray const& signerEntries = obj.getFieldArray(sfSignerEntries);
 
-    for (auto it = signer_entries.begin(); it != signer_entries.end(); ++it)
+    for (auto it = signerEntries.begin(); it != signerEntries.end(); ++it)
     {
-        rpc::v1::SignerEntry& signer_entry_proto = *proto.add_signer_entries();
+        rpc::v1::SignerEntry& signerEntryProto = *proto.add_signer_entries();
 
-        signer_entry_proto.mutable_account()->set_address(
+        signerEntryProto.mutable_account()->set_address(
             toBase58(it->getAccountID(sfAccount)));
-        signer_entry_proto.set_signer_weight(it->getFieldU16(sfSignerWeight));
+        signerEntryProto.set_signer_weight(it->getFieldU16(sfSignerWeight));
     }
 }
 
@@ -1069,30 +1069,30 @@ populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
 {
     if (obj.isFieldPresent(sfOwner))
     {
-        AccountID owner_account = obj.getAccountID(sfAccount);
-        proto.set_owner(toBase58(owner_account));
+        AccountID ownerAccount = obj.getAccountID(sfAccount);
+        proto.set_owner(toBase58(ownerAccount));
     }
     if (obj.isFieldPresent(sfTakerPaysCurrency))
     {
-        uint160 tp_curr = obj.getFieldH160(sfTakerPaysCurrency);
+        uint160 tpCurr = obj.getFieldH160(sfTakerPaysCurrency);
         proto.mutable_taker_pays_currency()->set_code(
-            tp_curr.data(), tp_curr.size());
+            tpCurr.data(), tpCurr.size());
     }
     if (obj.isFieldPresent(sfTakerPaysIssuer))
     {
-        uint160 tp_iss = obj.getFieldH160(sfTakerPaysIssuer);
-        proto.set_taker_pays_issuer(tp_iss.data(), tp_iss.size());
+        uint160 tpIss = obj.getFieldH160(sfTakerPaysIssuer);
+        proto.set_taker_pays_issuer(tpIss.data(), tpIss.size());
     }
     if (obj.isFieldPresent(sfTakerGetsCurrency))
     {
-        uint160 tg_curr = obj.getFieldH160(sfTakerGetsCurrency);
+        uint160 tgCurr = obj.getFieldH160(sfTakerGetsCurrency);
         proto.mutable_taker_gets_currency()->set_code(
-            tg_curr.data(), tg_curr.size());
+            tgCurr.data(), tgCurr.size());
     }
     if (obj.isFieldPresent(sfTakerGetsIssuer))
     {
-        uint160 tg_iss = obj.getFieldH160(sfTakerGetsIssuer);
-        proto.set_taker_gets_issuer(tg_iss.data(), tg_iss.size());
+        uint160 tgIss = obj.getFieldH160(sfTakerGetsIssuer);
+        proto.set_taker_gets_issuer(tgIss.data(), tgIss.size());
     }
     if (obj.isFieldPresent(sfIndexes))
     {
@@ -1224,24 +1224,24 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
             // final fields
             if (obj.isFieldPresent(sfFinalFields))
             {
-                STObject& final_fields =
+                STObject& finalFields =
                     obj.getField(sfFinalFields).downcast<STObject>();
 
-                rpc::v1::LedgerObject* final_fields_proto =
+                rpc::v1::LedgerObject* finalFieldsProto =
                     node->mutable_modified_node()->mutable_final_fields();
 
-                populateFields(*final_fields_proto, final_fields, lgrType);
+                populateFields(*finalFieldsProto, finalFields, lgrType);
             }
             // previous fields
             if (obj.isFieldPresent(sfPreviousFields))
             {
-                STObject& prev_fields =
+                STObject& prevFields =
                     obj.getField(sfPreviousFields).downcast<STObject>();
 
-                rpc::v1::LedgerObject* prev_fields_proto =
+                rpc::v1::LedgerObject* prevFieldsProto =
                     node->mutable_modified_node()->mutable_previous_fields();
 
-                populateFields(*prev_fields_proto, prev_fields, lgrType);
+                populateFields(*prevFieldsProto, prevFields, lgrType);
             }
 
             // prev txn id and prev txn ledger seq
@@ -1258,13 +1258,13 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
             // new fields
             if (obj.isFieldPresent(sfNewFields))
             {
-                STObject& new_fields =
+                STObject& newFields =
                     obj.getField(sfNewFields).downcast<STObject>();
 
-                rpc::v1::LedgerObject* new_fields_proto =
+                rpc::v1::LedgerObject* newFieldsProto =
                     node->mutable_created_node()->mutable_new_fields();
 
-                populateFields(*new_fields_proto, new_fields, lgrType);
+                populateFields(*newFieldsProto, newFields, lgrType);
             }
         }
         // deleted node
@@ -1273,13 +1273,13 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
             // final fields
             if (obj.isFieldPresent(sfFinalFields))
             {
-                STObject& final_fields =
-                    obj.getField(sfNewFields).downcast<STObject>();
+                STObject& finalFields =
+                    obj.getField(sfFinalFields).downcast<STObject>();
 
-                rpc::v1::LedgerObject* final_fields_proto =
+                rpc::v1::LedgerObject* finalFieldsProto =
                     node->mutable_deleted_node()->mutable_final_fields();
 
-                populateFields(*final_fields_proto, final_fields, lgrType);
+                populateFields(*finalFieldsProto, finalFields, lgrType);
             }
         }
     }
@@ -1308,55 +1308,54 @@ populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount)
 void
 populateTransaction(
     rpc::v1::Transaction& proto,
-    std::shared_ptr<STTx const> txn_st)
+    std::shared_ptr<STTx const> txnSt)
 {
-    AccountID account = txn_st->getAccountID(sfAccount);
+    AccountID account = txnSt->getAccountID(sfAccount);
     proto.mutable_account()->set_address(toBase58(account));
 
-    STAmount amount = txn_st->getFieldAmount(sfAmount);
+    STAmount amount = txnSt->getFieldAmount(sfAmount);
     populateAmount(*proto.mutable_payment()->mutable_amount(), amount);
 
-    AccountID account_dest = txn_st->getAccountID(sfDestination);
+    AccountID accountDest = txnSt->getAccountID(sfDestination);
     proto.mutable_payment()->mutable_destination()->set_address(
-        toBase58(account_dest));
+        toBase58(accountDest));
 
-    STAmount fee = txn_st->getFieldAmount(sfFee);
+    STAmount fee = txnSt->getFieldAmount(sfFee);
     proto.mutable_fee()->set_drops(fee.xrp().drops());
 
-    proto.set_sequence(txn_st->getFieldU32(sfSequence));
+    proto.set_sequence(txnSt->getFieldU32(sfSequence));
 
-    Blob signingPubKey = txn_st->getFieldVL(sfSigningPubKey);
+    Blob signingPubKey = txnSt->getFieldVL(sfSigningPubKey);
     proto.set_signing_public_key(signingPubKey.data(), signingPubKey.size());
 
-    proto.set_flags(txn_st->getFieldU32(sfFlags));
+    proto.set_flags(txnSt->getFieldU32(sfFlags));
 
-    proto.set_last_ledger_sequence(txn_st->getFieldU32(sfLastLedgerSequence));
+    proto.set_last_ledger_sequence(txnSt->getFieldU32(sfLastLedgerSequence));
 
-    Blob blob = txn_st->getFieldVL(sfTxnSignature);
+    Blob blob = txnSt->getFieldVL(sfTxnSignature);
     proto.set_signature(blob.data(), blob.size());
 
-    if (safe_cast<TxType>(txn_st->getFieldU16(sfTransactionType)) ==
+    if (safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType)) ==
         TxType::ttPAYMENT)
     {
-        if (txn_st->isFieldPresent(sfSendMax))
+        if (txnSt->isFieldPresent(sfSendMax))
         {
-            STAmount const& send_max = txn_st->getFieldAmount(sfSendMax);
+            STAmount const& sendMax = txnSt->getFieldAmount(sfSendMax);
             populateAmount(
-                *proto.mutable_payment()->mutable_send_max(), send_max);
+                *proto.mutable_payment()->mutable_send_max(), sendMax);
         }
 
         // populate path data
-        STPathSet const& pathset = txn_st->getFieldPathSet(sfPaths);
+        STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
         for (auto it = pathset.begin(); it < pathset.end(); ++it)
         {
             STPath const& path = *it;
 
-            rpc::v1::Path* proto_path = proto.mutable_payment()->add_paths();
+            rpc::v1::Path* protoPath = proto.mutable_payment()->add_paths();
 
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                rpc::v1::PathElement* proto_element =
-                    proto_path->add_elements();
+                rpc::v1::PathElement* protoElement = protoPath->add_elements();
                 STPathElement const& elt = *it2;
 
                 if (elt.isOffer())
@@ -1364,21 +1363,21 @@ populateTransaction(
                     if (elt.hasCurrency())
                     {
                         Currency const& currency = elt.getCurrency();
-                        proto_element->mutable_currency()->set_name(
+                        protoElement->mutable_currency()->set_name(
                             to_string(currency));
                     }
                     if (elt.hasIssuer())
                     {
                         AccountID const& issuer = elt.getIssuerID();
-                        proto_element->mutable_issuer()->set_address(
+                        protoElement->mutable_issuer()->set_address(
                             toBase58(issuer));
                     }
                 }
                 else
                 {
-                    AccountID const& path_account = elt.getAccountID();
-                    proto_element->mutable_account()->set_address(
-                        toBase58(path_account));
+                    AccountID const& pathAccount = elt.getAccountID();
+                    protoElement->mutable_account()->set_address(
+                        toBase58(pathAccount));
                 }
             }
         }

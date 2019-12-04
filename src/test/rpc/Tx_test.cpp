@@ -70,55 +70,55 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txn_st)
+    cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
     {
-        AccountID account = txn_st->getAccountID(sfAccount);
+        AccountID account = txnSt->getAccountID(sfAccount);
         BEAST_EXPECT(proto.account().address() == toBase58(account));
 
-        STAmount amount = txn_st->getFieldAmount(sfAmount);
+        STAmount amount = txnSt->getFieldAmount(sfAmount);
         cmpAmount(proto.payment().amount(), amount);
 
-        AccountID account_dest = txn_st->getAccountID(sfDestination);
+        AccountID accountDest = txnSt->getAccountID(sfDestination);
         BEAST_EXPECT(
-            proto.payment().destination().address() == toBase58(account_dest));
+            proto.payment().destination().address() == toBase58(accountDest));
 
-        STAmount fee = txn_st->getFieldAmount(sfFee);
+        STAmount fee = txnSt->getFieldAmount(sfFee);
         BEAST_EXPECT(proto.fee().drops() == fee.xrp().drops());
 
-        BEAST_EXPECT(proto.sequence() == txn_st->getFieldU32(sfSequence));
+        BEAST_EXPECT(proto.sequence() == txnSt->getFieldU32(sfSequence));
 
-        Blob signingPubKey = txn_st->getFieldVL(sfSigningPubKey);
+        Blob signingPubKey = txnSt->getFieldVL(sfSigningPubKey);
         BEAST_EXPECT(proto.signing_public_key() == toByteString(signingPubKey));
 
-        BEAST_EXPECT(proto.flags() == txn_st->getFieldU32(sfFlags));
+        BEAST_EXPECT(proto.flags() == txnSt->getFieldU32(sfFlags));
 
         BEAST_EXPECT(
             proto.last_ledger_sequence() ==
-            txn_st->getFieldU32(sfLastLedgerSequence));
+            txnSt->getFieldU32(sfLastLedgerSequence));
 
-        Blob blob = txn_st->getFieldVL(sfTxnSignature);
+        Blob blob = txnSt->getFieldVL(sfTxnSignature);
         BEAST_EXPECT(proto.signature() == toByteString(blob));
 
-        if (txn_st->isFieldPresent(sfSendMax))
+        if (txnSt->isFieldPresent(sfSendMax))
         {
-            STAmount const& send_max = txn_st->getFieldAmount(sfSendMax);
+            STAmount const& send_max = txnSt->getFieldAmount(sfSendMax);
             cmpAmount(proto.payment().send_max(), send_max);
         }
 
         // populate path data
-        STPathSet const& pathset = txn_st->getFieldPathSet(sfPaths);
+        STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
         int ind = 0;
         for (auto it = pathset.begin(); it < pathset.end(); ++it)
         {
             STPath const& path = *it;
 
-            const rpc::v1::Path& proto_path = proto.payment().paths(ind++);
+            const rpc::v1::Path& protoPath = proto.payment().paths(ind++);
 
             int ind2 = 0;
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                const rpc::v1::PathElement& proto_element =
-                    proto_path.elements(ind2++);
+                const rpc::v1::PathElement& protoElement =
+                    protoPath.elements(ind2++);
                 STPathElement const& elt = *it2;
 
                 if (elt.isOffer())
@@ -127,14 +127,14 @@ class Tx_test : public beast::unit_test::suite
                     {
                         Currency const& currency = elt.getCurrency();
                         BEAST_EXPECT(
-                            proto_element.currency().name() ==
+                            protoElement.currency().name() ==
                             to_string(currency));
                     }
                     if (elt.hasIssuer())
                     {
                         AccountID const& issuer = elt.getIssuerID();
                         BEAST_EXPECT(
-                            proto_element.issuer().address() ==
+                            protoElement.issuer().address() ==
                             toBase58(issuer));
                     }
                 }
@@ -142,7 +142,7 @@ class Tx_test : public beast::unit_test::suite
                 {
                     AccountID const& path_account = elt.getAccountID();
                     BEAST_EXPECT(
-                        proto_element.account().address() ==
+                        protoElement.account().address() ==
                         toBase58(path_account));
                 }
             }

@@ -33,7 +33,6 @@ namespace test {
 class Submit_test : public beast::unit_test::suite
 {
 public:
-    // gRPC stuff
     class SubmitClient : public GRPCTestClientBase
     {
     public:
@@ -53,10 +52,10 @@ public:
 
     struct TestData
     {
-        std::string xrp_tx_blob;
-        std::string xrp_tx_hash;
-        std::string usd_tx_blob;
-        std::string usd_tx_hash;
+        std::string xrpTxBlob;
+        std::string xrpTxHash;
+        std::string usdTxBlob;
+        std::string usdTxHash;
         const static int fund = 10000;
     } testData;
 
@@ -90,45 +89,45 @@ public:
         // use a websocket client to fill transaction blobs
         auto wsc = makeWSClient(env.app().config());
         {
-            Json::Value jrequest_xrp;
-            jrequest_xrp[jss::secret] = toBase58(generateSeed("alice"));
-            jrequest_xrp[jss::tx_json] =
+            Json::Value jrequestXrp;
+            jrequestXrp[jss::secret] = toBase58(generateSeed("alice"));
+            jrequestXrp[jss::tx_json] =
                 pay("alice", "bob", XRP(TestData::fund / 2));
-            Json::Value jreply_xrp = wsc->invoke("sign", jrequest_xrp);
+            Json::Value jreply_xrp = wsc->invoke("sign", jrequestXrp);
 
             if (!BEAST_EXPECT(jreply_xrp.isMember(jss::result)))
                 return;
             if (!BEAST_EXPECT(jreply_xrp[jss::result].isMember(jss::tx_blob)))
                 return;
-            testData.xrp_tx_blob =
+            testData.xrpTxBlob =
                 toBinary(jreply_xrp[jss::result][jss::tx_blob].asString());
             if (!BEAST_EXPECT(jreply_xrp[jss::result].isMember(jss::tx_json)))
                 return;
             if (!BEAST_EXPECT(
                     jreply_xrp[jss::result][jss::tx_json].isMember(jss::hash)))
                 return;
-            testData.xrp_tx_hash = toBinary(
+            testData.xrpTxHash = toBinary(
                 jreply_xrp[jss::result][jss::tx_json][jss::hash].asString());
         }
         {
-            Json::Value jrequest_usd;
-            jrequest_usd[jss::secret] = toBase58(generateSeed("bob"));
-            jrequest_usd[jss::tx_json] =
+            Json::Value jrequestUsd;
+            jrequestUsd[jss::secret] = toBase58(generateSeed("bob"));
+            jrequestUsd[jss::tx_json] =
                 pay("bob", "alice", bob["USD"](TestData::fund / 2));
-            Json::Value jreply_usd = wsc->invoke("sign", jrequest_usd);
+            Json::Value jreply_usd = wsc->invoke("sign", jrequestUsd);
 
             if (!BEAST_EXPECT(jreply_usd.isMember(jss::result)))
                 return;
             if (!BEAST_EXPECT(jreply_usd[jss::result].isMember(jss::tx_blob)))
                 return;
-            testData.usd_tx_blob =
+            testData.usdTxBlob =
                 toBinary(jreply_usd[jss::result][jss::tx_blob].asString());
             if (!BEAST_EXPECT(jreply_usd[jss::result].isMember(jss::tx_json)))
                 return;
             if (!BEAST_EXPECT(
                     jreply_usd[jss::result][jss::tx_json].isMember(jss::hash)))
                 return;
-            testData.usd_tx_hash = toBinary(
+            testData.usdTxHash = toBinary(
                 jreply_usd[jss::result][jss::tx_json][jss::hash].asString());
         }
     }
@@ -153,7 +152,7 @@ public:
         // XRP
         {
             auto client = getClient();
-            client.request.set_signed_transaction(testData.xrp_tx_blob);
+            client.request.set_signed_transaction(testData.xrpTxBlob);
             client.SubmitTransaction();
             if (!BEAST_EXPECT(client.status.ok()))
             {
@@ -161,12 +160,12 @@ public:
             }
             BEAST_EXPECT(client.reply.engine_result().result() == "tesSUCCESS");
             BEAST_EXPECT(client.reply.engine_result_code() == 0);
-            BEAST_EXPECT(client.reply.hash() == testData.xrp_tx_hash);
+            BEAST_EXPECT(client.reply.hash() == testData.xrpTxHash);
         }
         // USD
         {
             auto client = getClient();
-            client.request.set_signed_transaction(testData.usd_tx_blob);
+            client.request.set_signed_transaction(testData.usdTxBlob);
             client.SubmitTransaction();
             if (!BEAST_EXPECT(client.status.ok()))
             {
@@ -174,12 +173,12 @@ public:
             }
             BEAST_EXPECT(client.reply.engine_result().result() == "tesSUCCESS");
             BEAST_EXPECT(client.reply.engine_result_code() == 0);
-            BEAST_EXPECT(client.reply.hash() == testData.usd_tx_hash);
+            BEAST_EXPECT(client.reply.hash() == testData.usdTxHash);
         }
         // USD, error, same transaction again
         {
             auto client = getClient();
-            client.request.set_signed_transaction(testData.usd_tx_blob);
+            client.request.set_signed_transaction(testData.usdTxBlob);
             client.SubmitTransaction();
             if (!BEAST_EXPECT(client.status.ok()))
             {
@@ -212,16 +211,16 @@ public:
         // bad blob with correct length, cannot parse
         {
             auto client = getClient();
-            auto xrp_tx_blob_copy(testData.xrp_tx_blob);
-            std::reverse(xrp_tx_blob_copy.begin(), xrp_tx_blob_copy.end());
-            client.request.set_signed_transaction(xrp_tx_blob_copy);
+            auto xrpTxBlobCopy(testData.xrpTxBlob);
+            std::reverse(xrpTxBlobCopy.begin(), xrpTxBlobCopy.end());
+            client.request.set_signed_transaction(xrpTxBlobCopy);
             client.SubmitTransaction();
             BEAST_EXPECT(!client.status.ok());
         }
         // good blob, can parse but no account
         {
             auto client = getClient();
-            client.request.set_signed_transaction(testData.xrp_tx_blob);
+            client.request.set_signed_transaction(testData.xrpTxBlob);
             client.SubmitTransaction();
             if (!BEAST_EXPECT(client.status.ok()))
             {
@@ -253,7 +252,7 @@ public:
 
         {
             SubmitClient client(grpcPort);
-            client.request.set_signed_transaction(testData.xrp_tx_blob);
+            client.request.set_signed_transaction(testData.xrpTxBlob);
             client.SubmitTransaction();
             if (!BEAST_EXPECT(client.status.ok()))
             {

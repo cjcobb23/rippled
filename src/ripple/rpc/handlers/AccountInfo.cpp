@@ -196,21 +196,21 @@ doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
 
     // get ledger
     std::shared_ptr<ReadView const> ledger;
-    auto lgr_status = RPC::ledgerFromRequest(ledger, context);
-    if (lgr_status || !ledger)
+    auto lgrStatus = RPC::ledgerFromRequest(ledger, context);
+    if (lgrStatus || !ledger)
     {
-        grpc::Status error_status;
-        if (lgr_status.toErrorCode() == rpcINVALID_PARAMS)
+        grpc::Status errorStatus;
+        if (lgrStatus.toErrorCode() == rpcINVALID_PARAMS)
         {
-            error_status = grpc::Status(
-                grpc::StatusCode::INVALID_ARGUMENT, lgr_status.message());
+            errorStatus = grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT, lgrStatus.message());
         }
         else
         {
-            error_status =
-                grpc::Status(grpc::StatusCode::NOT_FOUND, lgr_status.message());
+            errorStatus =
+                grpc::Status(grpc::StatusCode::NOT_FOUND, lgrStatus.message());
         }
-        return {result, error_status};
+        return {result, errorStatus};
     }
 
     result.set_ledger_index(ledger->info().seq);
@@ -224,9 +224,9 @@ doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
         RPC::accountFromStringWithCode(accountID, strIdent, params.strict());
     if (code != rpcSUCCESS)
     {
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-                                  "invalid account"};
-        return {result, error_status};
+        grpc::Status errorStatus{grpc::StatusCode::INVALID_ARGUMENT,
+                                 "invalid account"};
+        return {result, errorStatus};
     }
 
     // get account data
@@ -241,9 +241,9 @@ doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
             auto const sleSigners = ledger->read(keylet::signers(accountID));
             if (sleSigners)
             {
-                rpc::v1::SignerList& signer_list_proto =
+                rpc::v1::SignerList& signerListProto =
                     *result.mutable_signer_list();
-                RPC::populateSignerList(signer_list_proto, *sleSigners);
+                RPC::populateSignerList(signerListProto, *sleSigners);
             }
         }
 
@@ -252,22 +252,22 @@ doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
         {
             if (!ledger->open())
             {
-                grpc::Status error_status{
+                grpc::Status errorStatus{
                     grpc::StatusCode::INVALID_ARGUMENT,
                     "requested queue but ledger is not open"};
-                return {result, error_status};
+                return {result, errorStatus};
             }
             auto const txs =
                 context.app.getTxQ().getAccountTxs(accountID, *ledger);
-            rpc::v1::QueueData& queue_data = *result.mutable_queue_data();
-            RPC::populateQueueData(queue_data, txs);
+            rpc::v1::QueueData& queueData = *result.mutable_queue_data();
+            RPC::populateQueueData(queueData, txs);
         }
     }
     else
     {
-        grpc::Status error_status{grpc::StatusCode::NOT_FOUND,
-                                  "account not found"};
-        return {result, error_status};
+        grpc::Status errorStatus{grpc::StatusCode::NOT_FOUND,
+                                 "account not found"};
+        return {result, errorStatus};
     }
 
     return {result, status};

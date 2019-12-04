@@ -176,12 +176,7 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     std::string const& tx = request.signed_transaction();
 
     // convert to blob
-    Blob blob;
-    blob.reserve(tx.size());
-    for (size_t i = 0; i < tx.size(); ++i)
-    {
-        blob.push_back(tx[i]);
-    }
+    Blob blob{tx.begin(), tx.end()};
 
     // serialize
     SerialIter sitTrans(makeSlice(blob));
@@ -192,10 +187,10 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     }
     catch (std::exception& e)
     {
-        grpc::Status error_status{
+        grpc::Status errorStatus{
             grpc::StatusCode::INVALID_ARGUMENT,
             "invalid transaction: " + std::string(e.what())};
-        return {result, error_status};
+        return {result, errorStatus};
     }
 
     // check validity
@@ -212,9 +207,9 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
             context.app.config());
         if (validity != Validity::Valid)
         {
-            grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-                                      "invalid transaction: " + reason};
-            return {result, error_status};
+            grpc::Status errorStatus{grpc::StatusCode::INVALID_ARGUMENT,
+                                     "invalid transaction: " + reason};
+            return {result, errorStatus};
         }
     }
 
@@ -222,9 +217,9 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     auto tpTrans = std::make_shared<Transaction>(stpTrans, reason, context.app);
     if (tpTrans->getStatus() != NEW)
     {
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-                                  "invalid transaction: " + reason};
-        return {result, error_status};
+        grpc::Status errorStatus{grpc::StatusCode::INVALID_ARGUMENT,
+                                 "invalid transaction: " + reason};
+        return {result, errorStatus};
     }
 
     try
@@ -237,10 +232,10 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     }
     catch (std::exception& e)
     {
-        grpc::Status error_status{
+        grpc::Status errorStatus{
             grpc::StatusCode::INVALID_ARGUMENT,
             "invalid transaction : " + std::string(e.what())};
-        return {result, error_status};
+        return {result, errorStatus};
     }
 
     // return preliminary result
