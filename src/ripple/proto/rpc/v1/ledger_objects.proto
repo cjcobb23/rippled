@@ -12,7 +12,23 @@ message LedgerObject {
         Offer offer = 3;
         SignerList signer_list = 4;
         DirectoryNode directory_node = 5;
-    }   
+    }
+}
+
+enum LedgerEntryType {
+    LEDGER_ENTRY_TYPE_UNSPECIFIED     = 0;
+    LEDGER_ENTRY_TYPE_ACCOUNT_ROOT    = 1;
+    LEDGER_ENTRY_TYPE_AMENDMENTS      = 2;
+    LEDGER_ENTRY_TYPE_CHECK           = 3;
+    LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH = 4;
+    LEDGER_ENTRY_TYPE_DIRECTORY_NODE  = 5;
+    LEDGER_ENTRY_TYPE_ESCROW          = 6;
+    LEDGER_ENTRY_TYPE_FEE_SETTINGS    = 7;
+    LEDGER_ENTRY_TYPE_LEDGER_HASHES   = 8;
+    LEDGER_ENTRY_TYPE_OFFER           = 9;
+    LEDGER_ENTRY_TYPE_PAY_CHANNEL     = 10;
+    LEDGER_ENTRY_TYPE_RIPPLE_STATE    = 11;
+    LEDGER_ENTRY_TYPE_SIGNER_LIST     = 12;
 }
 
 message DirectoryNode {
@@ -29,11 +45,11 @@ message DirectoryNode {
 
     string owner = 6;
 
-    bytes taker_pays_currency = 7;
+    Currency taker_pays_currency = 7;
 
     bytes taker_pays_issuer = 8;
 
-    bytes taker_gets_currency = 9;
+    Currency taker_gets_currency = 9;
 
     bytes taker_gets_issuer = 10;
 }
@@ -48,7 +64,7 @@ message SignerList {
 
     uint64 owner_node = 4;
 
-    repeated SignerEntry signer_entry = 5;
+    repeated SignerEntry signer_entries = 5;
 
     uint32 signer_list_id = 6;
 
@@ -57,17 +73,17 @@ message SignerList {
 
 message SignerEntry {
 
-    string account = 1;
+    AccountAddress account = 1;
 
+    // this is actually uint16, but protobuf can't express uint16
     uint32 signer_weight = 2;
-
 }
 
 message AccountRoot {
 
-    string account = 1;
+    AccountAddress account = 1;
 
-    CurrencyAmount balance = 2;
+    XRPDropsAmount balance = 2;
 
     uint32 sequence = 3;
 
@@ -75,9 +91,9 @@ message AccountRoot {
 
     uint32 owner_count = 5;
 
-    bytes previous_txn_id = 6;
+    bytes previous_transaction_id = 6;
 
-    uint32 previous_txn_ledger_sequence = 7;
+    uint32 previous_transaction_ledger_sequence = 7;
 
     bytes account_txn_id = 8;
 
@@ -117,6 +133,9 @@ message RippleState {
 
     uint32 high_quality_out = 10;
 
+    bytes previous_transaction_id = 11;
+
+    uint32 previous_transaction_ledger_sequence = 12;
 }
 
 message Offer {
@@ -138,4 +157,8 @@ message Offer {
     uint64 owner_node = 8;
 
     uint32 expiration = 9;
+
+    bytes previous_transaction_id = 10;
+
+    uint32 previous_transaction_ledger_sequence = 11;
 }

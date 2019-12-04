@@ -157,95 +157,101 @@ std::string txnTypeString(TxType type)
     return TxFormats::getInstance().findByType(type)->getName();
 }
 
-std::pair<rpc::v1::TxResponse, grpc::Status>
-doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context)
+std::pair<rpc::v1::GetTxResponse, grpc::Status>
+doTxGrpc(RPC::ContextGeneric<rpc::v1::GetTxRequest>& context)
 {
-    //return values
-    rpc::v1::TxResponse result;
+    // return values
+    rpc::v1::GetTxResponse result;
     grpc::Status status = grpc::Status::OK;
 
-    //input
-    rpc::v1::TxRequest& request = context.params;
+    // input
+    rpc::v1::GetTxRequest& request = context.params;
 
     std::string const& hash_bytes = request.hash();
     uint256 hash = uint256::fromVoid(hash_bytes.data());
 
-    //hash is included in the response
+    // hash is included in the response
     result.set_hash(request.hash());
 
-    //get the transaction
+    // get the transaction
     std::shared_ptr<Transaction> txn =
         context.app.getMasterTransaction().fetch(hash, true);
-    if(!txn)
+    if (!txn)
     {
         grpc::Status error_status{grpc::StatusCode::NOT_FOUND, "txn not found"};
-        return {result,error_status};
+        return {result, error_status};
     }
 
     std::shared_ptr<STTx const> st_txn = txn->getSTransaction();
-    if(st_txn->getTxnType() != ttPAYMENT)
+    if (st_txn->getTxnType() != ttPAYMENT)
     {
-        grpc::Status error_status{grpc::StatusCode::UNIMPLEMENTED,
+        grpc::Status error_status{
+            grpc::StatusCode::UNIMPLEMENTED,
             "txn type not supported: " + txnTypeString(st_txn->getTxnType())};
     }
 
-    //populate transaction data
-    if(request.binary())
+    // populate transaction data
+    if (request.binary())
     {
         Serializer s = st_txn->getSerializer();
-        result.set_tx_bytes(toBytes(s.peekData()));
+        result.set_transaction_binary(s.data(), s.size());
     }
     else
     {
-        RPC::populateTransaction(*result.mutable_tx(), st_txn);
+        RPC::populateTransaction(*result.mutable_transaction(), st_txn);
     }
 
     result.set_ledger_index(txn->getLedger());
 
     std::shared_ptr<Ledger const> ledger =
         context.ledgerMaster.getLedgerBySeq(txn->getLedger());
-    //get meta data
-    if(ledger)
+    // get meta data
+    if (ledger)
     {
-        if(request.binary())
+        if (request.binary())
         {
             SHAMapTreeNode::TNType type;
-            auto const item =
-                ledger->txMap().peekItem (txn->getID(), type);
+            auto const item = ledger->txMap().peekItem(txn->getID(), type);
 
             if (item && type == SHAMapTreeNode::tnTRANSACTION_MD)
             {
-                SerialIter it (item->slice());
-                it.getVL (); // skip transaction
-                result.set_meta_bytes(toBytes(makeSlice(it.getVL ())));
+                SerialIter it(item->slice());
+                it.getVL();  // skip transaction
+                Blob blob = it.getVL();
+                Slice slice = makeSlice(blob);
+                result.set_meta_binary(slice.data(), slice.size());
 
-                bool validated = isValidated(context.ledgerMaster,
-                        ledger->info().seq,ledger->info().hash);
+                bool validated = isValidated(
+                    context.ledgerMaster,
+                    ledger->info().seq,
+                    ledger->info().hash);
                 result.set_validated(validated);
             }
         }
         else
         {
-            auto rawMeta = ledger->txRead (txn->getID()).second;
-            if(rawMeta)
+            auto rawMeta = ledger->txRead(txn->getID()).second;
+            if (rawMeta)
             {
                 auto txMeta = std::make_shared<TxMeta>(
-                        txn->getID(), ledger->seq(), *rawMeta);
+                    txn->getID(), ledger->seq(), *rawMeta);
 
-                bool validated = isValidated(context.ledgerMaster,
-                        ledger->info().seq,ledger->info().hash);
+                bool validated = isValidated(
+                    context.ledgerMaster,
+                    ledger->info().seq,
+                    ledger->info().hash);
                 result.set_validated(validated);
 
                 RPC::populateMeta(*result.mutable_meta(), txMeta);
                 insertDeliveredAmount(
-                        *result.mutable_meta()->mutable_delivered_amount(),
-                        context,
-                        txn,
-                        *txMeta);
+                    *result.mutable_meta()->mutable_delivered_amount(),
+                    context,
+                    txn,
+                    *txMeta);
             }
         }
     }
     return {result, status};
 }
 
-} // ripple
+}  // namespace ripple

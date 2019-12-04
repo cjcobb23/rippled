@@ -114,19 +114,19 @@ class Fee_test : public beast::unit_test::suite
         rpc::v1::Fee& drops = *reply.mutable_drops();
         auto const baseFee = view->fees().base;
         BEAST_EXPECT(
-            drops.base_fee() ==
+            drops.base_fee().drops() ==
             mulDiv(
                 metrics.referenceFeeLevel, baseFee, metrics.referenceFeeLevel)
                 .second);
         BEAST_EXPECT(
-            drops.minimum_fee() ==
+            drops.minimum_fee().drops() ==
             mulDiv(
                 metrics.minProcessingFeeLevel,
                 baseFee,
                 metrics.referenceFeeLevel)
                 .second);
         BEAST_EXPECT(
-            drops.median_fee() ==
+            drops.median_fee().drops() ==
             mulDiv(metrics.medFeeLevel, baseFee, metrics.referenceFeeLevel)
                 .second);
         auto escalatedFee =
@@ -136,7 +136,7 @@ class Fee_test : public beast::unit_test::suite
         if (mulDiv(escalatedFee, metrics.referenceFeeLevel, baseFee).second <
             metrics.openLedgerFeeLevel)
             ++escalatedFee;
-        BEAST_EXPECT(drops.open_ledger_fee() == escalatedFee);
+        BEAST_EXPECT(drops.open_ledger_fee().drops() == escalatedFee);
     }
 
 public:

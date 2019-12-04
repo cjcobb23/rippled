@@ -17,7 +17,6 @@
 */
 //==============================================================================
 
-
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/TxQ.h>
 #include <ripple/json/json_value.h>
@@ -27,9 +26,8 @@
 #include <ripple/protocol/jss.h>
 #include <ripple/protocol/UintTypes.h>
 #include <ripple/rpc/Context.h>
-#include <ripple/rpc/impl/RPCHelpers.h>
-#include <ripple/rpc/impl/RPCHelpers.h>
 #include <ripple/rpc/GRPCHandlers.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 #include <grpc/status.h>
 
 namespace ripple {
@@ -186,94 +184,93 @@ Json::Value doAccountInfo (RPC::Context& context)
     return result;
 }
 
-std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status> doAccountInfoGrpc(
-        RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
+std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status>
+doAccountInfoGrpc(RPC::ContextGeneric<rpc::v1::GetAccountInfoRequest>& context)
 {
-    //Return values
+    // Return values
     rpc::v1::GetAccountInfoResponse result;
     grpc::Status status = grpc::Status::OK;
 
-    //input
+    // input
     rpc::v1::GetAccountInfoRequest& params = context.params;
 
-    //get ledger
+    // get ledger
     std::shared_ptr<ReadView const> ledger;
-    auto lgr_status = RPC::ledgerFromRequest(ledger,context);
-    if(lgr_status || !ledger)
+    auto lgr_status = RPC::ledgerFromRequest(ledger, context);
+    if (lgr_status || !ledger)
     {
         grpc::Status error_status;
-        if(lgr_status.toErrorCode() == rpcINVALID_PARAMS)
+        if (lgr_status.toErrorCode() == rpcINVALID_PARAMS)
         {
-            error_status = 
-                grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                        lgr_status.message());
+            error_status = grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT, lgr_status.message());
         }
         else
         {
-
-            error_status = grpc::Status(grpc::StatusCode::NOT_FOUND,
-                    lgr_status.message());
+            error_status =
+                grpc::Status(grpc::StatusCode::NOT_FOUND, lgr_status.message());
         }
-        return {result,error_status};
+        return {result, error_status};
     }
 
     result.set_ledger_index(ledger->info().seq);
     result.set_validated(
-            RPC::isValidated(context.ledgerMaster, *ledger, context.app));
+        RPC::isValidated(context.ledgerMaster, *ledger, context.app));
 
-    //decode account
+    // decode account
     AccountID accountID;
-    std::string strIdent = params.address();
-    error_code_i code = RPC::accountFromStringWithCode(
-            accountID, strIdent, params.strict());
-    if(code != rpcSUCCESS)
+    std::string strIdent = params.account().address();
+    error_code_i code =
+        RPC::accountFromStringWithCode(accountID, strIdent, params.strict());
+    if (code != rpcSUCCESS)
     {
         grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-            "invalid account"};
-        return {result, error_status};   
+                                  "invalid account"};
+        return {result, error_status};
     }
 
-    //get account data
+    // get account data
     auto const sleAccepted = ledger->read(keylet::account(accountID));
-    if(sleAccepted)
+    if (sleAccepted)
     {
-        RPC::populateAccountRoot(*result.mutable_account_data(),*sleAccepted);
+        RPC::populateAccountRoot(*result.mutable_account_data(), *sleAccepted);
 
-        //signer lists
-        if(params.signer_lists())
+        // signer lists
+        if (params.signer_lists())
         {
-            auto const sleSigners = ledger->read (keylet::signers (accountID));
-            if(sleSigners)
+            auto const sleSigners = ledger->read(keylet::signers(accountID));
+            if (sleSigners)
             {
-                rpc::v1::SignerList& signer_list_proto = 
+                rpc::v1::SignerList& signer_list_proto =
                     *result.mutable_signer_list();
-                RPC::populateSignerList(signer_list_proto,*sleSigners);
+                RPC::populateSignerList(signer_list_proto, *sleSigners);
             }
         }
 
-        //queued transactions
-        if(params.queue())
+        // queued transactions
+        if (params.queue())
         {
-            if(!ledger->open())
+            if (!ledger->open())
             {
-                grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+                grpc::Status error_status{
+                    grpc::StatusCode::INVALID_ARGUMENT,
                     "requested queue but ledger is not open"};
                 return {result, error_status};
             }
-            auto const txs = context.app.getTxQ().getAccountTxs(
-                    accountID, *ledger);
+            auto const txs =
+                context.app.getTxQ().getAccountTxs(accountID, *ledger);
             rpc::v1::QueueData& queue_data = *result.mutable_queue_data();
-            RPC::populateQueueData(queue_data,txs);
+            RPC::populateQueueData(queue_data, txs);
         }
     }
     else
     {
         grpc::Status error_status{grpc::StatusCode::NOT_FOUND,
-            "account not found"};
+                                  "account not found"};
         return {result, error_status};
     }
 
     return {result, status};
 }
 
-} // ripple
+}  // namespace ripple

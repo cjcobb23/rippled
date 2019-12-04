@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package rpc.v1;
 
+import "rpc/v1/meta.proto";
+
 // A request to submit the signed transaction to the ledger.
 message SubmitTransactionRequest {
     // The signed transaction to submit.
@@ -13,7 +15,7 @@ message SubmitTransactionRequest {
 // A response when a signed transaction is submitted to the ledger.
 message SubmitTransactionResponse {
     // Code indicating the preliminary result of the transaction.
-    string engine_result = 1;
+    TransactionResult engine_result = 1;
 
     // Numeric code indicating the preliminary result of the transaction, directly correlated to engine_result.
     int64 engine_result_code = 2;

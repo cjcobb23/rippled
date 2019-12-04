@@ -2,13 +2,14 @@ syntax = "proto3";
 
 package rpc.v1;
 
+import "rpc/v1/amount.proto";
 
 // A request for the current transaction fee on the ledger.
 message GetFeeRequest {
 
 }
 
-//Response to a GetFee RPC
+// Response to a GetFee RPC
 message GetFeeResponse {
 
     uint64 current_ledger_size = 1;
@@ -29,13 +30,13 @@ message GetFeeResponse {
 
 message Fee {
 
-    uint64 base_fee = 1;
+    XRPDropsAmount base_fee = 1;
 
-    uint64 median_fee = 2;
+    XRPDropsAmount median_fee = 2;
 
-    uint64 minimum_fee = 3;
+    XRPDropsAmount minimum_fee = 3;
 
-    uint64 open_ledger_fee = 4;
+    XRPDropsAmount open_ledger_fee = 4;
 }
 
 message FeeLevels {

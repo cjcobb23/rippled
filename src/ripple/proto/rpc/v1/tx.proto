@@ -5,7 +5,7 @@ package rpc.v1;
 import "rpc/v1/transaction.proto";
 import "rpc/v1/meta.proto";
 
-message TxRequest {
+message GetTxRequest {
     // the hash of the transaction
     bytes hash = 1;
 
@@ -14,15 +14,15 @@ message TxRequest {
     bool binary = 2;
 }
 
-message TxResponse {
+message GetTxResponse {
 
     // The actual transaction
-    oneof sttx {
-        Transaction tx = 1;
-        bytes tx_bytes = 2;
+    oneof serialized_transaction {
+        Transaction transaction = 1;
+        bytes transaction_binary = 2;
     };
     // Sequence number of ledger that contains this transaction
-    uint64 ledger_index = 3;
+    uint32 ledger_index = 3;
 
     // Hash of the transaction
     bytes hash = 4;
@@ -31,9 +31,9 @@ message TxResponse {
     bool validated = 5;
 
     // metadata about the transaction
-    oneof stmeta {
+    oneof serialized_meta {
         Meta meta = 6;
-        bytes meta_bytes = 7;
+        bytes meta_binary = 7;
     }
 
 }

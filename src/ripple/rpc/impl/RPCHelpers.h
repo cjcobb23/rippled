@@ -31,6 +31,7 @@
 #include <ripple/app/misc/TxQ.h>
 #include <rpc/v1/xrp_ledger.pb.h>
 #include <boost/optional.hpp>
+#include <rpc/v1/xrp_ledger.pb.h>
 
 namespace Json {
 class Value;
@@ -100,8 +101,9 @@ lookupLedger (std::shared_ptr<ReadView const>&, Context&, Json::Value& result);
 
 template <class T>
 Status
-ledgerFromRequest(T& ledger,
-        ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
+ledgerFromRequest(
+    T& ledger,
+    ContextGeneric<rpc::v1::GetAccountInfoRequest>& context);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -160,25 +162,39 @@ std::pair<RPC::Status, LedgerEntryType>
  * output parameter, and is populated with the data stored in the
  * serialized object
  */
-void populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const & obj);
+void
+populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj);
 
-void populateRippleState(rpc::v1::RippleState& proto, STObject const & obj);
+void
+populateRippleState(rpc::v1::RippleState& proto, STObject const& obj);
 
-void populateOffer(rpc::v1::Offer& proto, STObject const & obj);
+void
+populateOffer(rpc::v1::Offer& proto, STObject const& obj);
 
-void populateSignerList(rpc::v1::SignerList& proto, STObject const & obj);
+void
+populateSignerList(rpc::v1::SignerList& proto, STObject const& obj);
 
-void populateQueueData(rpc::v1::QueueData& proto,
-        std::map<TxSeq, TxQ::AccountTxDetails const> const & txs);
+void
+populateQueueData(
+    rpc::v1::QueueData& proto,
+    std::map<TxSeq, TxQ::AccountTxDetails const> const& txs);
 
-void populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const & obj);
+void
+populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj);
 
-void populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
+void
+populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
 
-void populateTransaction(rpc::v1::Transaction& proto,
-        std::shared_ptr<STTx const> txn_st);
+void
+populateTransaction(
+    rpc::v1::Transaction& proto,
+    std::shared_ptr<STTx const> txn_st);
 
-void populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount);
+void
+populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount);
+
+void
+populateTransactionResultType(rpc::v1::TransactionResult& proto, TER result);
 
 } // RPC
 } // ripple

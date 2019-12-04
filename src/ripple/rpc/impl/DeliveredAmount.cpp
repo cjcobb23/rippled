@@ -174,19 +174,19 @@ insertDeliveredAmount(
 }
 
 template <class T>
-void insertDeliveredAmount(
-        rpc::v1::CurrencyAmount& proto,
-        RPC::ContextGeneric<T>& context,
-        std::shared_ptr<Transaction> transaction,
-        TxMeta const& transactionMeta)
+void
+insertDeliveredAmount(
+    rpc::v1::CurrencyAmount& proto,
+    RPC::ContextGeneric<T>& context,
+    std::shared_ptr<Transaction> transaction,
+    TxMeta const& transactionMeta)
 {
     if (!transaction)
         return;
 
-    auto const serializedTx = transaction->getSTransaction ();
-    if (! serializedTx)
+    auto const serializedTx = transaction->getSTransaction();
+    if (!serializedTx)
         return;
-
 
     // These lambdas are used to compute the values lazily
     auto const getFix1623Enabled = [&context]() -> bool {
@@ -246,12 +246,12 @@ void insertDeliveredAmount(
     }
 }
 
-template
-void insertDeliveredAmount<>(
-        rpc::v1::CurrencyAmount&,
-        ContextGeneric<rpc::v1::TxRequest>&,
-        std::shared_ptr<Transaction>,
-        TxMeta const&);
+template void
+insertDeliveredAmount<>(
+    rpc::v1::CurrencyAmount&,
+    ContextGeneric<rpc::v1::GetTxRequest>&,
+    std::shared_ptr<Transaction>,
+    TxMeta const&);
 
-} // RPC
-} // ripple
+}  // namespace RPC
+}  // namespace ripple

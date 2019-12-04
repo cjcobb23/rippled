@@ -411,7 +411,7 @@ public:
         {
             // most simple case
             GetAccountInfoClient client(grpcPort);
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
             {
@@ -419,21 +419,23 @@ public:
                 return;
             }
             BEAST_EXPECT(
-                client.reply.account_data().account() == alice.human());
+                client.reply.account_data().account().address() ==
+                alice.human());
         }
         {
             GetAccountInfoClient client(grpcPort);
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.request.set_queue(true);
-            client.request.set_ledger_index_seq(3);
+            client.request.mutable_ledger()->set_sequence(3);
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
                 return;
             BEAST_EXPECT(
-                client.reply.account_data().balance().xrp_amount().drops() ==
+                client.reply.account_data().balance().drops() ==
                 1000 * 1000 * 1000);
             BEAST_EXPECT(
-                client.reply.account_data().account() == alice.human());
+                client.reply.account_data().account().address() ==
+                alice.human());
             BEAST_EXPECT(
                 client.reply.account_data().sequence() == env.seq(alice));
             BEAST_EXPECT(client.reply.queue_data().txn_count() == 0);
@@ -458,7 +460,7 @@ public:
         {
             // bad address
             auto client = getClient();
-            client.request.set_address("deadbeef");
+            client.request.mutable_account()->set_address("deadbeef");
             client.GetAccountInfo();
             BEAST_EXPECT(!client.status.ok());
         }
@@ -466,15 +468,15 @@ public:
             // no account
             Account const bogie{"bogie"};
             auto client = getClient();
-            client.request.set_address(bogie.human());
+            client.request.mutable_account()->set_address(bogie.human());
             client.GetAccountInfo();
             BEAST_EXPECT(!client.status.ok());
         }
         {
             // bad ledger_index
             auto client = getClient();
-            client.request.set_address(alice.human());
-            client.request.set_ledger_index_seq(0);
+            client.request.mutable_account()->set_address(alice.human());
+            client.request.mutable_ledger()->set_sequence(0);
             client.GetAccountInfo();
             BEAST_EXPECT(!client.status.ok());
         }
@@ -498,12 +500,12 @@ public:
 
         {
             auto client = getClient();
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.request.set_signer_lists(true);
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
                 return;
-            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 0);
+            BEAST_EXPECT(client.reply.signer_list().signer_entries_size() == 0);
         }
 
         // Give alice a SignerList.
@@ -512,16 +514,16 @@ public:
         env(smallSigners);
         {
             auto client = getClient();
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.request.set_signer_lists(false);
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
                 return;
-            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 0);
+            BEAST_EXPECT(client.reply.signer_list().signer_entries_size() == 0);
         }
         {
             auto client = getClient();
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.request.set_signer_lists(true);
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
@@ -529,7 +531,7 @@ public:
                 return;
             }
             BEAST_EXPECT(client.reply.account_data().owner_count() == 1);
-            BEAST_EXPECT(client.reply.signer_list().signer_entry_size() == 1);
+            BEAST_EXPECT(client.reply.signer_list().signer_entries_size() == 1);
         }
 
         // Give alice a big signer list
@@ -566,7 +568,7 @@ public:
         accounts.insert(spook.human());
         {
             auto client = getClient();
-            client.request.set_address(alice.human());
+            client.request.mutable_account()->set_address(alice.human());
             client.request.set_signer_lists(true);
             client.GetAccountInfo();
             if (!BEAST_EXPECT(client.status.ok()))
@@ -576,12 +578,15 @@ public:
             BEAST_EXPECT(client.reply.account_data().owner_count() == 1);
             auto& signer_list = client.reply.signer_list();
             BEAST_EXPECT(signer_list.signer_quorum() == 4);
-            BEAST_EXPECT(signer_list.signer_entry_size() == 8);
+            BEAST_EXPECT(signer_list.signer_entries_size() == 8);
             for (int i = 0; i < 8; ++i)
             {
-                BEAST_EXPECT(signer_list.signer_entry(i).signer_weight() == 1);
                 BEAST_EXPECT(
-                    accounts.erase(signer_list.signer_entry(i).account()) == 1);
+                    signer_list.signer_entries(i).signer_weight() == 1);
+                BEAST_EXPECT(
+                    accounts.erase(
+                        signer_list.signer_entries(i).account().address()) ==
+                    1);
             }
             BEAST_EXPECT(accounts.size() == 0);
         }

@@ -27,6 +27,7 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/impl/TransactionSign.h>
 #include <ripple/rpc/GRPCHandlers.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 
 namespace ripple {
 
@@ -165,60 +166,64 @@ Json::Value doSubmit (RPC::Context& context)
 std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
 {
-    //return values
+    // return values
     rpc::v1::SubmitTransactionResponse result;
     grpc::Status status = grpc::Status::OK;
 
-    //input
+    // input
     auto request = context.params;
 
     std::string const& tx = request.signed_transaction();
 
-    //convert to blob
+    // convert to blob
     Blob blob;
     blob.reserve(tx.size());
-    for(size_t i = 0; i < tx.size(); ++i)
+    for (size_t i = 0; i < tx.size(); ++i)
     {
         blob.push_back(tx[i]);
     }
 
-    //serialize
-    SerialIter sitTrans (makeSlice(blob));
+    // serialize
+    SerialIter sitTrans(makeSlice(blob));
     std::shared_ptr<STTx const> stpTrans;
     try
     {
-        stpTrans = std::make_shared<STTx const> (std::ref (sitTrans));
+        stpTrans = std::make_shared<STTx const>(std::ref(sitTrans));
     }
     catch (std::exception& e)
     {
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+        grpc::Status error_status{
+            grpc::StatusCode::INVALID_ARGUMENT,
             "invalid transaction: " + std::string(e.what())};
-        return {result, error_status};  
+        return {result, error_status};
     }
 
-    //check validity
+    // check validity
     {
         if (!context.app.checkSigs())
-            forceValidity(context.app.getHashRouter(),
-                stpTrans->getTransactionID(), Validity::SigGoodOnly);
-        auto [validity, reason] = checkValidity(context.app.getHashRouter(),
-            *stpTrans, context.ledgerMaster.getCurrentLedger()->rules(),
-                context.app.config());
+            forceValidity(
+                context.app.getHashRouter(),
+                stpTrans->getTransactionID(),
+                Validity::SigGoodOnly);
+        auto [validity, reason] = checkValidity(
+            context.app.getHashRouter(),
+            *stpTrans,
+            context.ledgerMaster.getCurrentLedger()->rules(),
+            context.app.config());
         if (validity != Validity::Valid)
         {
             grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-                "invalid transaction: " + reason};
+                                      "invalid transaction: " + reason};
             return {result, error_status};
         }
     }
 
     std::string reason;
-    auto tpTrans = std::make_shared<Transaction> (
-        stpTrans, reason, context.app);
+    auto tpTrans = std::make_shared<Transaction>(stpTrans, reason, context.app);
     if (tpTrans->getStatus() != NEW)
     {
         grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
-            "invalid transaction: " + reason};
+                                  "invalid transaction: " + reason};
         return {result, error_status};
     }
 
@@ -226,48 +231,37 @@ doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context)
     {
         auto const failType = NetworkOPs::doFailHard(request.fail_hard());
 
-        //submit to network
-        context.netOps.processTransaction (
-            tpTrans, isUnlimited (context.role), true, failType);
+        // submit to network
+        context.netOps.processTransaction(
+            tpTrans, isUnlimited(context.role), true, failType);
     }
     catch (std::exception& e)
     {
-        grpc::Status error_status{grpc::StatusCode::INVALID_ARGUMENT,
+        grpc::Status error_status{
+            grpc::StatusCode::INVALID_ARGUMENT,
             "invalid transaction : " + std::string(e.what())};
-        return {result, error_status};  
-    }
-
-    try
-    {
-        //return preliminary result
-        if (temUNCERTAIN != tpTrans->getResult ())
-        {
-            std::string sToken;
-            std::string sHuman;
-
-            transResultInfo (tpTrans->getResult (), sToken, sHuman);
-
-            result.set_engine_result(sToken);
-            result.set_engine_result_code(TERtoInt(tpTrans->getResult()));
-            result.set_engine_result_message(sHuman);
-
-            uint256 hash = tpTrans->getID();
-            std::string s;
-            s.reserve(hash.size());
-            for(auto it = hash.begin(); it != hash.end(); ++it)
-            {
-                s.push_back(*it);
-            }
-            result.set_hash(s);
-        }
-        return {result,status};
-    }
-    catch (std::exception& e)
-    {
-        grpc::Status error_status{grpc::StatusCode::INTERNAL,
-            "internal json : " + std::string(e.what())};
         return {result, error_status};
     }
+
+    // return preliminary result
+    if (temUNCERTAIN != tpTrans->getResult())
+    {
+        RPC::populateTransactionResultType(
+            *result.mutable_engine_result(), tpTrans->getResult());
+
+        std::string sToken;
+        std::string sHuman;
+
+        transResultInfo(tpTrans->getResult(), sToken, sHuman);
+
+        result.mutable_engine_result()->set_result(sToken);
+        result.set_engine_result_code(TERtoInt(tpTrans->getResult()));
+        result.set_engine_result_message(sHuman);
+
+        uint256 hash = tpTrans->getID();
+        result.set_hash(hash.data(), hash.size());
+    }
+    return {result, status};
 }
 
-} // ripple
+}  // namespace ripple

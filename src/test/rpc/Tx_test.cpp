@@ -29,6 +29,7 @@
 #include <test/jtx/envconfig.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 #include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {
@@ -36,6 +37,14 @@ namespace test {
 
 class Tx_test : public beast::unit_test::suite
 {
+    template <class T>
+    std::string
+    toByteString(T const& data)
+    {
+        const char* bytes = reinterpret_cast<const char*>(data.data());
+        return {bytes, data.size()};
+    }
+
     void
     cmpAmount(const rpc::v1::CurrencyAmount& proto_amount, STAmount amount)
     {
@@ -46,13 +55,17 @@ class Tx_test : public beast::unit_test::suite
         }
         else
         {
-            rpc::v1::FiatAmount fiat = proto_amount.fiat_amount();
+            rpc::v1::IssuedCurrencyAmount issuedCurrency =
+                proto_amount.issued_currency_amount();
             Issue const& issue = amount.issue();
             Currency currency = issue.currency;
-            BEAST_EXPECT(fiat.currency().name() == to_string(currency));
-            BEAST_EXPECT(fiat.currency().code() == toBytes(currency));
-            BEAST_EXPECT(fiat.value() == to_string(amount.iou()));
-            BEAST_EXPECT(fiat.issuer() == toBase58(issue.account));
+            BEAST_EXPECT(
+                issuedCurrency.currency().name() == to_string(currency));
+            BEAST_EXPECT(
+                issuedCurrency.currency().code() == toByteString(currency));
+            BEAST_EXPECT(issuedCurrency.value() == to_string(amount.iou()));
+            BEAST_EXPECT(
+                issuedCurrency.issuer().address() == toBase58(issue.account));
         }
     }
 
@@ -60,13 +73,14 @@ class Tx_test : public beast::unit_test::suite
     cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txn_st)
     {
         AccountID account = txn_st->getAccountID(sfAccount);
-        BEAST_EXPECT(proto.account() == toBase58(account));
+        BEAST_EXPECT(proto.account().address() == toBase58(account));
 
         STAmount amount = txn_st->getFieldAmount(sfAmount);
         cmpAmount(proto.payment().amount(), amount);
 
         AccountID account_dest = txn_st->getAccountID(sfDestination);
-        BEAST_EXPECT(proto.payment().destination() == toBase58(account_dest));
+        BEAST_EXPECT(
+            proto.payment().destination().address() == toBase58(account_dest));
 
         STAmount fee = txn_st->getFieldAmount(sfFee);
         BEAST_EXPECT(proto.fee().drops() == fee.xrp().drops());
@@ -74,7 +88,7 @@ class Tx_test : public beast::unit_test::suite
         BEAST_EXPECT(proto.sequence() == txn_st->getFieldU32(sfSequence));
 
         Blob signingPubKey = txn_st->getFieldVL(sfSigningPubKey);
-        BEAST_EXPECT(proto.signing_public_key_hex() == toBytes(signingPubKey));
+        BEAST_EXPECT(proto.signing_public_key() == toByteString(signingPubKey));
 
         BEAST_EXPECT(proto.flags() == txn_st->getFieldU32(sfFlags));
 
@@ -88,7 +102,7 @@ class Tx_test : public beast::unit_test::suite
         if (txn_st->isFieldPresent(sfSendMax))
         {
             STAmount const& send_max = txn_st->getFieldAmount(sfSendMax);
-            cmpAmount(proto.send_max(), send_max);
+            cmpAmount(proto.payment().send_max(), send_max);
         }
 
         // populate path data
@@ -98,7 +112,7 @@ class Tx_test : public beast::unit_test::suite
         {
             STPath const& path = *it;
 
-            const rpc::v1::Path& proto_path = proto.paths(ind++);
+            const rpc::v1::Path& proto_path = proto.payment().paths(ind++);
 
             int ind2 = 0;
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
@@ -113,20 +127,23 @@ class Tx_test : public beast::unit_test::suite
                     {
                         Currency const& currency = elt.getCurrency();
                         BEAST_EXPECT(
-                            proto_element.currency() == to_string(currency));
+                            proto_element.currency().name() ==
+                            to_string(currency));
                     }
                     if (elt.hasIssuer())
                     {
                         AccountID const& issuer = elt.getIssuerID();
                         BEAST_EXPECT(
-                            proto_element.issuer() == toBase58(issuer));
+                            proto_element.issuer().address() ==
+                            toBase58(issuer));
                     }
                 }
                 else
                 {
                     AccountID const& path_account = elt.getAccountID();
                     BEAST_EXPECT(
-                        proto_element.account() == toBase58(path_account));
+                        proto_element.account().address() ==
+                        toBase58(path_account));
                 }
             }
         }
@@ -137,7 +154,15 @@ class Tx_test : public beast::unit_test::suite
     {
         BEAST_EXPECT(proto.transaction_index() == txMeta->getIndex());
         BEAST_EXPECT(
-            proto.transaction_result() == transToken(txMeta->getResultTER()));
+            proto.transaction_result().result() ==
+            transToken(txMeta->getResultTER()));
+
+        rpc::v1::TransactionResult r;
+
+        RPC::populateTransactionResultType(r, txMeta->getResultTER());
+
+        BEAST_EXPECT(
+            proto.transaction_result().result_type() == r.result_type());
 
         if (txMeta->hasDeliveredAmount())
         {
@@ -149,8 +174,8 @@ class Tx_test : public beast::unit_test::suite
     class GrpcTxClient : public GRPCTestClientBase
     {
     public:
-        rpc::v1::TxRequest request;
-        rpc::v1::TxResponse reply;
+        rpc::v1::GetTxRequest request;
+        rpc::v1::GetTxResponse reply;
 
         GrpcTxClient(std::string const& port) : GRPCTestClientBase(port)
         {
@@ -159,7 +184,7 @@ class Tx_test : public beast::unit_test::suite
         void
         Tx()
         {
-            status = stub_->Tx(&context, request, &reply);
+            status = stub_->GetTx(&context, request, &reply);
         }
     };
 
@@ -178,7 +203,7 @@ class Tx_test : public beast::unit_test::suite
             client.request.set_hash(&hash, sizeof(hash));
             client.request.set_binary(binary);
             client.Tx();
-            return std::pair<bool, rpc::v1::TxResponse>(
+            return std::pair<bool, rpc::v1::GetTxResponse>(
                 client.status.ok(), client.reply);
         };
 
@@ -221,11 +246,11 @@ class Tx_test : public beast::unit_test::suite
                 {
                     Serializer s = tx->getSerializer();
                     BEAST_EXPECT(
-                        result.second.tx_bytes() == toBytes(s.peekData()));
+                        result.second.transaction_binary() == toByteString(s));
                 }
                 else
                 {
-                    cmpTx(result.second.tx(), tx);
+                    cmpTx(result.second.transaction(), tx);
                 }
 
                 if (ledger && !b)

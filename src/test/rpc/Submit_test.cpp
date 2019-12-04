@@ -159,7 +159,7 @@ public:
             {
                 return;
             }
-            BEAST_EXPECT(client.reply.engine_result() == "tesSUCCESS");
+            BEAST_EXPECT(client.reply.engine_result().result() == "tesSUCCESS");
             BEAST_EXPECT(client.reply.engine_result_code() == 0);
             BEAST_EXPECT(client.reply.hash() == testData.xrp_tx_hash);
         }
@@ -172,7 +172,7 @@ public:
             {
                 return;
             }
-            BEAST_EXPECT(client.reply.engine_result() == "tesSUCCESS");
+            BEAST_EXPECT(client.reply.engine_result().result() == "tesSUCCESS");
             BEAST_EXPECT(client.reply.engine_result_code() == 0);
             BEAST_EXPECT(client.reply.hash() == testData.usd_tx_hash);
         }
@@ -185,7 +185,7 @@ public:
             {
                 return;
             }
-            BEAST_EXPECT(client.reply.engine_result() == "tefALREADY");
+            BEAST_EXPECT(client.reply.engine_result().result() == "tefALREADY");
             BEAST_EXPECT(client.reply.engine_result_code() == -198);
         }
     }
@@ -227,7 +227,8 @@ public:
             {
                 return;
             }
-            BEAST_EXPECT(client.reply.engine_result() == "terNO_ACCOUNT");
+            BEAST_EXPECT(
+                client.reply.engine_result().result() == "terNO_ACCOUNT");
             BEAST_EXPECT(client.reply.engine_result_code() == -96);
         }
     }
@@ -258,7 +259,8 @@ public:
             {
                 return;
             }
-            BEAST_EXPECT(client.reply.engine_result() == "tecUNFUNDED_PAYMENT");
+            BEAST_EXPECT(
+                client.reply.engine_result().result() == "tecUNFUNDED_PAYMENT");
             BEAST_EXPECT(client.reply.engine_result_code() == 104);
         }
     }

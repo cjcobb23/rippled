@@ -20,9 +20,9 @@
 #ifndef RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 #define RIPPLE_RPC_GRPCHANDLER_H_INCLUDED
 
+#include <ripple/rpc/Context.h>
 #include <grpcpp/grpcpp.h>
 #include <rpc/v1/xrp_ledger.pb.h>
-#include <ripple/rpc/Context.h>
 
 namespace ripple {
 
@@ -43,11 +43,10 @@ doFeeGrpc(RPC::ContextGeneric<rpc::v1::GetFeeRequest>& context);
 std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::ContextGeneric<rpc::v1::SubmitTransactionRequest>& context);
 
-//NOTE, this only supports Payment transactions at this time
-std::pair<rpc::v1::TxResponse, grpc::Status>
-doTxGrpc(RPC::ContextGeneric<rpc::v1::TxRequest>& context);
+// NOTE, this only supports Payment transactions at this time
+std::pair<rpc::v1::GetTxResponse, grpc::Status>
+doTxGrpc(RPC::ContextGeneric<rpc::v1::GetTxRequest>& context);
 
-} // ripple
-
+}  // namespace ripple
 
 #endif

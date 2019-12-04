@@ -3,14 +3,15 @@ syntax = "proto3";
 package rpc.v1;
 
 import "rpc/v1/amount.proto";
+import "rpc/v1/account_info.proto";
 
 // A class encompassing all transactions.
 message Transaction {
     // The account originating the transaction.
-    string account = 1;
+    AccountAddress account = 1;
 
     // The fee attached to the transaction.
-    XRPAmount fee = 2;
+    XRPDropsAmount fee = 2;
 
     // The sequence number for the transaction.
     uint32 sequence = 3;
@@ -21,17 +22,56 @@ message Transaction {
     }
 
     // The public key of the account which signed the transaction in hexadecimal.
-    bytes signing_public_key_hex = 5;
+    bytes signing_public_key = 5;
 
     bytes signature = 6;
 
     uint32 flags = 7;
 
     uint32 last_ledger_sequence = 8;
-    
-    repeated Path paths = 9;
 
-    CurrencyAmount send_max = 10;
+    uint32 source_tag = 9;
+
+    repeated Memo memos = 10;
+
+    repeated Signer signers = 11;
+
+}
+
+message Memo {
+
+    bytes memo_data = 1;
+
+    bytes memo_format = 2;
+
+    bytes memo_type = 3;
+}
+
+message Signer  {
+
+    AccountAddress account = 1;
+
+    bytes transaction_signature = 2;
+
+    bytes signing_public_key = 3;
+}
+
+message Payment {
+    // The amount of currency to pay, in either issued currency or XRP.
+    CurrencyAmount amount = 1;
+
+    // The destination of the payment.
+    AccountAddress destination = 2;
+
+    uint32 desintation_tag = 3;
+
+    bytes invoice_id = 4;
+
+    repeated Path paths = 5;
+
+    CurrencyAmount send_max = 6;
+
+    CurrencyAmount deliver_min = 7;
 }
 
 message Path {
@@ -41,17 +81,9 @@ message Path {
 
 message PathElement {
 
-    string account = 1;
+    AccountAddress account = 1;
 
-    string currency = 2;
+    Currency currency = 2;
 
-    string issuer = 3;
-}
-
-message Payment {
-    // The amount of currency to pay, in either fiat or XRP.
-    CurrencyAmount amount = 1;
-
-    // The destination of the payment.
-    string destination = 3;
+    AccountAddress issuer = 3;
 }
