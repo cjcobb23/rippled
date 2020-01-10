@@ -1,10 +1,15 @@
 syntax = "proto3";
 
-package rpc.v1;
+package org.xrpl.rpc.v1;
+option java_package = "org.xrpl.rpc.v1";
+option java_multiple_files = true;
 
-import "rpc/v1/ledger_objects.proto";
-import "rpc/v1/amount.proto";
+import "org/xrpl/rpc/v1/ledger_objects.proto";
+import "org/xrpl/rpc/v1/amount.proto";
+import "org/xrpl/rpc/v1/ledger.proto";
+import "org/xrpl/rpc/v1/common.proto";
 
+//TODO change to follow new format?
 // A request to get info about an account.
 message GetAccountInfoRequest {
     // The address to get info about.
@@ -17,22 +22,6 @@ message GetAccountInfoRequest {
     bool queue = 4;
 
     bool signer_lists = 5;
-}
-
-message LedgerSpecifier {
-    enum Shortcut {
-        SHORTCUT_UNSPECIFIED = 0;
-        SHORTCUT_VALIDATED   = 1;
-        SHORTCUT_CLOSED      = 2;
-        SHORTCUT_CURRENT     = 3;
-    }
-
-    oneof ledger {
-        Shortcut shortcut = 1;
-        uint32 sequence = 2;
-        // 32 bytes
-        bytes hash = 3;
-    }
 }
 
 // Response to GetAccountInfo RPC
@@ -71,11 +60,11 @@ message QueuedTransaction {
 
     XRPDropsAmount fee = 2;
 
-    uint64 fee_level = 3;
+    uint64 fee_level = 3 [jstype=JS_STRING];
 
     XRPDropsAmount max_spend_drops = 4;
 
-    uint32 sequence = 5;
+    Sequence sequence = 5;
 
-    uint32 last_ledger_sequence = 6;
+    LastLedgerSequence last_ledger_sequence = 6;
 }

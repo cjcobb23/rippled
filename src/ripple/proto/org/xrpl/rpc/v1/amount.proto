@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package rpc.v1;
+package org.xrpl.rpc.v1;
+option java_package = "org.xrpl.rpc.v1";
+option java_multiple_files = true;
 
 message CurrencyAmount {
     oneof amount {
@@ -12,7 +14,7 @@ message CurrencyAmount {
 // A representation of an amount of XRP.
 message XRPDropsAmount {
 
-    uint64 drops = 1;
+    uint64 drops = 1 [jstype=JS_STRING];
 }
 
 // A representation of an account address
