@@ -3,8 +3,55 @@ syntax = "proto3";
 package rpc.v1;
 
 import "rpc/v1/amount.proto";
+import "rpc/v1/payment.proto";
+import "rpc/v1/meta.proto";
 
-// A class encompassing all transactions.
+
+message GetTransactionRequest {
+    // hash of the transaction. 32 bytes
+    bytes hash = 1;
+
+    // if true, return data in binary format
+    bool binary = 2;
+
+    // min_ledger and max_ledger specify a ledger range to search
+    // both must be provided
+    uint32 min_ledger = 3;
+
+    uint32 max_ledger = 4;
+}
+
+message GetTransactionResponse {
+
+    // The actual transaction
+    oneof serialized_transaction {
+        Transaction transaction = 1;
+        // Variable length
+        bytes transaction_binary = 2;
+    };
+    // Sequence number of ledger that contains this transaction
+    uint32 ledger_index = 3;
+
+    // 32 bytes
+    bytes hash = 4;
+
+    // whether the ledger has been validated
+    bool validated = 5;
+
+    // metadata about the transaction
+    oneof serialized_meta {
+        Meta meta = 6;
+        // Variable length
+        bytes meta_binary = 7;
+    }
+
+    // true if entired specified range was searched,
+    // but transaction was not found
+    bool searched_all = 8;
+
+}
+
+// A message encompassing all transactions.
 message Transaction {
     // The account originating the transaction.
     AccountAddress account = 1;
@@ -62,35 +109,4 @@ message Signer  {
     bytes signing_public_key = 3;
 }
 
-message Payment {
-    // The amount of currency to pay, in either issued currency or XRP.
-    CurrencyAmount amount = 1;
 
-    // The destination of the payment.
-    AccountAddress destination = 2;
-
-    uint32 destination_tag = 3;
-
-    // 32 bytes
-    bytes invoice_id = 4;
-
-    repeated Path paths = 5;
-
-    CurrencyAmount send_max = 6;
-
-    CurrencyAmount deliver_min = 7;
-}
-
-message Path {
-
-    repeated PathElement elements = 1;
-}
-
-message PathElement {
-
-    AccountAddress account = 1;
-
-    Currency currency = 2;
-
-    AccountAddress issuer = 3;
-}

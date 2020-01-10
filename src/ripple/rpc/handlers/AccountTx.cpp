@@ -199,4 +199,15 @@ Json::Value doAccountTx (RPC::JsonContext& context)
 #endif
 }
 
+std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+doAccountTxGrpc(
+    RPC::GRPCContext<rpc::v1::GetAccountTransactionHistoryRequest>& context)
+{
+    // return values
+    rpc::v1::GetTransactionResponse result;
+    grpc::Status status = grpc::Status::OK;
+
+    return {{}, {grpc::StatusCode::UNIMPLEMENTED, "Unimplemented"}};
+}
+
 } // ripple

@@ -44,8 +44,12 @@ std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
 doSubmitGrpc(RPC::GRPCContext<rpc::v1::SubmitTransactionRequest>& context);
 
 // NOTE, this only supports Payment transactions at this time
-std::pair<rpc::v1::GetTxResponse, grpc::Status>
-doTxGrpc(RPC::GRPCContext<rpc::v1::GetTxRequest>& context);
+std::pair<rpc::v1::GetTransactionResponse, grpc::Status>
+doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context);
+
+std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+doAccountTxGrpc(
+    RPC::GRPCContext<rpc::v1::GetAccountTransactionHistoryRequest>& context);
 
 }  // namespace ripple
 
