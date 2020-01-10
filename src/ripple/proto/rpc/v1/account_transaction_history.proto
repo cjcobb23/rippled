@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+import "rpc/v1/transaction.proto";
+import "rpc/v1/amount.proto";
+
+package rpc.v1;
+
+message GetAccountTransactionHistoryRequest {
+
+    AccountAddress account = 1;
+
+    uint32 ledger_index_min = 2;
+
+    uint32 ledger_index_max = 3;
+
+    bytes ledger_hash = 4;
+
+    uint32 ledger_index = 5;
+
+    bool binary = 6;
+
+    bool forward = 7;
+
+    uint32 limit = 8;
+
+    Marker marker = 9;
+}
+
+message GetAccountTransactionHistoryResponse {
+
+    AccountAddress account = 1;
+
+    uint32 ledger_index_min = 2;
+
+    uint32 ledger_index_max = 3;
+
+    uint32 limit = 4;
+
+    Marker marker = 5;
+
+    repeated GetTransactionResponse transactions = 6;
+}
+
+message Marker {
+
+    uint32 ledger_index = 1;
+
+    uint32 account_sequence = 2;
+}
+

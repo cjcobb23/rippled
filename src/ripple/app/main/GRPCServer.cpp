@@ -332,13 +332,15 @@ GRPCServerImpl::setupListeners()
             Resource::feeReferenceRPC));
     }
     {
-        using cd = CallData<rpc::v1::GetTxRequest, rpc::v1::GetTxResponse>;
+        using cd = CallData<
+            rpc::v1::GetTransactionRequest,
+            rpc::v1::GetTransactionResponse>;
 
         addToRequests(std::make_shared<cd>(
             service_,
             *cq_,
             app_,
-            &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetTx,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetTransaction,
             doTxGrpc,
             RPC::NEEDS_CURRENT_LEDGER,
             Resource::feeReferenceRPC));

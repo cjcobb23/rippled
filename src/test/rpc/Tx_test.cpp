@@ -180,8 +180,8 @@ class Tx_test : public beast::unit_test::suite
     class GrpcTxClient : public GRPCTestClientBase
     {
     public:
-        rpc::v1::GetTxRequest request;
-        rpc::v1::GetTxResponse reply;
+        rpc::v1::GetTransactionRequest request;
+        rpc::v1::GetTransactionResponse reply;
 
         explicit GrpcTxClient(std::string const& port)
             : GRPCTestClientBase(port)
@@ -191,7 +191,7 @@ class Tx_test : public beast::unit_test::suite
         void
         Tx()
         {
-            status = stub_->GetTx(&context, request, &reply);
+            status = stub_->GetTransaction(&context, request, &reply);
         }
     };
 
@@ -210,7 +210,7 @@ class Tx_test : public beast::unit_test::suite
             client.request.set_hash(&hash, sizeof(hash));
             client.request.set_binary(binary);
             client.Tx();
-            return std::pair<bool, rpc::v1::GetTxResponse>(
+            return std::pair<bool, rpc::v1::GetTransactionResponse>(
                 client.status.ok(), client.reply);
         };
 

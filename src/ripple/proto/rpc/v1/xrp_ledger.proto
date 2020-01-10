@@ -5,7 +5,8 @@ package rpc.v1;
 import "rpc/v1/account_info.proto";
 import "rpc/v1/fee.proto";
 import "rpc/v1/submit.proto";
-import "rpc/v1/tx.proto";
+import "rpc/v1/transaction.proto";
+import "rpc/v1/account_transaction_history.proto";
 
 
 // RPCs available to interact with the XRP Ledger.
@@ -21,5 +22,7 @@ service XRPLedgerAPIService {
   rpc SubmitTransaction (SubmitTransactionRequest) returns (SubmitTransactionResponse);
 
   // Get the status of a transaction
-  rpc GetTx(GetTxRequest) returns (GetTxResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+
+  rpc GetAccountTransactionHistory(GetAccountTransactionHistoryRequest) returns (GetAccountTransactionHistoryResponse);
 }
