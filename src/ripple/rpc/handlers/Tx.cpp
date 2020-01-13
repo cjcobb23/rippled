@@ -84,6 +84,7 @@ getMetaHex (Ledger const& ledger,
     return true;
 }
 
+//TODO should some of these members be references?
 struct TxResult
 {
     Transaction::pointer txn;
@@ -100,6 +101,7 @@ struct TxResult
     std::optional<bool> searched_all;
 };
 
+//TODO change to refs if possible
 struct TxArgs
 {
     uint256 hash;
@@ -390,10 +392,11 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
 
     args.binary = request.binary();
 
-    if(request.min_ledger() != 0 && request.max_ledger() != 0)
+    if(request.ledger_range().ledger_index_min() != 0
+            && request.ledger_range().ledger_index_max() != 0)
     {
-        args.min_ledger = request.min_ledger();
-        args.max_ledger = request.max_ledger();
+        args.min_ledger = request.ledger_range().ledger_index_min();
+        args.max_ledger = request.ledger_range().ledger_index_max();
     }
 
     std::pair<TxResult, error_code_i> res = doTxHelp(args, context);

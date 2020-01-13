@@ -5,7 +5,7 @@ package rpc.v1;
 import "rpc/v1/amount.proto";
 import "rpc/v1/payment.proto";
 import "rpc/v1/meta.proto";
-
+import "rpc/v1/ledger.proto";
 
 message GetTransactionRequest {
     // hash of the transaction. 32 bytes
@@ -16,9 +16,8 @@ message GetTransactionRequest {
 
     // min_ledger and max_ledger specify a ledger range to search
     // both must be provided
-    uint32 min_ledger = 3;
 
-    uint32 max_ledger = 4;
+    LedgerRange ledger_range = 3;
 }
 
 message GetTransactionResponse {
