@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "rpc/v1/transaction.proto";
 import "rpc/v1/amount.proto";
+import "rpc/v1/ledger.proto";
 
 package rpc.v1;
 
@@ -9,22 +10,20 @@ message GetAccountTransactionHistoryRequest {
 
     AccountAddress account = 1;
 
-    uint32 ledger_index_min = 2;
+    oneof ledger {
+        LedgerSpecifier ledger_specifier = 2;
+        LedgerRange ledger_range = 3;
+    };
 
-    uint32 ledger_index_max = 3;
+    bool binary = 4;
 
-    bytes ledger_hash = 4;
+    bool forward = 5;
 
-    uint32 ledger_index = 5;
+    uint32 limit = 6;
 
-    bool binary = 6;
-
-    bool forward = 7;
-
-    uint32 limit = 8;
-
-    Marker marker = 9;
+    Marker marker = 7;
 }
+
 
 message GetAccountTransactionHistoryResponse {
 

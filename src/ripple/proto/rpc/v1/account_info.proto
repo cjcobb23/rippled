@@ -4,6 +4,7 @@ package rpc.v1;
 
 import "rpc/v1/ledger_objects.proto";
 import "rpc/v1/amount.proto";
+import "rpc/v1/ledger.proto";
 
 // A request to get info about an account.
 message GetAccountInfoRequest {
@@ -17,22 +18,6 @@ message GetAccountInfoRequest {
     bool queue = 4;
 
     bool signer_lists = 5;
-}
-
-message LedgerSpecifier {
-    enum Shortcut {
-        SHORTCUT_UNSPECIFIED = 0;
-        SHORTCUT_VALIDATED   = 1;
-        SHORTCUT_CLOSED      = 2;
-        SHORTCUT_CURRENT     = 3;
-    }
-
-    oneof ledger {
-        Shortcut shortcut = 1;
-        uint32 sequence = 2;
-        // 32 bytes
-        bytes hash = 3;
-    }
 }
 
 // Response to GetAccountInfo RPC
