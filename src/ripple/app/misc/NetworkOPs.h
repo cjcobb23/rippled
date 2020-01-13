@@ -223,6 +223,16 @@ public:
         std::int32_t minLedger, std::int32_t maxLedger, bool forward,
         Json::Value& token, int limit, bool bUnlimited) = 0;
 
+    virtual AccountTxs
+    getTxsAccount(
+        AccountID const& account,
+        std::int32_t minLedger,
+        std::int32_t maxLedger,
+        bool forward,
+        std::pair<uint32_t, uint32_t>& marker,
+        int limit,
+        bool bUnlimited) = 0;
+
     using txnMetaLedgerType = std::tuple<std::string, std::string, std::uint32_t>;
     using MetaTxsList       = std::vector<txnMetaLedgerType>;
 
@@ -233,6 +243,16 @@ public:
     virtual MetaTxsList getTxsAccountB (AccountID const& account,
         std::int32_t minLedger, std::int32_t maxLedger,  bool forward,
         Json::Value& token, int limit, bool bUnlimited) = 0;
+
+    virtual MetaTxsList
+    getTxsAccountB(
+        AccountID const& account,
+        std::int32_t minLedger,
+        std::int32_t maxLedger,
+        bool forward,
+        std::pair<uint32_t, uint32_t>& marker,
+        int limit,
+        bool bUnlimited) = 0;
 
     //--------------------------------------------------------------------------
     //
