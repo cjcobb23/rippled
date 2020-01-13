@@ -91,14 +91,13 @@ struct TxResult
 
     std::variant<std::shared_ptr<TxMeta>, Blob> meta;
 
-    std::optional<STAmount> delivered_amount;
+    std::optional<STAmount> deliveredAmount;
 
     bool validated = false;
 
-
     uint256 hash;
 
-    std::optional<bool> searched_all;
+    std::optional<bool> searchedAll;
 };
 
 //TODO change to refs if possible
@@ -108,14 +107,14 @@ struct TxArgs
 
     bool binary = false;
 
-    std::optional<uint32_t> min_ledger;
+    //TODO: change to pair
+    std::optional<uint32_t> minLedger;
 
-    std::optional<uint32_t> max_ledger;
+    std::optional<uint32_t> maxLedger;
 };
 
-template <class T>
 std::pair<TxResult, error_code_i>
-doTxHelp(TxArgs& args, T& context)
+doTxHelp(TxArgs& args, RPC::Context& context)
 {
     TxResult result;
 
@@ -127,19 +126,19 @@ doTxHelp(TxArgs& args, T& context)
 
     ClosedInterval<uint32_t> range;
 
-    auto rangeProvided = args.min_ledger && args.max_ledger;
+    auto rangeProvided = args.minLedger && args.maxLedger;
 
     if (rangeProvided)
     {
         constexpr uint16_t MAX_RANGE = 1000;
 
-        if (*args.max_ledger < *args.min_ledger)
+        if (*args.maxLedger < *args.minLedger)
             return {result, rpcINVALID_LGR_RANGE};
 
-        if (*args.max_ledger - *args.min_ledger > MAX_RANGE)
+        if (*args.maxLedger - *args.minLedger > MAX_RANGE)
             return {result, rpcEXCESSIVE_LGR_RANGE};
 
-        range = ClosedInterval<uint32_t> (*args.min_ledger, *args.max_ledger);
+        range = ClosedInterval<uint32_t> (*args.minLedger, *args.maxLedger);
     }
 
     std::shared_ptr<Transaction> txn;
@@ -153,7 +152,7 @@ doTxHelp(TxArgs& args, T& context)
 
         if (v.which () == 1)
         {
-            result.searched_all = boost::get<bool> (v);
+            result.searchedAll = boost::get<bool> (v);
             return {result, rpcTXN_NOT_FOUND};
         }
         else
@@ -211,7 +210,7 @@ doTxHelp(TxArgs& args, T& context)
                 result.meta = std::make_shared<TxMeta>(
                     txn->getID(), ledger->seq(), *rawMeta);
 
-                result.delivered_amount = getDeliveredAmount(
+                result.deliveredAmount = RPC::getDeliveredAmount(
                     context,
                     txn,
                     *(std::get<std::shared_ptr<TxMeta>>(result.meta)));
@@ -245,7 +244,7 @@ populateResponse(
     if (res.second != rpcSUCCESS)
     {
         if (res.second == rpcTXN_NOT_FOUND &&
-            res.first.searched_all.has_value())
+            res.first.searchedAll.has_value())
         {
             fillErrSearch();
         }
@@ -271,7 +270,7 @@ populateResponse(
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
             {
                 fillMeta(meta);
-                if (res.first.delivered_amount)
+                if (res.first.deliveredAmount)
                 {
                     fillDelivered();
                 }
@@ -305,8 +304,8 @@ doTxJson(RPC::JsonContext& context)
     {
         try
         {
-            args.min_ledger = context.params[jss::min_ledger].asUInt();
-            args.max_ledger = context.params[jss::max_ledger].asUInt();
+            args.minLedger = context.params[jss::min_ledger].asUInt();
+            args.maxLedger = context.params[jss::max_ledger].asUInt();
         }
         catch (...)
         {
@@ -331,7 +330,7 @@ doTxJson(RPC::JsonContext& context)
     auto fillErrSearch = [&args,&res,&ret]() {
 
         auto jvResult = Json::Value(Json::objectValue);
-        jvResult[jss::searched_all] = *res.first.searched_all;
+        jvResult[jss::searched_all] = *res.first.searchedAll;
 
         ret = rpcError(res.second, jvResult);
     };
@@ -350,7 +349,7 @@ doTxJson(RPC::JsonContext& context)
     auto fillDelivered = [&args,&res,&ret]() {
 
         ret[jss::meta][jss::delivered_amount] =
-            res.first.delivered_amount->getJson(
+            res.first.deliveredAmount->getJson(
                     JsonOptions::include_date);
     };
 
@@ -395,8 +394,8 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
     if(request.ledger_range().ledger_index_min() != 0
             && request.ledger_range().ledger_index_max() != 0)
     {
-        args.min_ledger = request.ledger_range().ledger_index_min();
-        args.max_ledger = request.ledger_range().ledger_index_max();
+        args.minLedger = request.ledger_range().ledger_index_min();
+        args.maxLedger = request.ledger_range().ledger_index_max();
     }
 
     std::pair<TxResult, error_code_i> res = doTxHelp(args, context);
@@ -413,7 +412,7 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
     {
 
         grpc::Status errorStatus{grpc::StatusCode::NOT_FOUND,
-            "txn not found. searched_all = " + *res.first.searched_all};
+            "txn not found. searched_all = " + *res.first.searchedAll};
         status = errorStatus;
 
     };
@@ -451,7 +450,7 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
     {
 
         RPC::populateAmount(*response.mutable_meta()->mutable_delivered_amount(),
-                *res.first.delivered_amount);
+                *res.first.deliveredAmount);
     };
 
     auto fillValidated = [&args,&res,&response,&status]()

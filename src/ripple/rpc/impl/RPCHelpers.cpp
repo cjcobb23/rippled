@@ -399,6 +399,105 @@ ledgerFromRequest<>(
     std::shared_ptr<ReadView const>&,
     GRPCContext<rpc::v1::GetAccountInfoRequest>&);
 
+template <class T>
+Status
+getLedger(T& ledger, uint256 const & ledgerHash, Context& context)
+{
+        ledger = context.ledgerMaster.getLedgerByHash(ledgerHash);
+        if (ledger == nullptr)
+            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+        return Status::OK;
+}
+
+template <class T>
+Status
+getLedger(T& ledger, uint32_t ledgerIndex, Context& context)
+{
+    ledger = context.ledgerMaster.getLedgerBySeq(ledgerIndex);
+    if (ledger == nullptr)
+    {
+        auto cur = context.ledgerMaster.getCurrentLedger();
+        if (cur->info().seq == ledgerIndex)
+        {
+            ledger = cur;
+        }
+    }
+
+    if (ledger == nullptr)
+        return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+
+    if (ledger->info().seq > context.ledgerMaster.getValidLedgerIndex() &&
+            isValidatedOld(context.ledgerMaster, context.app.config().standalone()))
+    {
+        ledger.reset();
+        return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+    }
+
+    return Status::OK;
+}
+
+
+template <class T>
+Status
+getLedger(T& ledger, std::string const& ledgerSpecifier, Context& context)
+{
+    if (isValidatedOld (context.ledgerMaster, context.app.config().standalone()))
+        return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+    if (ledgerSpecifier == "validated")
+    {
+        ledger = context.ledgerMaster.getValidatedLedger ();
+        if (ledger == nullptr)
+            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+        assert (! ledger->open());
+    }
+    else
+    {
+        //TODO can we remove the case when the string is empty?
+        if (ledgerSpecifier.empty () || ledgerSpecifier == "current")
+        {
+            ledger = context.ledgerMaster.getCurrentLedger ();
+            assert (ledger->open());
+        }
+        else if (ledgerSpecifier == "closed")
+        {
+            ledger = context.ledgerMaster.getClosedLedger ();
+            assert (! ledger->open());
+        }
+        else
+        {
+            return {rpcINVALID_PARAMS, "ledgerIndexMalformed"};
+        }
+
+        if (ledger == nullptr)
+            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+
+        static auto const minSequenceGap = 10;
+
+        if (ledger->info().seq + minSequenceGap <
+                context.ledgerMaster.getValidLedgerIndex ())
+        {
+            ledger.reset ();
+            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+        }
+    }
+    return Status::OK;
+}
+
+//Explicit instantiaion of above three functions
+template Status
+getLedger<>(std::shared_ptr<ReadView const>&,
+        uint256 const&, Context&);
+
+template Status
+getLedger<>(std::shared_ptr<ReadView const>&,
+        uint32_t, Context&);
+
+template Status
+getLedger<>(std::shared_ptr<ReadView const>&,
+        std::string const&, Context&);
+
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
     Application& app)

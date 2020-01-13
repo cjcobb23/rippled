@@ -199,6 +199,193 @@ Json::Value doAccountTx (RPC::JsonContext& context)
 #endif
 }
 
+//Ledger sequence, Account sequence
+using Marker = std::pair<uint32_t, uint32_t>;
+using LedgerRange = std::pair<uint32_t,uint32_t>;
+using LedgerSequence = uint32_t;
+using LedgerHash = uint256;
+using LedgerShortcut = std::string;
+
+struct AccountTxArgs
+{
+    AccountID account;
+
+    //Defaults to empty LedgerShortcut (empty string), which specifies the
+    //current ledger
+    std::variant<LedgerShortcut,LedgerSequence,LedgerHash,LedgerRange> ledger;
+
+    bool binary = false;
+
+    bool forward = false;
+
+    uint32_t limit = 0;
+
+    std::optional<Marker> marker;
+
+};
+
+struct AccountTxResult
+{
+    using AccountTx = std::pair<std::shared_ptr<Transaction>, TxMeta::pointer>;
+    //bool indicates whether data is validated
+    std::vector<std::pair<AccountTx,bool>> transactions;
+
+    std::vector<std::pair<std::tuple<std::string, std::string, uint32_t>,bool>> transactionsBn;
+
+    LedgerRange ledgerRange;
+
+    uint32_t limit;
+
+    std::optional<Marker> marker;
+
+    bool validated;
+
+    AccountID account;
+};
+
+std::pair<AccountTxResult, error_code_i>
+doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
+{
+    AccountTxResult result;
+
+    std::uint32_t uValidatedMin;
+    std::uint32_t uValidatedMax;
+    bool bValidated =
+        context.ledgerMaster.getValidatedRange(uValidatedMin, uValidatedMax);
+
+    if (!bValidated)
+    {
+        // Don't have a validated ledger range.
+        return {result, rpcLGR_IDXS_INVALID};
+    }
+
+    std::uint32_t uLedgerMin = uValidatedMin;
+    std::uint32_t uLedgerMax = uValidatedMax;
+
+    context.loadType = Resource::feeMediumBurdenRPC;
+
+    std::int64_t iLedgerMin = -1;
+    std::int64_t iLedgerMax = -1;
+    if (std::holds_alternative<LedgerRange>(args.ledger))
+    {
+        iLedgerMin = std::get<LedgerRange>(args.ledger).first;
+        iLedgerMax = std::get<LedgerRange>(args.ledger).second;
+
+        uLedgerMin =
+            ((iLedgerMin >= uValidatedMin) ? iLedgerMin : uValidatedMin);
+        uLedgerMax =
+            ((iLedgerMax <= uValidatedMax) ? iLedgerMax : uValidatedMax);
+
+        if (uLedgerMax < uLedgerMin)
+            return {result, rpcLGR_IDXS_INVALID};
+    }
+    else
+    {
+        std::shared_ptr<ReadView const> ledger;
+        RPC::Status status{RPC::Status::OK};
+        if (std::holds_alternative<LedgerSequence>(args.ledger))
+        {
+            status = getLedger(
+                ledger, std::get<LedgerSequence>(args.ledger), context);
+        }
+        else if (std::holds_alternative<LedgerHash>(args.ledger))
+        {
+            status =
+                getLedger(ledger, std::get<LedgerHash>(args.ledger), context);
+        }
+        else
+        {
+            assert(std::holds_alternative<LedgerShortcut>(args.ledger));
+            status = getLedger(
+                ledger, std::get<LedgerShortcut>(args.ledger), context);
+        }
+        if (!ledger)
+        {
+            return {result, status.toErrorCode()};
+        }
+
+        bool validated =
+            RPC::isValidated(context.ledgerMaster, *ledger, context.app);
+
+        if (!validated || ledger->info().seq > uValidatedMax ||
+            ledger->info().seq < uValidatedMin)
+        {
+            return {result, rpcLGR_NOT_VALIDATED};
+        }
+        uLedgerMin = uLedgerMax = ledger->info().seq;
+    }
+
+        if (!args.marker)
+        {
+            args.marker = {0, 0};
+        }
+
+    if (args.binary)
+    {
+        // TODO
+
+        auto txns = context.netOps.getTxsAccountB(
+            args.account,
+            uLedgerMin,
+            uLedgerMax,
+            args.forward,
+            *args.marker,
+            args.limit,
+            isUnlimited(context.role));
+
+        for (auto& it : txns)
+        {
+            std::uint32_t uLedgerIndex = std::get<2>(it);
+
+            bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
+                uValidatedMax >= uLedgerIndex;
+
+            result.transactionsBn.emplace_back(
+                std::make_tuple(
+                    std::get<0>(it), std::get<1>(it), std::get<2>(it)),
+                validated);
+        }
+    }
+    else
+    {
+
+        auto txns = context.netOps.getTxsAccount(
+            args.account,
+            uLedgerMin,
+            uLedgerMax,
+            args.forward,
+            *args.marker,
+            args.limit,
+            isUnlimited(context.role));
+
+        for (auto const& [txn, txMeta] : txns)
+        {
+            if (!txMeta->hasDeliveredAmount())
+            {
+                std::optional<STAmount> amount =
+                    getDeliveredAmount(context, txn, *txMeta);
+                if (amount)
+                {
+                    txMeta->setDeliveredAmount(*amount);
+                }
+            }
+
+            std::uint32_t uLedgerIndex = txMeta->getLgrSeq();
+            bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
+                uValidatedMax >= uLedgerIndex;
+            result.transactions.emplace_back(std::make_pair(txn, txMeta), validated);
+        }
+    }
+
+
+    result.ledgerRange = std::make_pair(uLedgerMin,uLedgerMax);
+    result.limit = args.limit;
+    result.marker = args.marker;
+    result.account = args.account;
+
+    return {result, rpcSUCCESS};
+}
+
 std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
 doAccountTxGrpc(
     RPC::GRPCContext<rpc::v1::GetAccountTransactionHistoryRequest>& context)

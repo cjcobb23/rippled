@@ -82,6 +82,36 @@ getAccountObjects (ReadView const& ledger, AccountID const& account,
     boost::optional<std::vector<LedgerEntryType>> const& typeFilter, uint256 dirIndex,
     uint256 const& entryIndex, std::uint32_t const limit, Json::Value& jvResult);
 
+/** Get ledger by hash
+    If there is no error in the return value, the ledger pointer will have
+    been filled
+*/
+template <class T>
+Status
+getLedger(T& ledger, uint256 const & ledgerHash, Context& context);
+
+
+/** Get ledger by sequence
+    If there is no error in the return value, the ledger pointer will have
+    been filled
+*/
+template <class T>
+Status
+getLedger(T& ledger, uint32_t ledgerIndex, Context& context);
+
+/** Get ledger specified in ledgerSpecifier. ledgerSpecifier can one of:
+    "current"
+    "closed"
+    "validated"
+     "" (empty string - defaults to current)
+     If there is no error in the return value, the ledger pointer will have
+     been filled
+*/
+template <class T>
+Status
+getLedger(T& ledger, std::string const& ledgerSpecifier, Context& context);
+
+
 /** Look up a ledger from a request and fill a Json::Result with either
     an error, or data representing a ledger.
 
