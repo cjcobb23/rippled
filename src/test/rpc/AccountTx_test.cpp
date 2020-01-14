@@ -118,6 +118,7 @@ class AccountTx_test : public beast::unit_test::suite
         // All other ledgers have no txs
 
         auto hasTxs = [](Json::Value const& j) {
+            //std::cout << j << std::endl;
             return j.isMember(jss::result) &&
                 (j[jss::result][jss::status] == "success") &&
                 (j[jss::result][jss::transactions].size() == 2) &&
@@ -152,6 +153,7 @@ class AccountTx_test : public beast::unit_test::suite
             rpcACT_MALFORMED));
 
         jParms[jss::account] = A1.human();
+        std::cout << "account_tx good **********" << std::endl;
         BEAST_EXPECT(hasTxs(env.rpc("json", "account_tx", to_string(jParms))));
 
         // Ledger min/max index
@@ -211,6 +213,7 @@ class AccountTx_test : public beast::unit_test::suite
         {
             Json::Value p{jParms};
 
+            std::cout << "ledger index test" << std::endl;
             p[jss::ledger_index] = env.closed()->info().seq;
             BEAST_EXPECT(hasTxs(env.rpc("json", "account_tx", to_string(p))));
 

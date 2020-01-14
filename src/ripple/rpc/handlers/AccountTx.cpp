@@ -100,6 +100,15 @@ Json::Value doAccountTx (RPC::JsonContext& context)
         if (! ledger)
             return ret;
 
+        std::cout << "ledger index" << std::endl;
+        std::cout << "validated = " << ret[jss::validated].asBool()
+            << "ledger info seq = " << ledger->info().seq
+            << "uValidatedMax = " << uValidatedMax
+            << "uValidatedMin = " << uValidatedMin
+            << std::endl;
+
+
+
         if (! ret[jss::validated].asBool() ||
             (ledger->info().seq > uValidatedMax) ||
             (ledger->info().seq < uValidatedMin))
@@ -199,9 +208,14 @@ Json::Value doAccountTx (RPC::JsonContext& context)
 #endif
 }
 
+
+
+
 //Ledger sequence, Account sequence
+//TODO this type needs to be defined somewhere else,
+//to be used by NetworkOps and AccountTxPaging and here
 using Marker = std::pair<uint32_t, uint32_t>;
-using LedgerRange = std::pair<uint32_t,uint32_t>;
+using LedgerRange = std::pair<int, int>;
 using LedgerSequence = uint32_t;
 using LedgerHash = uint256;
 using LedgerShortcut = std::string;
@@ -212,7 +226,7 @@ struct AccountTxArgs
 
     //Defaults to empty LedgerShortcut (empty string), which specifies the
     //current ledger
-    std::variant<LedgerShortcut,LedgerSequence,LedgerHash,LedgerRange> ledger;
+    std::variant<LedgerRange,LedgerShortcut,LedgerSequence,LedgerHash> ledger;
 
     bool binary = false;
 
@@ -243,7 +257,9 @@ struct AccountTxResult
     AccountID account;
 };
 
-std::pair<AccountTxResult, error_code_i>
+
+
+std::pair<AccountTxResult, RPC::Status>
 doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
 {
     AccountTxResult result;
@@ -264,18 +280,18 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
 
     context.loadType = Resource::feeMediumBurdenRPC;
 
-    std::int64_t iLedgerMin = -1;
-    std::int64_t iLedgerMax = -1;
     if (std::holds_alternative<LedgerRange>(args.ledger))
     {
-        iLedgerMin = std::get<LedgerRange>(args.ledger).first;
-        iLedgerMax = std::get<LedgerRange>(args.ledger).second;
 
-        uLedgerMin =
-            ((iLedgerMin >= uValidatedMin) ? iLedgerMin : uValidatedMin);
-        uLedgerMax =
-            ((iLedgerMax <= uValidatedMax) ? iLedgerMax : uValidatedMax);
-
+        auto& ledgerRange = std::get<LedgerRange>(args.ledger);
+        if(ledgerRange.first >= 0 && ledgerRange.first > uValidatedMin)
+        {
+            uLedgerMin = ledgerRange.first;
+        }
+        if(ledgerRange.second >= 0 && ledgerRange.second < uValidatedMax)
+        {
+            uLedgerMax = ledgerRange.second;
+        }
         if (uLedgerMax < uLedgerMin)
             return {result, rpcLGR_IDXS_INVALID};
     }
@@ -295,17 +311,24 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
         }
         else
         {
+            std::cout << "Ledger shortcut " << std::endl;
             assert(std::holds_alternative<LedgerShortcut>(args.ledger));
             status = getLedger(
                 ledger, std::get<LedgerShortcut>(args.ledger), context);
         }
         if (!ledger)
         {
-            return {result, status.toErrorCode()};
+            return {result, status};
         }
 
         bool validated =
             RPC::isValidated(context.ledgerMaster, *ledger, context.app);
+
+        std::cout << "validated = " << validated
+            << "ledger info seq = " << ledger->info().seq
+            << "uValidatedMax = " << uValidatedMax
+            << "uValidatedMin = " << uValidatedMin
+            << std::endl;
 
         if (!validated || ledger->info().seq > uValidatedMax ||
             ledger->info().seq < uValidatedMin)
@@ -395,6 +418,132 @@ doAccountTxGrpc(
     grpc::Status status = grpc::Status::OK;
 
     return {{}, {grpc::StatusCode::UNIMPLEMENTED, "Unimplemented"}};
+}
+
+
+Json::Value doAccountTxJson (RPC::JsonContext& context)
+{
+    //doAccountTx(context);
+
+    auto& params = context.params;
+    AccountTxArgs args;
+    Json::Value response;
+
+    args.limit = params.isMember (jss::limit) ?
+        params[jss::limit].asUInt () : 0;
+    args.binary = params.isMember (jss::binary) && params[jss::binary].asBool ();
+    args.forward = params.isMember (jss::forward) && params[jss::forward].asBool ();
+
+
+    if (!params.isMember (jss::account))
+        return rpcError (rpcINVALID_PARAMS);
+
+    auto const account = parseBase58<AccountID>(
+            params[jss::account].asString());
+    if (! account)
+        return rpcError (rpcACT_MALFORMED);
+
+    args.account = *account;
+
+    if (params.isMember(jss::ledger_index_min) ||
+            params.isMember(jss::ledger_index_max))
+    {
+        int min = params.isMember(jss::ledger_index_min)
+            ? params[jss::ledger_index_min].asInt()
+            : -1;
+        int max = params.isMember(jss::ledger_index_max)
+            ? params[jss::ledger_index_max].asInt()
+            : -1;
+
+        args.ledger = std::make_pair(min, max);
+    }
+    else if(params.isMember(jss::ledger_hash))
+    {
+
+        auto& hashValue = params[jss::ledger_hash];
+        if (! hashValue.isString ())
+        {
+            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashNotString"};
+            status.inject(response);
+            return response;
+        }
+        args.ledger = LedgerHash{};
+        auto& hash = std::get<LedgerHash>(args.ledger);
+        if (! hash.SetHex (hashValue.asString ()))
+        {
+            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashMalformed"};
+            status.inject(response);
+            return response;
+        }
+    }
+    else if(params.isMember(jss::ledger_index))
+    {
+        if(params[jss::ledger_index].isNumeric())
+        {
+            args.ledger = params[jss::ledger_index].asInt();
+        } else
+        {
+            std::cout << "ledger index string" << std::endl;
+            args.ledger = params[jss::ledger_index].asString();
+
+        }
+    }
+    else
+    {
+        args.ledger = std::make_pair(-1,-1);
+    }
+
+    if (params.isMember(jss::marker))
+    {
+        auto& token = params[jss::marker];
+        if (!token.isMember(jss::ledger) || !token.isMember(jss::seq) ||
+                !token[jss::ledger].isUInt() || !token[jss::seq].isUInt())
+        {
+            return rpcError(
+                    rpcINVALID_PARAMS,
+                    "invalid marker. Provide ledger index via ledger field, and "
+                    "account sequence number via seq field");
+        }
+        args.marker = std::make_pair(
+                token[jss::ledger].asUInt(), token[jss::seq].asUInt());
+    }
+
+    auto res = doAccountTxHelp(context, args);
+
+    if(res.second.toErrorCode() != rpcSUCCESS)
+    {
+        res.second.inject(response);
+        return response;
+    }
+
+
+    Json::Value& jvTxns = (response[jss::transactions] = Json::arrayValue);
+    for (auto const& [txn, validated] : res.first.transactions)
+    {
+        Json::Value& jvObj = jvTxns.append (Json::objectValue);
+
+        auto const & [txnBasic, txnMeta] = txn;
+
+        if (txnBasic)
+            jvObj[jss::tx] =
+                txnBasic->getJson (JsonOptions::include_date);
+
+        if (txnMeta)
+        {
+            auto metaJ = txnMeta->getJson (JsonOptions::include_date);
+            jvObj[jss::meta] = std::move(metaJ);
+            jvObj[jss::validated] = validated;
+        }
+    }
+
+    if(res.first.marker)
+    {
+        response[jss::marker] = Json::objectValue;
+        response[jss::marker][jss::ledger] = res.first.marker->first;
+        response[jss::marker][jss::seq] = res.first.marker->second;
+    }
+
+    return response;
 }
 
 } // ripple
