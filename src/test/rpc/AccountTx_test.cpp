@@ -118,7 +118,6 @@ class AccountTx_test : public beast::unit_test::suite
         // All other ledgers have no txs
 
         auto hasTxs = [](Json::Value const& j) {
-            //std::cout << j << std::endl;
             return j.isMember(jss::result) &&
                 (j[jss::result][jss::status] == "success") &&
                 (j[jss::result][jss::transactions].size() == 2) &&

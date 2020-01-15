@@ -114,8 +114,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(jrr[jss::marker]))
                 return;
 
+            std::cout << jrr << std::endl;
+            std::cout << jrr[jss::marker] << std::endl;
             jrr = next(env, A3, 2, 5, 2, true, jrr[jss::marker]);
+            std::cout << jrr << std::endl;
             txs = jrr[jss::transactions];
+            std::cout << txs << std::endl;
             if (! BEAST_EXPECT(txs.isArray() && txs.size() == 2))
                 return;
             BEAST_EXPECT(checkTransaction (txs[0u], 4, 4));
@@ -129,7 +133,9 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 return;
             BEAST_EXPECT(checkTransaction (txs[0u], 4, 5));
             BEAST_EXPECT(checkTransaction (txs[1u], 5, 5));
+            std::cout << jrr[jss::marker] << std::endl;
             BEAST_EXPECT(! jrr[jss::marker]);
+            return;
         }
 
         {

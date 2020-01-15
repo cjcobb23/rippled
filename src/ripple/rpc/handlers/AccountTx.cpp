@@ -215,18 +215,24 @@ Json::Value doAccountTx (RPC::JsonContext& context)
 //TODO this type needs to be defined somewhere else,
 //to be used by NetworkOps and AccountTxPaging and here
 using Marker = std::pair<uint32_t, uint32_t>;
-using LedgerRange = std::pair<int, int>;
 using LedgerSequence = uint32_t;
 using LedgerHash = uint256;
 using LedgerShortcut = std::string;
+
+struct LedgerRange {
+
+    uint32_t min;
+
+    uint32_t max;
+};
 
 struct AccountTxArgs
 {
     AccountID account;
 
-    //Defaults to empty LedgerShortcut (empty string), which specifies the
-    //current ledger
-    std::variant<LedgerRange,LedgerShortcut,LedgerSequence,LedgerHash> ledger;
+    std::optional<
+        std::variant<LedgerRange, LedgerShortcut, LedgerSequence, LedgerHash>>
+        ledger;
 
     bool binary = false;
 
@@ -235,16 +241,20 @@ struct AccountTxArgs
     uint32_t limit = 0;
 
     std::optional<Marker> marker;
-
 };
+
+using TxnData = NetworkOPs::AccountTx;
+using TxnDataBinary = NetworkOPs::txnMetaLedgerType;
+using TxnsData = std::vector<std::pair<TxnData,bool>>;
+using TxnsDataBinary = std::vector<std::pair<TxnDataBinary, bool>>;
 
 struct AccountTxResult
 {
-    using AccountTx = std::pair<std::shared_ptr<Transaction>, TxMeta::pointer>;
-    //bool indicates whether data is validated
-    std::vector<std::pair<AccountTx,bool>> transactions;
-
-    std::vector<std::pair<std::tuple<std::string, std::string, uint32_t>,bool>> transactionsBn;
+    // bool indicates whether txn is validated
+    std::variant<
+        TxnsData,
+        TxnsDataBinary>
+        transactions;
 
     LedgerRange ledgerRange;
 
@@ -256,8 +266,6 @@ struct AccountTxResult
 
     AccountID account;
 };
-
-
 
 std::pair<AccountTxResult, RPC::Status>
 doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
@@ -275,87 +283,89 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
         return {result, rpcLGR_IDXS_INVALID};
     }
 
+    result.validated = true;
+
     std::uint32_t uLedgerMin = uValidatedMin;
     std::uint32_t uLedgerMax = uValidatedMax;
 
     context.loadType = Resource::feeMediumBurdenRPC;
 
-    if (std::holds_alternative<LedgerRange>(args.ledger))
+    // Does request specify a ledger or ledger range?
+    if(args.ledger)
     {
 
-        auto& ledgerRange = std::get<LedgerRange>(args.ledger);
-        if(ledgerRange.first >= 0 && ledgerRange.first > uValidatedMin)
+        if (std::holds_alternative<LedgerRange>(*args.ledger))
         {
-            uLedgerMin = ledgerRange.first;
-        }
-        if(ledgerRange.second >= 0 && ledgerRange.second < uValidatedMax)
-        {
-            uLedgerMax = ledgerRange.second;
-        }
-        if (uLedgerMax < uLedgerMin)
-            return {result, rpcLGR_IDXS_INVALID};
-    }
-    else
-    {
-        std::shared_ptr<ReadView const> ledger;
-        RPC::Status status{RPC::Status::OK};
-        if (std::holds_alternative<LedgerSequence>(args.ledger))
-        {
-            status = getLedger(
-                ledger, std::get<LedgerSequence>(args.ledger), context);
-        }
-        else if (std::holds_alternative<LedgerHash>(args.ledger))
-        {
-            status =
-                getLedger(ledger, std::get<LedgerHash>(args.ledger), context);
+            auto& ledgerRange = std::get<LedgerRange>(*args.ledger);
+            if(ledgerRange.min > uValidatedMin)
+            {
+                uLedgerMin = ledgerRange.min;
+            }
+            if(ledgerRange.max < uValidatedMax)
+            {
+                uLedgerMax = ledgerRange.max;
+            }
+            if (uLedgerMax < uLedgerMin)
+                return {result, rpcLGR_IDXS_INVALID};
         }
         else
         {
-            std::cout << "Ledger shortcut " << std::endl;
-            assert(std::holds_alternative<LedgerShortcut>(args.ledger));
-            status = getLedger(
-                ledger, std::get<LedgerShortcut>(args.ledger), context);
-        }
-        if (!ledger)
-        {
-            return {result, status};
-        }
+            std::shared_ptr<ReadView const> ledger;
+            RPC::Status status{RPC::Status::OK};
+            if (std::holds_alternative<LedgerSequence>(*args.ledger))
+            {
+                status = getLedger(
+                        ledger, std::get<LedgerSequence>(*args.ledger), context);
+            }
+            else if (std::holds_alternative<LedgerHash>(*args.ledger))
+            {
+                status =
+                    getLedger(ledger, std::get<LedgerHash>(*args.ledger), context);
+            }
+            else
+            {
+                assert(std::holds_alternative<LedgerShortcut>(*args.ledger));
+                status = getLedger(
+                        ledger, std::get<LedgerShortcut>(*args.ledger), context);
+            }
+            if (!ledger)
+            {
+                return {result, status};
+            }
 
-        bool validated =
-            RPC::isValidated(context.ledgerMaster, *ledger, context.app);
+            result.validated =
+                RPC::isValidated(context.ledgerMaster, *ledger, context.app);
 
-        std::cout << "validated = " << validated
-            << "ledger info seq = " << ledger->info().seq
-            << "uValidatedMax = " << uValidatedMax
-            << "uValidatedMin = " << uValidatedMin
-            << std::endl;
-
-        if (!validated || ledger->info().seq > uValidatedMax ||
-            ledger->info().seq < uValidatedMin)
-        {
-            return {result, rpcLGR_NOT_VALIDATED};
+            // Note, if result.validated is false, we return an error
+            // Therefore, in a successful response, validated can only be true
+            if (!result.validated || ledger->info().seq > uValidatedMax ||
+                    ledger->info().seq < uValidatedMin)
+            {
+                return {result, rpcLGR_NOT_VALIDATED};
+            }
+            uLedgerMin = uLedgerMax = ledger->info().seq;
         }
-        uLedgerMin = uLedgerMax = ledger->info().seq;
     }
 
-        if (!args.marker)
-        {
-            args.marker = {0, 0};
-        }
+    if (!args.marker)
+    {
+        args.marker = {0, 0};
+    }
 
     if (args.binary)
     {
-        // TODO
 
         auto txns = context.netOps.getTxsAccountB(
-            args.account,
-            uLedgerMin,
-            uLedgerMax,
-            args.forward,
-            *args.marker,
-            args.limit,
-            isUnlimited(context.role));
+                args.account,
+                uLedgerMin,
+                uLedgerMax,
+                args.forward,
+                *args.marker,
+                args.limit,
+                isUnlimited(context.role));
+        result.transactions = TxnsDataBinary{};
 
+        auto& txnsData = std::get<TxnsDataBinary>(result.transactions);
         for (auto& it : txns)
         {
             std::uint32_t uLedgerIndex = std::get<2>(it);
@@ -363,23 +373,24 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
             bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
                 uValidatedMax >= uLedgerIndex;
 
-            result.transactionsBn.emplace_back(
-                std::make_tuple(
-                    std::get<0>(it), std::get<1>(it), std::get<2>(it)),
-                validated);
+            txnsData.emplace_back(
+                    it,
+                    validated);
         }
     }
     else
     {
 
         auto txns = context.netOps.getTxsAccount(
-            args.account,
-            uLedgerMin,
-            uLedgerMax,
-            args.forward,
-            *args.marker,
-            args.limit,
-            isUnlimited(context.role));
+                args.account,
+                uLedgerMin,
+                uLedgerMax,
+                args.forward,
+                *args.marker,
+                args.limit,
+                isUnlimited(context.role));
+        result.transactions = TxnsData{};
+        auto& txnsData = std::get<TxnsData>(result.transactions);
 
         for (auto const& [txn, txMeta] : txns)
         {
@@ -396,14 +407,16 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
             std::uint32_t uLedgerIndex = txMeta->getLgrSeq();
             bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
                 uValidatedMax >= uLedgerIndex;
-            result.transactions.emplace_back(std::make_pair(txn, txMeta), validated);
+            txnsData.emplace_back(std::make_pair(txn, txMeta), validated);
         }
     }
 
 
-    result.ledgerRange = std::make_pair(uLedgerMin,uLedgerMax);
+    result.ledgerRange = {uLedgerMin,uLedgerMax};
     result.limit = args.limit;
-    result.marker = args.marker;
+    if(args.marker->first != 0 || args.marker->second != 0)
+        result.marker = args.marker;
+
     result.account = args.account;
 
     return {result, rpcSUCCESS};
@@ -416,132 +429,172 @@ doAccountTxGrpc(
     // return values
     rpc::v1::GetTransactionResponse result;
     grpc::Status status = grpc::Status::OK;
-
+    AccountTxArgs args;
+//
+//    auto& request = context.params;
+//
+//    auto const account =
+//        parseBase58<AccountID>(request.account().address());
+//    if (!account)
+//        return rpcError(rpcACT_MALFORMED);
+//
+//    args.account = *account;
+//
+//
+//    args.limit = request.limit();
+//
+//    args.binary = request.binary();
+//    args.forward = request.forward();
+//
+//
+//
     return {{}, {grpc::StatusCode::UNIMPLEMENTED, "Unimplemented"}};
 }
 
 
 Json::Value doAccountTxJson (RPC::JsonContext& context)
 {
-    //doAccountTx(context);
 
     auto& params = context.params;
     AccountTxArgs args;
     Json::Value response;
 
-    args.limit = params.isMember (jss::limit) ?
-        params[jss::limit].asUInt () : 0;
-    args.binary = params.isMember (jss::binary) && params[jss::binary].asBool ();
-    args.forward = params.isMember (jss::forward) && params[jss::forward].asBool ();
+    args.limit = params.isMember(jss::limit) ? params[jss::limit].asUInt() : 0;
+    args.binary = params.isMember(jss::binary) && params[jss::binary].asBool();
+    args.forward =
+        params.isMember(jss::forward) && params[jss::forward].asBool();
 
+    if (!params.isMember(jss::account))
+        return rpcError(rpcINVALID_PARAMS);
 
-    if (!params.isMember (jss::account))
-        return rpcError (rpcINVALID_PARAMS);
-
-    auto const account = parseBase58<AccountID>(
-            params[jss::account].asString());
-    if (! account)
-        return rpcError (rpcACT_MALFORMED);
+    auto const account =
+        parseBase58<AccountID>(params[jss::account].asString());
+    if (!account)
+        return rpcError(rpcACT_MALFORMED);
 
     args.account = *account;
 
     if (params.isMember(jss::ledger_index_min) ||
-            params.isMember(jss::ledger_index_max))
+        params.isMember(jss::ledger_index_max))
     {
-        int min = params.isMember(jss::ledger_index_min)
-            ? params[jss::ledger_index_min].asInt()
-            : -1;
-        int max = params.isMember(jss::ledger_index_max)
-            ? params[jss::ledger_index_max].asInt()
-            : -1;
+        uint32_t min = params.isMember(jss::ledger_index_min) &&
+            params[jss::ledger_index_min].asInt() >= 0
+            ? params[jss::ledger_index_min].asUInt()
+            : 0;
+        uint32_t max = params.isMember(jss::ledger_index_max) &&
+                params[jss::ledger_index_max].asInt() >= 0
+            ? params[jss::ledger_index_max].asUInt()
+            : UINT32_MAX;
 
-        args.ledger = std::make_pair(min, max);
+        // if range is not well defined by arguments, or default values (-1)
+        // are used, don't set range. helper function will use entire range of
+        // validated ledgers
+        //if (min > 0 && max > 0)
+            args.ledger = LedgerRange{min, max};
     }
-    else if(params.isMember(jss::ledger_hash))
+    else if (params.isMember(jss::ledger_hash))
     {
-
         auto& hashValue = params[jss::ledger_hash];
-        if (! hashValue.isString ())
+        if (!hashValue.isString())
         {
             RPC::Status status{rpcINVALID_PARAMS, "ledgerHashNotString"};
             status.inject(response);
             return response;
         }
+
         args.ledger = LedgerHash{};
-        auto& hash = std::get<LedgerHash>(args.ledger);
-        if (! hash.SetHex (hashValue.asString ()))
+        auto& hash = std::get<LedgerHash>(*args.ledger);
+        if (!hash.SetHex(hashValue.asString()))
         {
             RPC::Status status{rpcINVALID_PARAMS, "ledgerHashMalformed"};
             status.inject(response);
             return response;
         }
     }
-    else if(params.isMember(jss::ledger_index))
+    else if (params.isMember(jss::ledger_index))
     {
-        if(params[jss::ledger_index].isNumeric())
-        {
+        if (params[jss::ledger_index].isNumeric())
             args.ledger = params[jss::ledger_index].asInt();
-        } else
-        {
-            std::cout << "ledger index string" << std::endl;
+        else
             args.ledger = params[jss::ledger_index].asString();
-
-        }
-    }
-    else
-    {
-        args.ledger = std::make_pair(-1,-1);
     }
 
     if (params.isMember(jss::marker))
     {
         auto& token = params[jss::marker];
-        if (!token.isMember(jss::ledger) || !token.isMember(jss::seq) ||
-                !token[jss::ledger].isUInt() || !token[jss::seq].isUInt())
+        if (!token.isMember(jss::ledger) || !token.isMember(jss::seq))// ||
+//            !token[jss::ledger].isUInt() || !token[jss::seq].isConvertibleTo())
         {
-            return rpcError(
-                    rpcINVALID_PARAMS,
-                    "invalid marker. Provide ledger index via ledger field, and "
-                    "account sequence number via seq field");
+            RPC::Status status{
+                rpcINVALID_PARAMS,
+                "invalid marker. Provide ledger index via ledger field, and "
+                "account sequence number via seq field"};
+            status.inject(response);
+            return response;
         }
         args.marker = std::make_pair(
-                token[jss::ledger].asUInt(), token[jss::seq].asUInt());
+            token[jss::ledger].asUInt(), token[jss::seq].asUInt());
     }
 
     auto res = doAccountTxHelp(context, args);
 
-    if(res.second.toErrorCode() != rpcSUCCESS)
+    if (res.second.toErrorCode() != rpcSUCCESS)
     {
         res.second.inject(response);
         return response;
     }
 
-
     Json::Value& jvTxns = (response[jss::transactions] = Json::arrayValue);
-    for (auto const& [txn, validated] : res.first.transactions)
+
+    if (std::holds_alternative<TxnsData>(res.first.transactions))
     {
-        Json::Value& jvObj = jvTxns.append (Json::objectValue);
-
-        auto const & [txnBasic, txnMeta] = txn;
-
-        if (txnBasic)
-            jvObj[jss::tx] =
-                txnBasic->getJson (JsonOptions::include_date);
-
-        if (txnMeta)
+        assert(!args.binary);
+        for (auto const& [txn, validated] :
+             std::get<TxnsData>(res.first.transactions))
         {
-            auto metaJ = txnMeta->getJson (JsonOptions::include_date);
-            jvObj[jss::meta] = std::move(metaJ);
+            Json::Value& jvObj = jvTxns.append(Json::objectValue);
+
+            auto const& [txnBasic, txnMeta] = txn;
+
+            if (txnBasic)
+                jvObj[jss::tx] = txnBasic->getJson(JsonOptions::include_date);
+
+            if (txnMeta)
+            {
+                auto metaJ = txnMeta->getJson(JsonOptions::include_date);
+                jvObj[jss::meta] = std::move(metaJ);
+                jvObj[jss::validated] = validated;
+            }
+        }
+    }
+    else
+    {
+        assert(args.binary);
+
+        for (auto const& [txn, validated] :
+             std::get<TxnsDataBinary>(res.first.transactions))
+        {
+            Json::Value& jvObj = jvTxns.append(Json::objectValue);
+
+            jvObj[jss::tx_blob] = std::get<0>(txn);
+            jvObj[jss::meta] = std::get<1>(txn);
+            jvObj[jss::ledger_index] = std::get<2>(txn);
             jvObj[jss::validated] = validated;
         }
     }
 
-    if(res.first.marker)
+    if (res.first.marker)
     {
         response[jss::marker] = Json::objectValue;
         response[jss::marker][jss::ledger] = res.first.marker->first;
         response[jss::marker][jss::seq] = res.first.marker->second;
     }
+
+    response[jss::validated] = res.first.validated;
+    response[jss::limit] = res.first.limit;
+    response[jss::account] = params[jss::account].asString();
+    response[jss::ledger_index_min] = res.first.ledgerRange.min;
+    response[jss::ledger_index_max] = res.first.ledgerRange.max;
 
     return response;
 }
