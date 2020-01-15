@@ -297,7 +297,9 @@ accountTxPage (
     bool bAdmin,
     std::uint32_t page_length)
 {
-    bool lookingForMarker = marker.first != 0 && marker.second != 0;
+    //TODO change marker to optional
+    //0 could be a valid value for the marker
+    bool lookingForMarker = marker.first != 0 || marker.second != 0;
 
     std::uint32_t numberOfResults;
 
@@ -319,6 +321,8 @@ accountTxPage (
         findLedger = marker.first;
         findSeq = marker.second;
     }
+
+    marker = {0,0};
 
 
     static std::string const prefix (
