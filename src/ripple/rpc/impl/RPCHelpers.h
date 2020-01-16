@@ -99,17 +99,19 @@ template <class T>
 Status
 getLedger(T& ledger, uint32_t ledgerIndex, Context& context);
 
-/** Get ledger specified in ledgerSpecifier. ledgerSpecifier can one of:
-    "current"
-    "closed"
-    "validated"
-     "" (empty string - defaults to current)
-     If there is no error in the return value, the ledger pointer will have
-     been filled
+enum LedgerShortcut
+{
+    CURRENT,
+    CLOSED,
+    VALIDATED
+};
+/** Get ledger specified in shortcut.
+    If there is no error in the return value, the ledger pointer will have
+    been filled
 */
 template <class T>
 Status
-getLedger(T& ledger, std::string const& ledgerSpecifier, Context& context);
+getLedger(T& ledger, LedgerShortcut shortcut, Context& context);
 
 
 /** Look up a ledger from a request and fill a Json::Result with either

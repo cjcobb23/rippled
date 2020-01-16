@@ -316,8 +316,12 @@ ledgerFromRequest(
     using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
     LedgerCase ledgerCase = request.ledger().ledger_case();
 
+
+    std::cout << ledgerCase << std::endl;
+
     if (ledgerCase == LedgerCase::kHash)
     {
+        std::cout << "hash" << std::endl;
         uint256 ledgerHash = uint256::fromVoid(request.ledger().hash().data());
         if (ledgerHash.size() != request.ledger().hash().size())
             return {rpcINVALID_PARAMS, "ledgerHashMalformed"};
@@ -328,6 +332,8 @@ ledgerFromRequest(
     }
     else if (ledgerCase == LedgerCase::kSequence)
     {
+
+        std::cout << "sequence" << std::endl;
         ledger = ledgerMaster.getLedgerBySeq(request.ledger().sequence());
 
         if (ledger == nullptr)
@@ -351,6 +357,14 @@ ledgerFromRequest(
         ledgerCase == LedgerCase::kShortcut ||
         ledgerCase == LedgerCase::LEDGER_NOT_SET)
     {
+        if(ledgerCase == LedgerCase::kShortcut)
+        {
+            std::cout << "shortcut" << std::endl;
+        }
+        else
+        {
+            std::cout << "not set" << std::endl;
+        }
         if (isValidatedOld(ledgerMaster, context.app.config().standalone()))
             return {rpcNO_NETWORK, "InsufficientNetworkMode"};
 
@@ -439,12 +453,12 @@ getLedger(T& ledger, uint32_t ledgerIndex, Context& context)
 
 template <class T>
 Status
-getLedger(T& ledger, std::string const& ledgerSpecifier, Context& context)
+getLedger(T& ledger, LedgerShortcut shortcut, Context& context)
 {
     if (isValidatedOld (context.ledgerMaster, context.app.config().standalone()))
         return {rpcNO_NETWORK, "InsufficientNetworkMode"};
 
-    if (ledgerSpecifier == "validated")
+    if (shortcut == LedgerShortcut::VALIDATED)
     {
         ledger = context.ledgerMaster.getValidatedLedger ();
         if (ledger == nullptr)
@@ -454,13 +468,12 @@ getLedger(T& ledger, std::string const& ledgerSpecifier, Context& context)
     }
     else
     {
-        //TODO can we remove the case when the string is empty?
-        if (ledgerSpecifier.empty () || ledgerSpecifier == "current")
+        if (shortcut == LedgerShortcut::CURRENT)
         {
             ledger = context.ledgerMaster.getCurrentLedger ();
             assert (ledger->open());
         }
-        else if (ledgerSpecifier == "closed")
+        else if (shortcut == LedgerShortcut::CLOSED)
         {
             ledger = context.ledgerMaster.getClosedLedger ();
             assert (! ledger->open());
@@ -496,7 +509,7 @@ getLedger<>(std::shared_ptr<ReadView const>&,
 
 template Status
 getLedger<>(std::shared_ptr<ReadView const>&,
-        std::string const&, Context&);
+        LedgerShortcut shortcut, Context&);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -1067,7 +1080,7 @@ populateOffer(rpc::v1::Offer& proto, STObject const& obj)
     }
     if (obj.isFieldPresent(sfBookDirectory))
     {
-        auto field = obj.getFieldVL(sfBookDirectory);
+        auto field = obj.getFieldH256(sfBookDirectory);
         proto.set_book_directory(field.data(), field.size());
     }
     if (obj.isFieldPresent(sfBookNode))
@@ -1168,7 +1181,7 @@ populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
 {
     if (obj.isFieldPresent(sfOwner))
     {
-        AccountID ownerAccount = obj.getAccountID(sfAccount);
+        AccountID ownerAccount = obj.getAccountID(sfOwner);
         proto.set_owner(toBase58(ownerAccount));
     }
     if (obj.isFieldPresent(sfTakerPaysCurrency))
@@ -1271,12 +1284,15 @@ template <class T>
 void
 populateFields(T& proto, STObject const& obj, std::uint16_t type)
 {
+    std::cout << "populate fields, type = " << type << std::endl;
     if (type == ltACCOUNT_ROOT)
     {
+        //return;
         RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
     }
     else if (type == ltRIPPLE_STATE)
     {
+        //return;
         RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
     }
     else if (type == ltOFFER)
@@ -1344,13 +1360,18 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
             }
 
             // prev txn id and prev txn ledger seq
-            uint256 prevTxnId = obj.getFieldH256(sfPreviousTxnID);
-            node->mutable_modified_node()->set_previous_transaction_id(
-                prevTxnId.data(), prevTxnId.size());
-
-            node->mutable_modified_node()
-                ->set_previous_transaction_ledger_sequence(
-                    obj.getFieldU32(sfPreviousTxnLgrSeq));
+            if(obj.isFieldPresent(sfPreviousTxnID))
+            {
+                uint256 prevTxnId = obj.getFieldH256(sfPreviousTxnID);
+                node->mutable_modified_node()->set_previous_transaction_id(
+                        prevTxnId.data(), prevTxnId.size());
+            }
+            if(obj.isFieldPresent(sfPreviousTxnLgrSeq))
+            {
+                node->mutable_modified_node()
+                    ->set_previous_transaction_ledger_sequence(
+                            obj.getFieldU32(sfPreviousTxnLgrSeq));
+            }
         }
         // created node
         else if (obj.getFName() == sfCreatedNode)
@@ -1410,15 +1431,11 @@ populateTransaction(
     rpc::v1::Transaction& proto,
     std::shared_ptr<STTx const> txnSt)
 {
+
+
+
     AccountID account = txnSt->getAccountID(sfAccount);
     proto.mutable_account()->set_address(toBase58(account));
-
-    STAmount amount = txnSt->getFieldAmount(sfAmount);
-    populateAmount(*proto.mutable_payment()->mutable_amount(), amount);
-
-    AccountID accountDest = txnSt->getAccountID(sfDestination);
-    proto.mutable_payment()->mutable_destination()->set_address(
-        toBase58(accountDest));
 
     STAmount fee = txnSt->getFieldAmount(sfFee);
     proto.mutable_fee()->set_drops(fee.xrp().drops());
@@ -1428,12 +1445,18 @@ populateTransaction(
     Blob signingPubKey = txnSt->getFieldVL(sfSigningPubKey);
     proto.set_signing_public_key(signingPubKey.data(), signingPubKey.size());
 
-    proto.set_flags(txnSt->getFieldU32(sfFlags));
-
-    proto.set_last_ledger_sequence(txnSt->getFieldU32(sfLastLedgerSequence));
-
     Blob blob = txnSt->getFieldVL(sfTxnSignature);
     proto.set_signature(blob.data(), blob.size());
+
+    if (txnSt->isFieldPresent(sfFlags))
+    {
+        proto.set_flags(txnSt->getFieldU32(sfFlags));
+    }
+    if (txnSt->isFieldPresent(sfLastLedgerSequence))
+    {
+        proto.set_last_ledger_sequence(
+            txnSt->getFieldU32(sfLastLedgerSequence));
+    }
 
     if (txnSt->isFieldPresent(sfSourceTag))
     {
@@ -1500,6 +1523,19 @@ populateTransaction(
     if (safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType)) ==
         TxType::ttPAYMENT)
     {
+        if (txnSt->isFieldPresent(sfAmount))
+        {
+            STAmount amount = txnSt->getFieldAmount(sfAmount);
+            populateAmount(*proto.mutable_payment()->mutable_amount(), amount);
+        }
+
+        if (txnSt->isFieldPresent(sfDestination))
+        {
+            AccountID accountDest = txnSt->getAccountID(sfDestination);
+            proto.mutable_payment()->mutable_destination()->set_address(
+                toBase58(accountDest));
+        }
+
         if (txnSt->isFieldPresent(sfSendMax))
         {
             STAmount const& sendMax = txnSt->getFieldAmount(sfSendMax);
