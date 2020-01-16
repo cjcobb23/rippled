@@ -49,6 +49,8 @@ message GetAccountTransactionHistoryResponse {
     Marker marker = 5;
 
     repeated GetTransactionResponse transactions = 6;
+
+    bool validated = 7;
 }
 
 message Marker {

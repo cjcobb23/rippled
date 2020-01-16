@@ -387,6 +387,12 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
 
     std::string const& hashBytes = request.hash();
     args.hash = uint256::fromVoid(hashBytes.data());
+    if (args.hash.size() != hashBytes.size())
+    {
+        grpc::Status errorStatus{
+            grpc::StatusCode::INVALID_ARGUMENT, "ledger hash malformed"};
+        return {response, errorStatus};
+    }
 
 
     args.binary = request.binary();

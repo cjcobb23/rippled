@@ -194,6 +194,11 @@ doAccountInfoGrpc(RPC::GRPCContext<rpc::v1::GetAccountInfoRequest>& context)
     // input
     rpc::v1::GetAccountInfoRequest& params = context.params;
 
+    std::cout << params.ledger().DebugString() << std::endl;
+
+    std::cout << params.has_ledger() << std::endl;
+
+
     // get ledger
     std::shared_ptr<ReadView const> ledger;
     auto lgrStatus = RPC::ledgerFromRequest(ledger, context);

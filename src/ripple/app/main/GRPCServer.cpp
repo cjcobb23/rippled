@@ -328,7 +328,7 @@ GRPCServerImpl::setupListeners()
             app_,
             &rpc::v1::XRPLedgerAPIService::AsyncService::RequestGetAccountInfo,
             doAccountInfoGrpc,
-            RPC::NEEDS_CURRENT_LEDGER,
+            RPC::NO_CONDITION,
             Resource::feeReferenceRPC));
     }
     {
@@ -358,6 +358,22 @@ GRPCServerImpl::setupListeners()
                 RequestSubmitTransaction,
             doSubmitGrpc,
             RPC::NEEDS_CURRENT_LEDGER,
+            Resource::feeMediumBurdenRPC));
+    }
+
+    {
+        using cd = CallData<
+            rpc::v1::GetAccountTransactionHistoryRequest,
+            rpc::v1::GetAccountTransactionHistoryResponse>;
+
+        addToRequests(std::make_shared<cd>(
+            service_,
+            *cq_,
+            app_,
+            &rpc::v1::XRPLedgerAPIService::AsyncService::
+                RequestGetAccountTransactionHistory,
+            doAccountTxGrpc,
+            RPC::NO_CONDITION,
             Resource::feeMediumBurdenRPC));
     }
     return requests;

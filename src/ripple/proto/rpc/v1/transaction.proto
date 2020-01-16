@@ -43,11 +43,6 @@ message GetTransactionResponse {
         // Variable length
         bytes meta_binary = 7;
     }
-
-    // true if entired specified range was searched,
-    // but transaction was not found
-    bool searched_all = 8;
-
 }
 
 // A message encompassing all transactions.
