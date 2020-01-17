@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package rpc.v1;
+
+message AccountSet
+{}
+
+message AccountDelete
+{}
+
+message CheckCancel
+{}
+
+message CheckCash
+{}
+
+message CheckCreate
+{}
+
+message DepositPreauth
+{}
+
+message EscrowCancel
+{}
+
+message EscrowCreate
+{}
+
+message EscrowFinish
+{}
+
+message OfferCancel
+{}
+
+message OfferCreate
+{}
+
+message PaymentChannelClaim
+{}
+
+message PaymentChannelClaimCreate
+{}
+
+message PaymentChannelFund
+{}
+
+message SetRegularKey
+{}
+
+message SignerListSet
+{}
+
+message TrustSet
+{}
