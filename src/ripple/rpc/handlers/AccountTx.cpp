@@ -429,7 +429,6 @@ std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
 doAccountTxGrpc(
     RPC::GRPCContext<rpc::v1::GetAccountTransactionHistoryRequest>& context)
 {
-    std::cout << "calliong handler" << std::endl;
     // return values
     rpc::v1::GetAccountTransactionHistoryResponse response;
     grpc::Status status = grpc::Status::OK;
@@ -437,12 +436,12 @@ doAccountTxGrpc(
 
     auto& request = context.params;
 
-    auto const account =
-        parseBase58<AccountID>(request.account().address());
+    auto const account = parseBase58<AccountID>(request.account().address());
     if (!account)
     {
-
-        return {{}, {grpc::StatusCode::UNIMPLEMENTED, "Unimplemented"}};
+        return {
+            {},
+            {grpc::StatusCode::INVALID_ARGUMENT, "Could not decode account"}};
     }
 
     args.account = *account;
@@ -505,7 +504,6 @@ doAccountTxGrpc(
         {
             if (uint256::size() != specifier.hash().size())
             {
-                std::cout << "hash error" << std::endl;
                 grpc::Status errorStatus{
                     grpc::StatusCode::INVALID_ARGUMENT, "ledger hash malformed"};
                 return {response, errorStatus};
@@ -515,14 +513,15 @@ doAccountTxGrpc(
 
     }
 
-    std::cout << "calling helper" << std::endl;
     auto res = doAccountTxHelp(context, args);
 
-    std::cout << "called helper" << std::endl;
 
     if(res.second.toErrorCode() != rpcSUCCESS)
     {
-        std::cout << "error" << std::endl;
+        if(res.second.toErrorCode() == rpcLGR_NOT_FOUND)
+        {
+            return {{}, {grpc::StatusCode::NOT_FOUND, res.second.message()}};
+        }
         return {{}, {grpc::StatusCode::INVALID_ARGUMENT, res.second.message()}};
     }
 

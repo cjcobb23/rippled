@@ -279,14 +279,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
         void
         AccountTx()
         {
-            std::cout << "request is = " << request.DebugString() << std::endl;
+            //std::cout << "request = " << request.DebugString() << std::endl;
             status =
                 stub_->GetAccountTransactionHistory(&context, request, &reply);
-            //std::cout << "reply is = "
-            //  << reply.DebugString() << std::endl;
+           // std::cout << "reply is = "
+           //   << reply.DebugString() << std::endl;
 
-            std::cout << "status = " << status.error_message() << std::endl;
-            std::cout << "status code = " << status.error_code() << std::endl;
         }
     };
 
@@ -296,43 +294,437 @@ class AccountTxPaging_test : public beast::unit_test::suite
         int sequence,
         int ledger)
     {
-        std::cout << "checking txn. tx = "
-            << tx.DebugString()
-            << " sequence = "
-            << sequence
-            << " ledger = "
-            << ledger
-            << std::endl;
         return (
             tx.transaction().sequence() == sequence &&
             tx.ledger_index() == ledger);
     }
 
-    auto
+    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     next(
         std::string grpcPort,
         test::jtx::Env& env,
-        test::jtx::Account const& account,
-        int ledger_min,
-        int ledger_max,
-        int limit,
-        bool forward,
+        std::string const& account = "",
+        int ledger_min = -1,
+        int ledger_max = -1,
+        int limit = -1,
+        bool forward = false,
         rpc::v1::Marker* marker = nullptr)
     {
         GrpcAccountTxClient client{grpcPort};
         auto& request = client.request;
-        request.mutable_account()->set_address(account.human());
-        request.mutable_ledger_range()->set_ledger_index_min(ledger_min);
-        request.mutable_ledger_range()->set_ledger_index_max(ledger_max);
+        if(account != "")
+            request.mutable_account()->set_address(account);
+        if(ledger_min != -1)
+            request.mutable_ledger_range()->set_ledger_index_min(ledger_min);
+        if(ledger_max != -1)
+            request.mutable_ledger_range()->set_ledger_index_max(ledger_max);
         request.set_forward(forward);
-        request.set_limit(limit);
+        if(limit != -1)
+            request.set_limit(limit);
         if (marker)
         {
             *request.mutable_marker() = *marker;
         }
 
         client.AccountTx();
-        return client.reply;
+        return {client.reply, client.status};
+    }
+
+    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    nextWithSeq(
+        std::string grpcPort,
+        test::jtx::Env& env,
+        std::string const& account = "",
+        int ledger_seq = -1,
+        int limit = -1,
+        bool forward = false,
+        rpc::v1::Marker* marker = nullptr)
+    {
+        GrpcAccountTxClient client{grpcPort};
+        auto& request = client.request;
+        if(account != "")
+            request.mutable_account()->set_address(account);
+        if(ledger_seq != -1)
+            request.mutable_ledger_specifier()->set_sequence(ledger_seq);
+        request.set_forward(forward);
+        if(limit != -1)
+            request.set_limit(limit);
+        if (marker)
+        {
+            *request.mutable_marker() = *marker;
+        }
+
+        client.AccountTx();
+        return {client.reply, client.status};
+    }
+
+    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    nextWithHash(
+        std::string grpcPort,
+        test::jtx::Env& env,
+        std::string const& account = "",
+        uint256 const& hash = beast::zero,
+        int limit = -1,
+        bool forward = false,
+        rpc::v1::Marker* marker = nullptr)
+    {
+        GrpcAccountTxClient client{grpcPort};
+        auto& request = client.request;
+        if(account != "")
+            request.mutable_account()->set_address(account);
+        if(hash != beast::zero)
+            request.mutable_ledger_specifier()->set_hash(hash.data(), hash.size());
+        request.set_forward(forward);
+        if(limit != -1)
+            request.set_limit(limit);
+        if (marker)
+        {
+            *request.mutable_marker() = *marker;
+        }
+
+        client.AccountTx();
+        return {client.reply, client.status};
+    }
+
+    void
+    testAccountTxParametersGrpc()
+    {
+
+        testcase("Test Account_tx Grpc");
+
+        using namespace test::jtx;
+        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
+        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
+        Env env(*this, std::move(config));
+
+
+        Account A1{"A1"};
+        env.fund(XRP(10000), A1);
+        env.close();
+
+        // Ledger 3 has the two txs associated with funding the account
+        // All other ledgers have no txs
+
+        auto hasTxs = [](auto res) {
+            return res.second.error_code() == 0 &&
+                (res.first.transactions().size() == 2) &&
+                //(res.transactions()[0u].transaction().has_account_set()) &&
+                (res.first.transactions()[1u].transaction().has_payment());
+        };
+        auto noTxs = [](auto res) {
+
+            return res.second.error_code() == 0 &&
+                (res.first.transactions().size() == 0);
+        };
+
+        auto isErr = [](auto res, auto expect) {
+            return res.second.error_code() == expect;
+        };
+
+
+        BEAST_EXPECT(isErr(
+            next(grpcPort,env,""),
+            grpc::StatusCode::INVALID_ARGUMENT));
+
+
+        BEAST_EXPECT(isErr(
+                    next(grpcPort,env,"0xDEADBEEF"),
+            grpc::StatusCode::INVALID_ARGUMENT));
+
+        BEAST_EXPECT(hasTxs(next(grpcPort,env,A1.human())));
+
+        // Ledger min/max index
+        {
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0, 0)));
+
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0, 100)));
+
+            BEAST_EXPECT(noTxs(next(grpcPort, env, A1.human(), 1, 2)));
+
+            BEAST_EXPECT(isErr(
+                next(grpcPort, env, A1.human(), 2, 1),
+                grpc::StatusCode::INVALID_ARGUMENT));
+        }
+
+        // Ledger index min only
+        {
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0)));
+
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 1)));
+
+            BEAST_EXPECT(isErr(
+                next(grpcPort, env, A1.human(), env.current()->info().seq),
+                grpc::StatusCode::INVALID_ARGUMENT));
+        }
+
+        // Ledger index max only
+        {
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), -1, 0)));
+
+            BEAST_EXPECT(hasTxs(
+                next(grpcPort, env, A1.human(), -1, env.current()->info().seq)));
+
+            BEAST_EXPECT(hasTxs(
+                next(grpcPort, env, A1.human(), -1, env.closed()->info().seq)));
+
+
+            BEAST_EXPECT(noTxs(next(
+                grpcPort, env, A1.human(), -1, env.closed()->info().seq - 1)));
+            std::cout << env.closed()->info().seq << std::endl;
+        }
+        // Ledger Sequence
+        {
+            BEAST_EXPECT(hasTxs(nextWithSeq(
+                grpcPort, env, A1.human(), env.closed()->info().seq)));
+
+            BEAST_EXPECT(noTxs(nextWithSeq(
+                grpcPort, env, A1.human(), env.closed()->info().seq - 1)));
+
+            BEAST_EXPECT(isErr(
+                nextWithSeq(
+                    grpcPort, env, A1.human(), env.current()->info().seq),
+                grpc::StatusCode::INVALID_ARGUMENT));
+
+            BEAST_EXPECT(isErr(
+                nextWithSeq(
+                    grpcPort, env, A1.human(), env.current()->info().seq + 1),
+                grpc::StatusCode::NOT_FOUND));
+        }
+
+                // Ledger Hash
+        {
+            BEAST_EXPECT(hasTxs(nextWithHash(
+                grpcPort, env, A1.human(), env.closed()->info().hash)));
+
+            BEAST_EXPECT(noTxs(nextWithHash(
+                grpcPort, env, A1.human(), env.closed()->info().parentHash)));
+        }
+    }
+
+    struct TxCheck {
+
+        uint32_t sequence;
+        uint32_t ledgerIndex;
+        std::function<bool(rpc::v1::Transaction const& res)> checkType;
+    };
+
+    void
+    testAccountTxContentsGrpc()
+    {
+
+        testcase("Test AccountTx context grpc");
+        // Get results for all transaction types that can be associated
+        // with an account.  Start by generating all transaction types.
+        using namespace test::jtx;
+        using namespace std::chrono_literals;
+
+        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
+        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
+        Env env(*this, std::move(config));
+        Account const alice {"alice"};
+        Account const alie {"alie"};
+        Account const gw {"gw"};
+        auto const USD {gw["USD"]};
+
+        env.fund(XRP(1000000), alice, gw);
+        env.close();
+
+        // AccountSet
+        env (noop (alice));
+
+        // Payment
+        env (pay (alice, gw, XRP (100)));
+
+        // Regular key set
+        env (regkey(alice, alie));
+        env.close();
+
+        // Trust and Offers
+        env (trust (alice, USD (200)), sig (alie));
+        std::uint32_t const offerSeq {env.seq(alice)};
+        env (offer (alice, USD (50), XRP (150)), sig (alie));
+        env.close();
+
+        {
+            Json::Value cancelOffer;
+            cancelOffer[jss::Account] = alice.human();
+            cancelOffer[jss::OfferSequence] = offerSeq;
+            cancelOffer[jss::TransactionType] = jss::OfferCancel;
+            env (cancelOffer, sig (alie));
+        }
+        env.close();
+
+        // SignerListSet
+        env (signers (alice, 1, {{"bogie", 1}, {"demon", 1}}), sig (alie));
+
+        // Escrow
+        {
+            // Create an escrow.  Requires either a CancelAfter or FinishAfter.
+            auto escrow = [] (Account const& account,
+                                  Account const& to, STAmount const& amount)
+            {
+                Json::Value escro;
+                escro[jss::TransactionType] = jss::EscrowCreate;
+                escro[jss::Flags] = tfUniversal;
+                escro[jss::Account] = account.human();
+                escro[jss::Destination] = to.human();
+                escro[jss::Amount] = amount.getJson(JsonOptions::none);
+                return escro;
+            };
+
+            NetClock::time_point const nextTime {env.now() + 2s};
+
+            Json::Value escrowWithFinish {escrow (alice, alice, XRP (500))};
+            escrowWithFinish[sfFinishAfter.jsonName] =
+                nextTime.time_since_epoch().count();
+
+            std::uint32_t const escrowFinishSeq {env.seq(alice)};
+            env (escrowWithFinish, sig (alie));
+
+            Json::Value escrowWithCancel {escrow (alice, alice, XRP (500))};
+            escrowWithCancel[sfFinishAfter.jsonName] =
+                nextTime.time_since_epoch().count();
+            escrowWithCancel[sfCancelAfter.jsonName] =
+                nextTime.time_since_epoch().count() + 1;
+
+            std::uint32_t const escrowCancelSeq {env.seq(alice)};
+            env (escrowWithCancel, sig (alie));
+            env.close();
+
+            {
+                Json::Value escrowFinish;
+                escrowFinish[jss::TransactionType] = jss::EscrowFinish;
+                escrowFinish[jss::Flags] = tfUniversal;
+                escrowFinish[jss::Account] = alice.human();
+                escrowFinish[sfOwner.jsonName] = alice.human();
+                escrowFinish[sfOfferSequence.jsonName] = escrowFinishSeq;
+                env (escrowFinish, sig (alie));
+            }
+            {
+                Json::Value escrowCancel;
+                escrowCancel[jss::TransactionType] = jss::EscrowCancel;
+                escrowCancel[jss::Flags] = tfUniversal;
+                escrowCancel[jss::Account] = alice.human();
+                escrowCancel[sfOwner.jsonName] = alice.human();
+                escrowCancel[sfOfferSequence.jsonName] = escrowCancelSeq;
+                env (escrowCancel, sig (alie));
+            }
+            env.close();
+        }
+
+        // PayChan
+        {
+            std::uint32_t payChanSeq {env.seq (alice)};
+            Json::Value payChanCreate;
+            payChanCreate[jss::TransactionType] = jss::PaymentChannelCreate;
+            payChanCreate[jss::Flags] = tfUniversal;
+            payChanCreate[jss::Account] = alice.human();
+            payChanCreate[jss::Destination] = gw.human();
+            payChanCreate[jss::Amount] =
+                XRP (500).value().getJson (JsonOptions::none);
+            payChanCreate[sfSettleDelay.jsonName] =
+                NetClock::duration{100s}.count();
+            payChanCreate[sfPublicKey.jsonName] = strHex (alice.pk().slice());
+            env (payChanCreate, sig (alie));
+            env.close();
+
+            std::string const payChanIndex {
+                strHex (keylet::payChan (alice, gw, payChanSeq).key)};
+
+            {
+                Json::Value payChanFund;
+                payChanFund[jss::TransactionType] = jss::PaymentChannelFund;
+                payChanFund[jss::Flags] = tfUniversal;
+                payChanFund[jss::Account] = alice.human();
+                payChanFund[sfPayChannel.jsonName] = payChanIndex;
+                payChanFund[jss::Amount] =
+                    XRP (200).value().getJson (JsonOptions::none);
+                env (payChanFund, sig (alie));
+                env.close();
+            }
+            {
+                Json::Value payChanClaim;
+                payChanClaim[jss::TransactionType] = jss::PaymentChannelClaim;
+                payChanClaim[jss::Flags] = tfClose;
+                payChanClaim[jss::Account] = gw.human();
+                payChanClaim[sfPayChannel.jsonName] = payChanIndex;
+                payChanClaim[sfPublicKey.jsonName] = strHex(alice.pk().slice());
+                env (payChanClaim);
+                env.close();
+            }
+        }
+
+        // Check
+        {
+            uint256 const aliceCheckId {
+                getCheckIndex (alice, env.seq (alice))};
+            env (check::create (alice, gw, XRP (300)), sig (alie));
+
+            uint256 const gwCheckId {
+                getCheckIndex (gw, env.seq (gw))};
+            env (check::create (gw, alice, XRP (200)));
+            env.close();
+
+            env (check::cash (alice, gwCheckId, XRP (200)), sig (alie));
+            env (check::cancel (alice, aliceCheckId), sig (alie));
+            env.close();
+        }
+
+        // Deposit preauthorization.
+        env (deposit::auth (alice, gw), sig (alie));
+        env.close();
+
+        // Setup is done.  Look at the transactions returned by account_tx.
+
+        static const TxCheck txCheck []
+        {
+            {20,14, [](auto res){return true;}},
+            {19,13, [](auto res){return true;}},
+            {18,13, [](auto res){return true;}},
+            {17,12, [](auto res){return true;}},
+            {5,12, [](auto res){return true;}},
+            {4,11, [](auto res){return true;}},
+            {16,10, [](auto res){return true;}},
+            {15,9, [](auto res){return true;}},
+            {14,8, [](auto res){return true;}},
+            {13,8, [](auto res){return true;}},
+            {12,7, [](auto res){return true;}},
+            {11,7, [](auto res){return true;}},
+            {10,7, [](auto res){return true;}},
+            {9,6, [](auto res){return true;}},
+            {8,5, [](auto res){return true;}},
+            {7,5, [](auto res){return true;}},
+            {6,4, [](auto res){return true;}},
+            {5,4, [](auto res){return true;}},
+            {4,4, [](auto res){return true;}},
+            {3,3, [](auto res){return true;}},
+            {1,3, [](auto res){return true;}},
+        };
+
+        auto doCheck  = [](auto txn, auto txCheck)
+        {
+            std::cout << "seq = " << txn.transaction().sequence() << std::endl;
+            return txn.has_transaction() &&
+                txn.validated() &&
+
+                txn.ledger_index() == txCheck.ledgerIndex &&
+                (txn.transaction().sequence() == txCheck.sequence) &&
+                txCheck.checkType(txn.transaction());
+        };
+
+        auto [res, status] = next(grpcPort,env,alice.human());
+
+        if(!BEAST_EXPECT(status.error_code() == 0))
+            return;
+
+        BEAST_EXPECT(
+            res.transactions().size() == std::extent<decltype(txCheck)>::value);
+        std::cout << "printing ledger indices" << std::endl;
+        for(int i = 0; i < res.transactions().size(); ++i)
+        {
+            std::cout << res.transactions()[i].ledger_index() << std::endl;
+            BEAST_EXPECT(doCheck(res.transactions()[i],txCheck[i]));
+        }
     }
 
     void
@@ -389,7 +781,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         // page through the results in several ways.
         {
             // limit = 2, 3 batches giving the first 6 txs
-            auto res = next(grpcPort, env, A3, 2, 5, 2, true);
+            auto [res, status] = next(grpcPort, env, A3.human(), 2, 5, 2, true);
 
             auto txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 2))
@@ -400,7 +792,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort, env, A3, 2, 5, 2, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort, env, A3.human(), 2, 5, 2, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 2))
                 return;
@@ -409,7 +801,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort, env, A3, 2, 5, 2, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort, env, A3.human(), 2, 5, 2, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 2))
                 return;
@@ -422,7 +814,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         {
             // limit 1, 3 requests giving the first 3 txs
-            auto res = next(grpcPort, env, A3, 3, 9, 1, true);
+            auto [res, status] = next(grpcPort, env, A3.human(), 3, 9, 1, true);
             auto txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 1))
                 return;
@@ -430,7 +822,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 1, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 1, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 1))
                 return;
@@ -438,7 +830,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 1, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 1, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 1))
                 return;
@@ -447,7 +839,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 return;
 
             // continue with limit 3, to end of all txs
-            res = next(grpcPort,env, A3, 3, 9, 3, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 3))
                 return;
@@ -457,7 +849,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 3))
                 return;
@@ -467,7 +859,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 3))
                 return;
@@ -477,7 +869,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, true, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, true, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(txs.size() == 2))
                 return;
@@ -488,7 +880,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         {
             // limit 2, descending, 2 batches giving last 4 txs
-            auto res = next(grpcPort,env, A3, 3, 9, 2, false);
+            auto [res, status] = next(grpcPort,env, A3.human(), 3, 9, 2, false);
             auto txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 2))
                 return;
@@ -497,7 +889,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 2, false, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 2, false, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 2))
                 return;
@@ -507,7 +899,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 return;
 
             // continue with limit 3 until all txs have been seen
-            res = next(grpcPort,env, A3, 3, 9, 3, false, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, false, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 3))
                 return;
@@ -517,7 +909,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, false, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, false, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 3))
                 return;
@@ -527,7 +919,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, false, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, false, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 3))
                 return;
@@ -537,7 +929,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             if(! BEAST_EXPECT(res.has_marker()))
                 return;
 
-            res = next(grpcPort,env, A3, 3, 9, 3, false, res.mutable_marker());
+            std::tie(res, status) = next(grpcPort,env, A3.human(), 3, 9, 3, false, res.mutable_marker());
             txs = res.transactions();
             if (! BEAST_EXPECT(  txs.size() == 1))
                 return;
@@ -553,6 +945,8 @@ public:
     {
         testAccountTxPaging();
         testAccountTxPagingGrpc();
+        testAccountTxParametersGrpc();
+        testAccountTxContentsGrpc();
     }
 };
 

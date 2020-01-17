@@ -6,6 +6,7 @@ import "rpc/v1/amount.proto";
 import "rpc/v1/payment.proto";
 import "rpc/v1/meta.proto";
 import "rpc/v1/ledger.proto";
+import "rpc/v1/transactiontypes.proto";
 
 message GetTransactionRequest {
     // hash of the transaction. 32 bytes
@@ -59,6 +60,58 @@ message Transaction {
     // Data specific to a the type of transaction being submitted.
     oneof transaction_data {
         Payment payment = 4;
+
+
+        AccountSet account_set = 13;
+
+
+        AccountDelete account_delete = 14;
+
+
+        CheckCancel check_cancel = 15;
+
+
+        CheckCash check_cash = 16;
+
+
+        CheckCreate check_create = 17;
+
+
+        DepositPreauth deposit_preauth = 18;
+
+
+        EscrowCancel escrow_cancel = 19;
+
+
+        EscrowCreate escrow_create = 20;
+
+
+        EscrowFinish escrow_finish = 21;
+
+
+        OfferCancel offer_cancel = 22;
+
+
+        OfferCreate offer_create = 23;
+
+
+        PaymentChannelClaim payment_channel_claim = 24;
+
+
+        PaymentChannelClaimCreate payment_channel_claim_create= 25;
+
+
+        PaymentChannelFund payment_channel_fund = 26;
+
+
+        SetRegularKey set_regular_key = 27;
+
+
+        SignerListSet signer_list_set = 28;
+
+
+        TrustSet trust_set = 29;
+
     }
 
     // Public key of the account which signed the transaction. Variable length

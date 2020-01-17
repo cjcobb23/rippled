@@ -452,6 +452,7 @@ class AccountTx_test : public beast::unit_test::suite
         for (unsigned int index {0};
             index < std::extent<decltype (sanity)>::value; ++index)
         {
+            std::cout << txs[index][jss::tx] << std::endl;
             checkSanity (txs[index], sanity[index]);
         }
     }
