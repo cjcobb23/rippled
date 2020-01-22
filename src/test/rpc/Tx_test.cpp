@@ -76,11 +76,11 @@ class Tx_test : public beast::unit_test::suite
         BEAST_EXPECT(proto.account().address() == toBase58(account));
 
         STAmount amount = txnSt->getFieldAmount(sfAmount);
-        cmpAmount(proto.payment().amount(), amount);
+        cmpAmount(proto.payment().amount().value(), amount);
 
         AccountID accountDest = txnSt->getAccountID(sfDestination);
         BEAST_EXPECT(
-            proto.payment().destination().address() == toBase58(accountDest));
+            proto.payment().destination().value().address() == toBase58(accountDest));
 
         STAmount fee = txnSt->getFieldAmount(sfFee);
         BEAST_EXPECT(proto.fee().drops() == fee.xrp().drops());
@@ -102,7 +102,7 @@ class Tx_test : public beast::unit_test::suite
         if (txnSt->isFieldPresent(sfSendMax))
         {
             STAmount const& send_max = txnSt->getFieldAmount(sfSendMax);
-            cmpAmount(proto.payment().send_max(), send_max);
+            cmpAmount(proto.payment().send_max().value(), send_max);
         }
 
         if (txnSt->isFieldPresent(sfAccountTxnID))

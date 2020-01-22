@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package rpc.v1;
+
+import "rpc/v1/amount.proto";
+
+// These fields are used in many different messsage types. They can be present
+// in one or more transactions, as well as metadata of one or more transactions.
+// Each is defined as it's own message type with a single field "value", to
+// ensure the field is the correct type everywhere it's used
+
+message ClearFlag
+{
+    uint32 value = 1;
+}
+
+message Domain
+{
+    // variable length
+    string value = 1;
+}
+
+message EmailHash
+{
+    // 16 bytes
+    bytes value = 1;
+}
+
+message MessageKey
+{
+    // variable length
+    bytes value = 1;
+}
+
+message SetFlag
+{
+    uint32 value = 1;
+}
+
+message TransferRate
+{
+    uint32 value = 1;
+}
+
+message TickSize
+{
+    // is actually uint8
+    uint32 value = 1;
+}
+
+message Expiration
+{
+    // time in seconds since Ripple epoch
+    uint32 value = 1;
+}
+
+message OfferSequence
+{
+    uint32 value = 1;
+}
+
+message TakerGets
+{
+   CurrencyAmount value = 1;
+}
+
+message TakerPays
+{
+    CurrencyAmount value = 1;
+}
+
+message Destination
+{
+    AccountAddress value = 1;
+}
+
+message DestinationTag
+{
+    uint32 value = 1;
+}
+
+message CheckID
+{
+    // 32 bytes
+    bytes value = 1;
+}
+
+// Note, CurrencyAmount is a oneof. In certain messages, this value should
+// always be in drops.
+message Amount
+{
+    CurrencyAmount value = 1;
+}
+
+message DeliverMin
+{
+    CurrencyAmount value = 1;
+}
+
+message SendMax
+{
+    CurrencyAmount value = 1;
+}
+
+message InvoiceID
+{
+    // 32 bytes
+    bytes value = 1;
+}
+
+message Authorize
+{
+    AccountAddress value = 1;
+}
+
+message Unauthorize
+{
+    AccountAddress value = 1;
+}
+
+message Owner
+{
+    AccountAddress value = 1;
+}
+
+message CancelAfter
+{
+    // time in seconds since Ripple epoch
+    uint32 value = 1;
+}
+
+message FinishAfter
+{
+    // time in seconds since Ripple epoch
+    uint32 value = 1;
+}
+
+message Condition
+{
+    // variable length
+    bytes value = 1;
+}
+
+message Fulfillment
+{
+    // variable length
+    bytes value = 1;
+}
+
+message Channel
+{
+    // 32 bytes
+    bytes value = 1;
+}
+
+message Balance
+{
+    CurrencyAmount value = 1;
+}
+
+message Signature
+{
+    // variable length
+    bytes value = 1;
+}
+
+message PublicKey
+{
+    // variable length
+    bytes value = 1;
+}
+
+message SettleDelay
+{
+    uint32 value = 1;
+}
+
+message RegularKey
+{
+    AccountAddress value = 1;
+}
+
+message SignerQuorum
+{
+    uint32 value = 1;
+}
+
+message LimitAmount
+{
+    CurrencyAmount value = 1;
+}
+
+message QualityIn
+{
+    uint32 value = 1;
+}
+
+message QualityOut
+{
+    uint32 value = 1;
+}

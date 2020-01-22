@@ -98,7 +98,7 @@ message Transaction {
         PaymentChannelClaim payment_channel_claim = 24;
 
 
-        PaymentChannelClaimCreate payment_channel_claim_create= 25;
+        PaymentChannelCreate payment_channel_create= 25;
 
 
         PaymentChannelFund payment_channel_fund = 26;

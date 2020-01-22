@@ -935,6 +935,466 @@ chooseLedgerEntryType(Json::Value const& params)
     return result;
 }
 
+// Only populate the protobuf field if the field is present in obj
+template <class FieldType>
+void
+populateIfPresent(
+    STObject const& obj,
+    FieldType const& field,
+    std::function<void(STObject const&,FieldType const&)>const & populate)
+{
+    if (obj.isFieldPresent(field))
+        populate(obj, field);
+}
+
+// In the below populateProto* functions, getProto is a function that returns
+// a reference to the mutable protobuf message to be populated. The reason this
+// is a function, as opposed to just a reference to the object, is that getting
+// a reference to the proto object (via something like proto.mutable_clear_flag()),
+// default initializes the proto object. However, if the corresponding field
+// is not present in the STObject, we don't want to initialize the proto object,
+// To get around this, getProto is a function that is called only if the field
+// is present in the STObject
+template <class T>
+void
+populateProtoU8(STObject const& obj, SF_U8 const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        getProto().set_value(obj.getFieldU8(field));
+    }
+}
+
+template <class T>
+void
+populateProtoU32(STObject const& obj, SF_U32 const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        getProto().set_value(obj.getFieldU32(field));
+    }
+}
+
+template <class T>
+void
+populateProtoVL(STObject const& obj, SF_Blob const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto data = obj.getFieldVL(field);
+        getProto().set_value(data.data(), data.size());
+    }
+}
+
+template <class T>
+void
+populateProtoVLasString(
+    STObject const& obj,
+    SF_Blob const& field,
+    T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto data = obj.getFieldVL(field);
+        getProto().set_value(
+            reinterpret_cast<const char*>(data.data()), data.size());
+    }
+}
+
+template <class T>
+void
+populateProtoH128(STObject const& obj, SF_U128 const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        getProto().set_value(obj.getFieldH128(field).data(), uint128::size());
+    }
+}
+
+template <class T>
+void
+populateProtoH256(STObject const& obj, SF_U256 const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        getProto().set_value(obj.getFieldH256(field).data(), uint256::size());
+    }
+}
+
+template <class T>
+void
+populateProtoAccount(
+    STObject const& obj,
+    SF_Account const& field,
+    T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        getProto().mutable_value()->set_address(
+            toBase58(obj.getAccountID(field)));
+    }
+}
+
+template <class T>
+void
+populateProtoAmount(
+    STObject const& obj,
+    SF_Amount const& field,
+    T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto amount = obj.getFieldAmount(field);
+
+        if (amount.native())
+        {
+            getProto().mutable_value()->mutable_xrp_amount()->set_drops(
+                amount.xrp().drops());
+        }
+        else
+        {
+            Issue const& issue = amount.issue();
+
+            rpc::v1::IssuedCurrencyAmount* issued =
+                getProto().mutable_value()->mutable_issued_currency_amount();
+
+            issued->mutable_currency()->set_name(to_string(issue.currency));
+            issued->mutable_currency()->set_code(
+                issue.currency.data(), Currency::size());
+            issued->mutable_issuer()->set_address(toBase58(issue.account));
+            issued->set_value(to_string(amount.iou()));
+        }
+    }
+}
+
+void
+populateAccountSet(rpc::v1::AccountSet& proto, STObject const& obj)
+{
+    populateProtoU32(
+        obj, sfClearFlag, [&proto]() { return *proto.mutable_clear_flag(); });
+
+    populateProtoVLasString(
+        obj, sfDomain, [&proto]() { return *proto.mutable_domain(); });
+
+    populateProtoH128(
+        obj, sfEmailHash, [&proto]() { return *proto.mutable_email_hash(); });
+
+    populateProtoVL(
+        obj, sfMessageKey, [&proto]() { return *proto.mutable_message_key(); });
+
+    populateProtoU32(
+        obj, sfSetFlag, [&proto]() { return *proto.mutable_set_flag(); });
+
+    populateProtoU32(obj, sfTransferRate, [&proto]() {
+        return *proto.mutable_transfer_rate();
+    });
+
+    populateProtoU8(
+        obj, sfTickSize, [&proto]() { return *proto.mutable_tick_size(); });
+}
+
+void
+populateOfferCreate(rpc::v1::OfferCreate& proto, STObject const& obj)
+{
+    populateProtoU32(
+        obj, sfExpiration, [&proto]() { return *proto.mutable_expiration(); });
+
+    populateProtoU32(obj, sfOfferSequence, [&proto]() {
+        return *proto.mutable_offer_sequence();
+    });
+
+    populateProtoAmount(
+        obj, sfTakerGets, [&proto]() { return *proto.mutable_taker_gets(); });
+
+    populateProtoAmount(
+        obj, sfTakerPays, [&proto]() { return *proto.mutable_taker_pays(); });
+}
+
+void
+populateOfferCancel(rpc::v1::OfferCancel& proto, STObject const& obj)
+{
+    populateProtoU32(obj, sfOfferSequence, [&proto]() {
+        return *proto.mutable_offer_sequence();
+    });
+}
+
+void
+populateAccountDelete(rpc::v1::AccountDelete& proto, STObject const& obj)
+{
+    populateProtoAccount(obj, sfDestination, [&proto]() {
+        return *proto.mutable_destination();
+    });
+}
+
+void
+populateCheckCancel(rpc::v1::CheckCancel& proto, STObject const& obj)
+{
+    populateProtoH256(
+        obj, sfCheckID, [&proto]() { return *proto.mutable_check_id(); });
+}
+
+void
+populateCheckCash(rpc::v1::CheckCash& proto, STObject const& obj)
+{
+    populateProtoH256(
+        obj, sfCheckID, [&proto]() { return *proto.mutable_check_id(); });
+
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    populateProtoAmount(
+        obj, sfDeliverMin, [&proto]() { return *proto.mutable_deliver_min(); });
+}
+
+void
+populateCheckCreate(rpc::v1::CheckCreate& proto, STObject const& obj)
+{
+    populateProtoAccount(obj, sfDestination, [&proto]() {
+        return *proto.mutable_destination();
+    });
+
+    populateProtoAmount(
+        obj, sfSendMax, [&proto]() { return *proto.mutable_send_max(); });
+
+    populateProtoU32(obj, sfDestinationTag, [&proto]() {
+        return *proto.mutable_destination_tag();
+    });
+
+    populateProtoU32(
+        obj, sfExpiration, [&proto]() { return *proto.mutable_expiration(); });
+
+    populateProtoH256(
+        obj, sfInvoiceID, [&proto]() { return *proto.mutable_invoice_id(); });
+}
+
+void
+populateDepositPreauth(rpc::v1::DepositPreauth& proto, STObject const& obj)
+{
+    populateProtoAccount(
+        obj, sfAuthorize, [&proto]() { return *proto.mutable_authorize(); });
+
+    populateProtoAccount(obj, sfUnauthorize, [&proto]() {
+        return *proto.mutable_unauthorize();
+    });
+}
+
+void
+populateEscrowCancel(rpc::v1::EscrowCancel& proto, STObject const& obj)
+{
+    populateProtoAccount(
+        obj, sfOwner, [&proto]() { return *proto.mutable_owner(); });
+
+    populateProtoU32(obj, sfOfferSequence, [&proto]() {
+        return *proto.mutable_offer_sequence();
+    });
+}
+
+void
+populateEscrowCreate(rpc::v1::EscrowCreate& proto, STObject const& obj)
+{
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    populateProtoAccount(obj, sfDestination, [&proto]() {
+        return *proto.mutable_destination();
+    });
+
+    populateProtoU32(obj, sfCancelAfter, [&proto]() {
+        return *proto.mutable_cancel_after();
+    });
+
+    populateProtoU32(obj, sfFinishAfter, [&proto]() {
+        return *proto.mutable_finish_after();
+    });
+
+    populateProtoVL(
+        obj, sfCondition, [&proto]() { return *proto.mutable_condition(); });
+
+    populateProtoU32(obj, sfDestinationTag, [&proto]() {
+        return *proto.mutable_destination_tag();
+    });
+}
+
+void
+populateEscrowFinish(rpc::v1::EscrowFinish& proto, STObject const& obj)
+{
+    populateProtoAccount(
+        obj, sfOwner, [&proto]() { return *proto.mutable_owner(); });
+
+    populateProtoU32(obj, sfOfferSequence, [&proto]() {
+        return *proto.mutable_offer_sequence();
+    });
+
+    populateProtoVL(
+        obj, sfCondition, [&proto]() { return *proto.mutable_condition(); });
+
+    populateProtoVL(obj, sfFulfillment, [&proto]() {
+        return *proto.mutable_fulfillment();
+    });
+}
+
+void
+populatePaymentChannelClaim(
+    rpc::v1::PaymentChannelClaim& proto,
+    STObject const& obj)
+{
+    std::cout << "start payment channel claim" << std::endl;
+    populateProtoH256(
+        obj, sfPayChannel, [&proto]() { return *proto.mutable_channel(); });
+
+    std::cout << "payment channel claim" << std::endl;
+    populateProtoAmount(
+        obj, sfBalance, [&proto]() { return *proto.mutable_balance(); });
+
+    std::cout << "payment channel claim" << std::endl;
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    std::cout << "payment channel claim" << std::endl;
+    populateProtoVL(
+        obj, sfSignature, [&proto]() { return *proto.mutable_signature(); });
+
+    std::cout << "payment channel claim" << std::endl;
+    populateProtoVL(
+        obj, sfPublicKey, [&proto]() { return *proto.mutable_public_key(); });
+    std::cout << "done payment channel claim" << std::endl;
+}
+
+void
+populatePaymentChannelCreate(
+    rpc::v1::PaymentChannelCreate& proto,
+    STObject const& obj)
+{
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    populateProtoAccount(
+        obj, sfDestination, [&proto]() { return *proto.mutable_destination(); });
+
+    populateProtoU32(obj, sfSettleDelay, [&proto]() {
+        return *proto.mutable_settle_delay();
+    });
+
+    populateProtoVL(
+        obj, sfPublicKey, [&proto]() { return *proto.mutable_public_key(); });
+
+    populateProtoU32(obj, sfCancelAfter, [&proto]() {
+        return *proto.mutable_cancel_after();
+    });
+
+    populateProtoU32(obj, sfDestinationTag, [&proto]() {
+        return *proto.mutable_destination_tag();
+    });
+}
+
+void
+populatePaymentChannelFund(
+    rpc::v1::PaymentChannelFund& proto,
+    STObject const& obj)
+{
+    populateProtoH256(
+        obj, sfPayChannel, [&proto]() { return *proto.mutable_channel(); });
+
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    populateProtoU32(
+        obj, sfExpiration, [&proto]() { return *proto.mutable_expiration(); });
+}
+
+void
+populateSetRegularKey(rpc::v1::SetRegularKey& proto, STObject const& obj)
+{
+    populateProtoAccount(
+        obj, sfRegularKey, [&proto]() { return *proto.mutable_regular_key(); });
+}
+
+void
+populateSignerListSet(rpc::v1::SignerListSet& proto, STObject const& obj)
+{
+    populateProtoU32(obj, sfSignerQuorum, [&proto]() {
+        return *proto.mutable_signer_quorum();
+    });
+}
+
+void
+populateTrustSet(rpc::v1::TrustSet& proto, STObject const& obj)
+{
+    populateProtoAmount(obj, sfLimitAmount, [&proto]() {
+        return *proto.mutable_limit_amount();
+    });
+
+    populateProtoU32(
+        obj, sfQualityIn, [&proto]() { return *proto.mutable_quality_in(); });
+
+    populateProtoU32(
+        obj, sfQualityOut, [&proto]() { return *proto.mutable_quality_out(); });
+}
+
+void
+populatePayment(rpc::v1::Payment& proto, STObject const& obj)
+{
+    populateProtoAmount(
+        obj, sfAmount, [&proto]() { return *proto.mutable_amount(); });
+
+    populateProtoAccount(obj, sfDestination, [&proto]() {
+        return *proto.mutable_destination();
+    });
+
+    populateProtoU32(obj, sfDestinationTag, [&proto]() {
+        return *proto.mutable_destination_tag();
+    });
+
+    populateProtoH256(
+        obj, sfInvoiceID, [&proto]() { return *proto.mutable_invoice_id(); });
+
+    populateProtoAmount(
+        obj, sfSendMax, [&proto]() { return *proto.mutable_send_max(); });
+
+    populateProtoAmount(
+        obj, sfDeliverMin, [&proto]() { return *proto.mutable_deliver_min(); });
+
+    if(obj.isFieldPresent(sfPaths))
+    {
+        // populate path data
+        STPathSet const& pathset = obj.getFieldPathSet(sfPaths);
+        for (auto it = pathset.begin(); it < pathset.end(); ++it)
+        {
+            STPath const& path = *it;
+
+            rpc::v1::Path* protoPath = proto.add_paths();
+
+            for (auto it2 = path.begin(); it2 != path.end(); ++it2)
+            {
+                rpc::v1::PathElement* protoElement = protoPath->add_elements();
+                STPathElement const& elt = *it2;
+
+                if (elt.isOffer())
+                {
+                    if (elt.hasCurrency())
+                    {
+                        Currency const& currency = elt.getCurrency();
+                        protoElement->mutable_currency()->set_name(
+                            to_string(currency));
+                    }
+                    if (elt.hasIssuer())
+                    {
+                        AccountID const& issuer = elt.getIssuerID();
+                        protoElement->mutable_issuer()->set_address(
+                            toBase58(issuer));
+                    }
+                }
+                else if(elt.isAccount())
+                {
+                    AccountID const& pathAccount = elt.getAccountID();
+                    protoElement->mutable_account()->set_address(
+                        toBase58(pathAccount));
+                }
+            }
+        }
+    }
+}
+
 void
 populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
 {
@@ -977,8 +1437,8 @@ populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
     }
     if (obj.isFieldPresent(sfDomain))
     {
-        auto field = obj.getFieldH256(sfDomain);
-        proto.set_domain(field.data(), field.size());
+        auto field = obj.getFieldVL(sfDomain);
+        proto.set_domain(reinterpret_cast<const char *>(field.data()), field.size());
     }
     if (obj.isFieldPresent(sfEmailHash))
     {
@@ -1284,7 +1744,6 @@ template <class T>
 void
 populateFields(T& proto, STObject const& obj, std::uint16_t type)
 {
-    std::cout << "populate fields, type = " << type << std::endl;
     if (type == ltACCOUNT_ROOT)
     {
         //return;
@@ -1432,8 +1891,7 @@ populateTransaction(
     std::shared_ptr<STTx const> txnSt)
 {
 
-
-
+    // Required fields
     AccountID account = txnSt->getAccountID(sfAccount);
     proto.mutable_account()->set_address(toBase58(account));
 
@@ -1448,6 +1906,7 @@ populateTransaction(
     Blob blob = txnSt->getFieldVL(sfTxnSignature);
     proto.set_signature(blob.data(), blob.size());
 
+    // Optional fields
     if (txnSt->isFieldPresent(sfFlags))
     {
         proto.set_flags(txnSt->getFieldU32(sfFlags));
@@ -1520,79 +1979,149 @@ populateTransaction(
         }
     }
 
-    if (safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType)) ==
-        TxType::ttPAYMENT)
+    auto type = safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType));
+
+    std::cout << "type = " << type << std::endl;
+    switch (type)
     {
-        if (txnSt->isFieldPresent(sfAmount))
-        {
-            STAmount amount = txnSt->getFieldAmount(sfAmount);
-            populateAmount(*proto.mutable_payment()->mutable_amount(), amount);
-        }
-
-        if (txnSt->isFieldPresent(sfDestination))
-        {
-            AccountID accountDest = txnSt->getAccountID(sfDestination);
-            proto.mutable_payment()->mutable_destination()->set_address(
-                toBase58(accountDest));
-        }
-
-        if (txnSt->isFieldPresent(sfSendMax))
-        {
-            STAmount const& sendMax = txnSt->getFieldAmount(sfSendMax);
-            populateAmount(
-                *proto.mutable_payment()->mutable_send_max(), sendMax);
-        }
-
-        if (txnSt->isFieldPresent(sfInvoiceID))
-        {
-            auto invoice = txnSt->getFieldH256(sfInvoiceID);
-            proto.mutable_payment()->set_invoice_id(
-                invoice.data(), invoice.size());
-        }
-
-        if (txnSt->isFieldPresent(sfDestinationTag))
-        {
-            proto.mutable_payment()->set_destination_tag(
-                txnSt->getFieldU32(sfDestinationTag));
-        }
-
-        // populate path data
-        STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
-        for (auto it = pathset.begin(); it < pathset.end(); ++it)
-        {
-            STPath const& path = *it;
-
-            rpc::v1::Path* protoPath = proto.mutable_payment()->add_paths();
-
-            for (auto it2 = path.begin(); it2 != path.end(); ++it2)
-            {
-                rpc::v1::PathElement* protoElement = protoPath->add_elements();
-                STPathElement const& elt = *it2;
-
-                if (elt.isOffer())
-                {
-                    if (elt.hasCurrency())
-                    {
-                        Currency const& currency = elt.getCurrency();
-                        protoElement->mutable_currency()->set_name(
-                            to_string(currency));
-                    }
-                    if (elt.hasIssuer())
-                    {
-                        AccountID const& issuer = elt.getIssuerID();
-                        protoElement->mutable_issuer()->set_address(
-                            toBase58(issuer));
-                    }
-                }
-                else
-                {
-                    AccountID const& pathAccount = elt.getAccountID();
-                    protoElement->mutable_account()->set_address(
-                        toBase58(pathAccount));
-                }
-            }
-        }
+        case TxType::ttPAYMENT:
+            populatePayment(*proto.mutable_payment(), *txnSt);
+            break;
+        case TxType::ttESCROW_CREATE:
+            populateEscrowCreate(*proto.mutable_escrow_create(), *txnSt);
+            break;
+        case TxType::ttESCROW_FINISH:
+            populateEscrowFinish(*proto.mutable_escrow_finish(), *txnSt);
+            break;
+        case TxType::ttACCOUNT_SET:
+            populateAccountSet(*proto.mutable_account_set(), *txnSt);
+            break;
+        case TxType::ttESCROW_CANCEL:
+            populateEscrowCancel(*proto.mutable_escrow_cancel(), *txnSt);
+            break;
+        case TxType::ttREGULAR_KEY_SET:
+            populateSetRegularKey(*proto.mutable_set_regular_key(), *txnSt);
+            break;
+        case TxType::ttOFFER_CREATE:
+            populateOfferCreate(*proto.mutable_offer_create(), *txnSt);
+            break;
+        case TxType::ttOFFER_CANCEL:
+            populateOfferCancel(*proto.mutable_offer_cancel(), *txnSt);
+            break;
+        case TxType::ttSIGNER_LIST_SET:
+            populateSignerListSet(*proto.mutable_signer_list_set(), *txnSt);
+            break;
+        case TxType::ttPAYCHAN_CREATE:
+            populatePaymentChannelCreate(
+                *proto.mutable_payment_channel_create(), *txnSt);
+            break;
+        case TxType::ttPAYCHAN_FUND:
+            populatePaymentChannelFund(
+                *proto.mutable_payment_channel_fund(), *txnSt);
+            break;
+        case TxType::ttPAYCHAN_CLAIM:
+            populatePaymentChannelClaim(
+                *proto.mutable_payment_channel_claim(), *txnSt);
+            break;
+        case TxType::ttCHECK_CREATE:
+            populateCheckCreate(*proto.mutable_check_create(), *txnSt);
+            break;
+        case TxType::ttCHECK_CASH:
+            populateCheckCash(*proto.mutable_check_cash(), *txnSt);
+            break;
+        case TxType::ttCHECK_CANCEL:
+            populateCheckCancel(*proto.mutable_check_cancel(), *txnSt);
+            break;
+        case TxType::ttDEPOSIT_PREAUTH:
+            populateDepositPreauth(*proto.mutable_deposit_preauth(), *txnSt);
+            break;
+        case TxType::ttTRUST_SET:
+            populateTrustSet(*proto.mutable_trust_set(), *txnSt);
+            break;
+        case TxType::ttACCOUNT_DELETE:
+            populateAccountDelete(*proto.mutable_account_delete(), *txnSt);
+            break;
+        default:
+            break;
     }
+
+    // Transaction type specific fields
+
+
+    // TODO move this to populate payment function
+//    if (safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType)) ==
+//        TxType::ttPAYMENT)
+//    {
+//        if (txnSt->isFieldPresent(sfAmount))
+//        {
+//            STAmount amount = txnSt->getFieldAmount(sfAmount);
+//            populateAmount(*proto.mutable_payment()->mutable_amount(), amount);
+//        }
+//
+//        if (txnSt->isFieldPresent(sfDestination))
+//        {
+//            AccountID accountDest = txnSt->getAccountID(sfDestination);
+//            proto.mutable_payment()->mutable_destination()->set_address(
+//                toBase58(accountDest));
+//        }
+//
+//        if (txnSt->isFieldPresent(sfSendMax))
+//        {
+//            STAmount const& sendMax = txnSt->getFieldAmount(sfSendMax);
+//            populateAmount(
+//                *proto.mutable_payment()->mutable_send_max(), sendMax);
+//        }
+//
+//        if (txnSt->isFieldPresent(sfInvoiceID))
+//        {
+//            auto invoice = txnSt->getFieldH256(sfInvoiceID);
+//            proto.mutable_payment()->set_invoice_id(
+//                invoice.data(), invoice.size());
+//        }
+//
+//        if (txnSt->isFieldPresent(sfDestinationTag))
+//        {
+//            proto.mutable_payment()->set_destination_tag(
+//                txnSt->getFieldU32(sfDestinationTag));
+//        }
+//
+//        // populate path data
+//        STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
+//        for (auto it = pathset.begin(); it < pathset.end(); ++it)
+//        {
+//            STPath const& path = *it;
+//
+//            rpc::v1::Path* protoPath = proto.mutable_payment()->add_paths();
+//
+//            for (auto it2 = path.begin(); it2 != path.end(); ++it2)
+//            {
+//                rpc::v1::PathElement* protoElement = protoPath->add_elements();
+//                STPathElement const& elt = *it2;
+//
+//                if (elt.isOffer())
+//                {
+//                    if (elt.hasCurrency())
+//                    {
+//                        Currency const& currency = elt.getCurrency();
+//                        protoElement->mutable_currency()->set_name(
+//                            to_string(currency));
+//                    }
+//                    if (elt.hasIssuer())
+//                    {
+//                        AccountID const& issuer = elt.getIssuerID();
+//                        protoElement->mutable_issuer()->set_address(
+//                            toBase58(issuer));
+//                    }
+//                }
+//                else
+//                {
+//                    AccountID const& pathAccount = elt.getAccountID();
+//                    protoElement->mutable_account()->set_address(
+//                        toBase58(pathAccount));
+//                }
+//            }
+//        }
+//    }
 }
 
 void

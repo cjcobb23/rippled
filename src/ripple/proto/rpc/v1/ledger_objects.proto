@@ -104,7 +104,7 @@ message AccountRoot {
     bytes account_transaction_id = 8;
 
     // Variable length
-    bytes domain = 9;
+    string domain = 9;
 
     // 16 bytes
     bytes email_hash = 10;

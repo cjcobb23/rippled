@@ -696,9 +696,9 @@ class AccountTxPaging_test : public beast::unit_test::suite
             {7,5, [](auto res){return true;}},
             {6,4, [](auto res){return true;}},
             {5,4, [](auto res){return true;}},
-            {4,4, [](auto res){return true;}},
-            {3,3, [](auto res){return true;}},
-            {1,3, [](auto res){return true;}},
+            {4,4, [](auto res){std::cout << res.DebugString() << std::endl; return true;}},
+            {3,3, [](auto res){std::cout << res.DebugString() << std::endl; return true;}},
+            {1,3, [](auto res){std::cout << res.DebugString() << std::endl; return true;}},
         };
 
         auto doCheck  = [](auto txn, auto txCheck)
@@ -713,6 +713,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
         };
 
         auto [res, status] = next(grpcPort,env,alice.human());
+        //std::cout << res.DebugString() << std::endl;
+        std::cout << status.error_code() << " : " << status.error_message() << std::endl;
 
         if(!BEAST_EXPECT(status.error_code() == 0))
             return;
