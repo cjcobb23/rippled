@@ -73,7 +73,7 @@ class Tx_test : public beast::unit_test::suite
     cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
     {
         AccountID account = txnSt->getAccountID(sfAccount);
-        BEAST_EXPECT(proto.account().address() == toBase58(account));
+        BEAST_EXPECT(proto.account().value().address() == toBase58(account));
 
         STAmount amount = txnSt->getFieldAmount(sfAmount);
         cmpAmount(proto.payment().amount().value(), amount);
@@ -85,19 +85,19 @@ class Tx_test : public beast::unit_test::suite
         STAmount fee = txnSt->getFieldAmount(sfFee);
         BEAST_EXPECT(proto.fee().drops() == fee.xrp().drops());
 
-        BEAST_EXPECT(proto.sequence() == txnSt->getFieldU32(sfSequence));
+        BEAST_EXPECT(proto.sequence().value() == txnSt->getFieldU32(sfSequence));
 
         Blob signingPubKey = txnSt->getFieldVL(sfSigningPubKey);
-        BEAST_EXPECT(proto.signing_public_key() == toByteString(signingPubKey));
+        BEAST_EXPECT(proto.signing_public_key().value() == toByteString(signingPubKey));
 
-        BEAST_EXPECT(proto.flags() == txnSt->getFieldU32(sfFlags));
+        BEAST_EXPECT(proto.flags().value() == txnSt->getFieldU32(sfFlags));
 
         BEAST_EXPECT(
-            proto.last_ledger_sequence() ==
+            proto.last_ledger_sequence().value() ==
             txnSt->getFieldU32(sfLastLedgerSequence));
 
         Blob blob = txnSt->getFieldVL(sfTxnSignature);
-        BEAST_EXPECT(proto.signature() == toByteString(blob));
+        BEAST_EXPECT(proto.transaction_signature().value() == toByteString(blob));
 
         if (txnSt->isFieldPresent(sfSendMax))
         {
@@ -108,7 +108,7 @@ class Tx_test : public beast::unit_test::suite
         if (txnSt->isFieldPresent(sfAccountTxnID))
         {
             auto field = txnSt->getFieldH256(sfAccountTxnID);
-            BEAST_EXPECT(proto.account_transaction_id() == toByteString(field));
+            BEAST_EXPECT(proto.account_transaction_id().value() == toByteString(field));
         }
 
         // populate path data

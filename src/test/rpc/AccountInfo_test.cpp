@@ -522,14 +522,14 @@ public:
             }
             BEAST_EXPECT(client.reply.account_data().owner_count().value() == 1);
             auto& signerList = client.reply.signer_list();
-            BEAST_EXPECT(signerList.signer_quorum() == 4);
+            BEAST_EXPECT(signerList.signer_quorum().value() == 4);
             BEAST_EXPECT(signerList.signer_entries_size() == 8);
             for (int i = 0; i < 8; ++i)
             {
-                BEAST_EXPECT(signerList.signer_entries(i).signer_weight() == 1);
+                BEAST_EXPECT(signerList.signer_entries(i).signer_weight().value() == 1);
                 BEAST_EXPECT(
                     accounts.erase(
-                        signerList.signer_entries(i).account().address()) == 1);
+                        signerList.signer_entries(i).account().value().address()) == 1);
             }
             BEAST_EXPECT(accounts.size() == 0);
         }

@@ -295,7 +295,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         int ledger)
     {
         return (
-            tx.transaction().sequence() == sequence &&
+            tx.transaction().sequence().value() == sequence &&
             tx.ledger_index() == ledger);
     }
 
@@ -703,12 +703,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         auto doCheck  = [](auto txn, auto txCheck)
         {
-            std::cout << "seq = " << txn.transaction().sequence() << std::endl;
+            std::cout << "seq = " << txn.transaction().sequence().value() << std::endl;
             return txn.has_transaction() &&
                 txn.validated() &&
 
                 txn.ledger_index() == txCheck.ledgerIndex &&
-                (txn.transaction().sequence() == txCheck.sequence) &&
+                (txn.transaction().sequence().value() == txCheck.sequence) &&
                 txCheck.checkType(txn.transaction());
         };
 

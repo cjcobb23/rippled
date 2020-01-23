@@ -9,10 +9,17 @@ message LedgerObject {
 
     oneof object {
         AccountRoot account_root = 1;
-        RippleState ripple_state = 2;
-        Offer offer = 3;
-        SignerList signer_list = 4;
+        Amendments amendments = 2;
+        Check check = 3;
+        DepositPreauthObject deposit_preauth = 4;
         DirectoryNode directory_node = 5;
+        Escrow escrow = 6;
+        FeeSettings fee_settings = 7;
+        LedgerHashes ledger_hashes = 8;
+        Offer offer = 9;
+        PayChannel pay_channel = 10;
+        RippleState ripple_state = 11;
+        SignerList signer_list = 12;
     }
 }
 
@@ -34,54 +41,49 @@ enum LedgerEntryType {
 
 message DirectoryNode {
 
-    uint32 flags = 1;
+    Flags flags = 1;
 
-    // 32 bytes
-    bytes root_index = 2;
+    RootIndex root_index = 2;
 
-    repeated bytes indexes = 3;
+    repeated Index indexes = 3;
 
-    uint64 index_next = 4;
+    IndexNext index_next = 4;
 
-    uint64 index_previous = 5;
+    IndexPrevious index_previous = 5;
 
-    string owner = 6;
+    Owner owner = 6;
 
-    Currency taker_pays_currency = 7;
+    TakerPaysCurrency taker_pays_currency = 7;
 
-    // 20 bytes
-    bytes taker_pays_issuer = 8;
+    TakerPaysIssuer taker_pays_issuer = 8;
 
-    Currency taker_gets_currency = 9;
+    TakerGetsCurreny taker_gets_currency = 9;
 
-    // 20 bytes
-    bytes taker_gets_issuer = 10;
+    TakerGetsIssuer taker_gets_issuer = 10;
 }
 
 message SignerList {
 
-    uint32 flags = 1;
+    Flags flags = 1;
 
-    // 32 bytes
-    bytes previous_txn_id = 2;
+    PreviousTransactionID previous_txn_id = 2;
 
-    uint32 previous_transaction_ledger_sequence = 3;
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 3;
 
-    uint64 owner_node = 4;
+    OwnerNode owner_node = 4;
 
     repeated SignerEntry signer_entries = 5;
 
-    uint32 signer_list_id = 6;
+    SignerListID signer_list_id = 6;
 
-    uint32 signer_quorum = 7;
+    SignerQuorum signer_quorum = 7;
 }
 
 message SignerEntry {
 
-    AccountAddress account = 1;
+    Account account = 1;
 
-    // this is actually uint16, but protobuf can't express uint16
-    uint32 signer_weight = 2;
+    SignerWeight signer_weight = 2;
 }
 
 message AccountRoot {
@@ -117,54 +119,260 @@ message AccountRoot {
 
 message RippleState {
 
-    CurrencyAmount balance = 1;
+    Balance balance = 1;
 
-    uint32 flags = 2;
+    Flags flags = 2;
 
-    CurrencyAmount low_limit = 3;
+    LowLimit low_limit = 3;
 
-    CurrencyAmount high_limit = 4;
+    HighLimit high_limit = 4;
 
-    uint64 low_node = 5;
+    LowNode low_node = 5;
 
-    uint64 high_node = 6;
+    HighNode high_node = 6;
 
-    uint32 low_quality_in = 7;
+    LowQualityIn low_quality_in = 7;
 
-    uint32 low_quality_out = 8;
+    LowQualityOut low_quality_out = 8;
 
-    uint32 high_quality_in = 9;
+    HighQualityIn high_quality_in = 9;
 
-    uint32 high_quality_out = 10;
+    HighQualityOut high_quality_out = 10;
 
-    // 32 bytes
-    bytes previous_transaction_id = 11;
+    PreviousTransactionID previous_transaction_id = 11;
 
-    uint32 previous_transaction_ledger_sequence = 12;
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 12;
 }
 
 message Offer {
 
-    string account = 1;
+    Account account = 1;
 
-    uint32 sequence = 2;
+    Sequence sequence = 2;
 
-    uint32 flags = 3;
+    Flags flags = 3;
 
-    CurrencyAmount taker_pays = 4;
+    TakerPays taker_pays = 4;
 
-    CurrencyAmount taker_gets = 5;
+    TakerGets taker_gets = 5;
 
-    bytes book_directory = 6;
+    BookDirectory book_directory = 6;
 
-    uint64 book_node = 7;
+    BookNode book_node = 7;
 
-    uint64 owner_node = 8;
+    OwnerNode owner_node = 8;
 
-    uint32 expiration = 9;
+    Expiration expiration = 9;
 
-    // 32 bytes
-    bytes previous_transaction_id = 10;
+    PreviousTransactionID previous_transaction_id = 10;
 
-    uint32 previous_transaction_ledger_sequence = 11;
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 11;
 }
+
+message Amendments
+{
+    repeated Amendment amendments = 1;
+
+    repeated Majority majorities = 2;
+
+    Flags flags = 3;
+}
+
+
+message Majority
+{
+    Amendment amendment = 1;
+
+    CloseTime close_time = 2;
+}
+
+message Check
+{
+    Account account = 1;
+
+    Destination destination = 2;
+
+    Flags flags = 3;
+
+    OwnerNode owner_node = 4;
+
+    PreviousTransactionID previous_transaction_id = 5;
+
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 6;
+
+    SendMax send_max = 7;
+
+    Sequence sequence = 8;
+
+    DestinationNode destination_node = 9;
+
+    DestinationTag destination_tag = 10;
+
+    Expiration expiration = 11;
+
+    InvoiceID invoice_id = 12;
+
+    SourceTag source_tag = 13;
+}
+
+message DepositPreauthObject
+{
+    Account account = 1;
+
+    Authorize authorize = 2;
+
+    Flags flags = 3;
+
+    OwnerNode owner_node = 4;
+
+    PreviousTransactionID previous_transaction_id = 5;
+
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 6;
+}
+
+message Escrow
+{
+    Account account = 1;
+
+    Destination destination = 2;
+
+    Amount amount = 3;
+
+    Condition condition = 4;
+
+    CancelAfter cancel_after = 5;
+
+    FinishAfter finish_after = 6;
+
+    Flags flags = 7;
+
+    SourceTag source_tag = 8;
+
+    DestinationTag destination_tag = 9;
+
+    OwnerNode owner_node = 10;
+
+    DestinationNode destination_node = 11;
+
+    PreviousTransactionID previous_transaction_id = 12;
+
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 13;
+}
+
+message FeeSettings
+{
+    BaseFee base_fee = 1;
+
+    ReferenceFeeUnits reference_fee_units = 2;
+
+    ReserveBase reserve_base = 3;
+
+    ReserveIncrement reserve_increment = 4;
+
+    Flags flags = 5;
+}
+
+
+message LedgerHashes
+{
+    LastLedgerSequence last_ledger_sequence = 1;
+
+    repeated Hash hashes = 2;
+
+    Flags flags = 3;
+}
+
+message PayChannel
+{
+    Account account = 1;
+
+    Destination destination = 2;
+
+    Amount amount = 3;
+
+    Balance balance = 4;
+
+    PublicKey public_key = 5;
+
+    SettleDelay settle_delay = 6;
+
+    OwnerNode owner_node = 7;
+
+    PreviousTransactionID previous_transaction_id = 8;
+
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 9;
+
+    Flags flags = 10;
+
+    Expiration expiration = 11;
+
+    CancelAfter cancel_after = 12;
+
+    SourceTag source_tag = 13;
+
+    DestinationTag destination_tag = 14;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

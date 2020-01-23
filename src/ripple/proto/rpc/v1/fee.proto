@@ -9,6 +9,8 @@ message GetFeeRequest {
 
 }
 
+//TODO abstract away each type into its own message?
+
 // Response to a GetFee RPC
 message GetFeeResponse {
 
