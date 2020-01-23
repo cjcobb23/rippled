@@ -7,6 +7,7 @@ import "rpc/v1/payment.proto";
 import "rpc/v1/meta.proto";
 import "rpc/v1/ledger.proto";
 import "rpc/v1/transactiontypes.proto";
+import "rpc/v1/fields.proto";
 
 message GetTransactionRequest {
     // hash of the transaction. 32 bytes
@@ -49,13 +50,15 @@ message GetTransactionResponse {
 // A message encompassing all transactions.
 message Transaction {
     // The account originating the transaction.
-    AccountAddress account = 1;
+    Account account = 1;
 
     // The fee attached to the transaction.
+    // TODO should this have it's own message type? I think it is good to be
+    // explicit here about fees being specified in drops
     XRPDropsAmount fee = 2;
 
     // The sequence number for the transaction.
-    uint32 sequence = 3;
+    Sequence sequence = 3;
 
     // Data specific to a the type of transaction being submitted.
     oneof transaction_data {
@@ -114,46 +117,40 @@ message Transaction {
 
     }
 
-    // Public key of the account which signed the transaction. Variable length
-    bytes signing_public_key = 5;
+    // Public key of the account which signed the transaction
+    SigningPublicKey signing_public_key = 5;
 
-    // Variable length
-    bytes signature = 6;
+    TransactionSignature transaction_signature = 6;
 
-    uint32 flags = 7;
+    Flags flags = 7;
 
-    uint32 last_ledger_sequence = 8;
+    LastLedgerSequence last_ledger_sequence = 8;
 
-    uint32 source_tag = 9;
+    SourceTag source_tag = 9;
 
     repeated Memo memos = 10;
 
     repeated Signer signers = 11;
 
-    bytes account_transaction_id = 12;
+    AccountTransactionID account_transaction_id = 12;
 }
 
 message Memo {
 
-    // Variable length
-    bytes memo_data = 1;
+    MemoData memo_data = 1;
 
-    // Variable length
-    bytes memo_format = 2;
+    MemoFormat memo_format = 2;
 
-    // Variable length
-    bytes memo_type = 3;
+    MemoType memo_type = 3;
 }
 
 message Signer  {
 
-    AccountAddress account = 1;
+    Account account = 1;
 
-    // Variable length
-    bytes transaction_signature = 2;
+    TransactionSignature transaction_signature = 2;
 
-    // Variable length
-    bytes signing_public_key = 3;
+    SigningPublicKey signing_public_key = 3;
 }
 
 
