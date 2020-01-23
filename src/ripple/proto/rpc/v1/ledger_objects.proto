@@ -3,6 +3,7 @@ syntax = "proto3";
 package rpc.v1;
 
 import "rpc/v1/amount.proto";
+import "rpc/v1/fields.proto";
 
 message LedgerObject {
 
@@ -85,39 +86,33 @@ message SignerEntry {
 
 message AccountRoot {
 
-    AccountAddress account = 1;
+    Account account = 1;
 
-    XRPDropsAmount balance = 2;
+    Balance balance = 2;
 
-    uint32 sequence = 3;
+    Sequence sequence = 3;
 
-    uint32 flags = 4;
+    Flags flags = 4;
 
-    uint32 owner_count = 5;
+    OwnerCount owner_count = 5;
 
-    // 32 bytes
-    bytes previous_transaction_id = 6;
+    PreviousTransactionID previous_transaction_id = 6;
 
-    uint32 previous_transaction_ledger_sequence = 7;
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 7;
 
-    // 32 bytes
-    bytes account_transaction_id = 8;
+    AccountTransactionID account_transaction_id = 8;
 
-    // Variable length
-    string domain = 9;
+    Domain domain = 9;
 
-    // 16 bytes
-    bytes email_hash = 10;
+    EmailHash email_hash = 10;
 
-    // Variable length
-    bytes message_key = 11;
+    MessageKey message_key = 11;
 
-    // base58 encoding
-    string regular_key = 12;
+    RegularKey regular_key = 12;
 
-    uint32 tick_size = 13;
+    TickSize tick_size = 13;
 
-    uint32 transfer_rate = 14;
+    TransferRate transfer_rate = 14;
 }
 
 message RippleState {

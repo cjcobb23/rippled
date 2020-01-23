@@ -199,3 +199,42 @@ message QualityOut
 {
     uint32 value = 1;
 }
+
+message Account
+{
+    AccountAddress value = 1;
+}
+
+message Sequence
+{
+    uint32 value = 1;
+}
+
+message Flags
+{
+    uint32 value = 1;
+}
+
+message OwnerCount
+{
+    uint32 value = 1;
+}
+
+message PreviousTransactionID
+{
+    // 32 bytes
+    bytes value = 1;
+}
+
+message PreviousTransactionLedgerSequence
+{
+    uint32 value = 1;
+}
+
+message AccountTransactionID
+{
+    // 32 bytes
+    bytes value = 1;
+}
+
+
