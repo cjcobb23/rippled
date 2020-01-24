@@ -401,7 +401,7 @@ message CloseTime
 
 message DestinationNode
 {
-    uint32 value = 1;
+    uint64 value = 1;
 }
 
 message BaseFee

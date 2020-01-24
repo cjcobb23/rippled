@@ -5,6 +5,7 @@ package rpc.v1;
 import "rpc/v1/amount.proto";
 import "rpc/v1/ledger_objects.proto";
 
+//TODO change to follow new format?
 message Meta {
     // index in ledger
     uint64 transaction_index = 1;
@@ -44,6 +45,7 @@ message TransactionResult {
 
 message AffectedNode {
 
+    //TODO this is not necessary
     LedgerEntryType ledger_entry_type = 1;
 
     // 32 bytes

@@ -9,6 +9,7 @@ import "rpc/v1/ledger.proto";
 import "rpc/v1/transactiontypes.proto";
 import "rpc/v1/fields.proto";
 
+//TODO change to follow new format?
 message GetTransactionRequest {
     // hash of the transaction. 32 bytes
     bytes hash = 1;
@@ -114,6 +115,8 @@ message Transaction {
 
 
         TrustSet trust_set = 29;
+
+        //TODO psuedo transactions?
 
     }
 
