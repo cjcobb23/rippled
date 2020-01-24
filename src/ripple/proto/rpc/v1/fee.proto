@@ -9,8 +9,7 @@ message GetFeeRequest {
 
 }
 
-//TODO abstract away each type into its own message?
-
+//TODO change to follow new format?
 // Response to a GetFee RPC
 message GetFeeResponse {
 

@@ -1195,277 +1195,261 @@ populatePayment(rpc::v1::Payment& proto, STObject const& obj)
 void
 populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
 {
-    std::cout << "populating account root" << std::endl;
-    populateProtoAccount(
-        obj, sfAccount, [&proto]() { return proto.mutable_account(); });
 
-    populateProtoAmount(
-        obj, sfBalance, [&proto]() { return proto.mutable_balance(); });
+    populateAccount(obj, proto);
 
-    populateProtoU32(obj, sfSequence, [&proto] () {
-        return proto.mutable_sequence();});
+    populateBalance(obj, proto);
 
-    populateProtoU32(
-        obj, sfFlags, [&proto]() { return proto.mutable_flags(); });
+    populateSequence(obj, proto);
 
-    populateProtoU32(
-        obj, sfOwnerCount, [&proto]() { return proto.mutable_owner_count(); });
+    populateFlags(obj, proto);
 
-    populateProtoH256(obj, sfPreviousTxnID, [&proto]() {
-        return proto.mutable_previous_transaction_id();
-    });
+    populateOwnerCount(obj, proto);
 
-    populateProtoU32(obj, sfPreviousTxnLgrSeq, [&proto]() {
-        return proto.mutable_previous_transaction_ledger_sequence();
-    });
+    populatePreviousTransactionID(obj, proto);
 
-    populateProtoH256(obj, sfAccountTxnID, [&proto]() {
-        return proto.mutable_account_transaction_id();
-    });
+    populatePreviousTransactionLedgerSequence(obj, proto);
 
-    populateProtoVLasString(
-        obj, sfDomain, [&proto]() { return proto.mutable_domain(); });
+    populateAccountTransactionID(obj, proto);
 
-    populateProtoH128(
-        obj, sfEmailHash, [&proto]() { return proto.mutable_email_hash(); });
+    populateDomain(obj, proto);
 
-    populateProtoVL(
-            obj, sfMessageKey, [&proto]() { return proto.mutable_message_key(); });
+    populateEmailHash(obj, proto);
 
-//    if (obj.isFieldPresent(sfBalance))
-//    {
-//        STAmount amount = obj.getFieldAmount(sfBalance);
-//        proto.mutable_balance()->set_drops(amount.xrp().drops());
-//    }
-//    if (obj.isFieldPresent(sfSequence))
-//    {
-//        proto.set_sequence(obj.getFieldU32(sfSequence));
-//    }
-//    if (obj.isFieldPresent(sfFlags))
-//    {
-//        proto.set_flags(obj.getFieldU32(sfFlags));
-//    }
-//    if (obj.isFieldPresent(sfOwnerCount))
-//    {
-//        proto.set_owner_count(obj.getFieldU32(sfOwnerCount));
-//    }
-//    if (obj.isFieldPresent(sfPreviousTxnID))
-//    {
-//        auto field = obj.getFieldH256(sfPreviousTxnID);
-//        proto.set_previous_transaction_id(field.data(), field.size());
-//    }
-//    if (obj.isFieldPresent(sfPreviousTxnLgrSeq))
-//    {
-//        proto.set_previous_transaction_ledger_sequence(
-//            obj.getFieldU32(sfPreviousTxnLgrSeq));
-//    }
-//    if (obj.isFieldPresent(sfAccountTxnID))
-//    {
-//        auto field = obj.getFieldH256(sfAccountTxnID);
-//        proto.set_account_transaction_id(field.data(), field.size());
-//    }
-//    if (obj.isFieldPresent(sfDomain))
-//    {
-//        auto field = obj.getFieldVL(sfDomain);
-//        proto.set_domain(reinterpret_cast<const char *>(field.data()), field.size());
-//    }
-//    if (obj.isFieldPresent(sfEmailHash))
-//    {
-//        auto field = obj.getFieldH128(sfEmailHash);
-//        proto.set_email_hash(field.data(), field.size());
-//    }
-//    if (obj.isFieldPresent(sfMessageKey))
-//    {
-//        auto field = obj.getFieldVL(sfMessageKey);
-//        proto.set_message_key(field.data(), field.size());
-//    }
-//    if (obj.isFieldPresent(sfRegularKey))
-//    {
-//        proto.set_regular_key(toBase58(obj.getAccountID(sfRegularKey)));
-//    }
-//    if (obj.isFieldPresent(sfTickSize))
-//    {
-//        proto.set_tick_size(obj.getFieldU8(sfTickSize));
-//    }
-//    if (obj.isFieldPresent(sfTransferRate))
-//    {
-//        proto.set_transfer_rate(obj.getFieldU32(sfTransferRate));
-//    }
+    populateMessageKey(obj, proto);
+
+    populateRegularKey(obj, proto);
+
+    populateTickSize(obj, proto);
+
+    populateTransferRate(obj, proto);
 }
 
-/*
 void
-populateRippleState(rpc::v1::RippleState& proto, STObject const& obj)
+populateAmendments(rpc::v1::Amendments& proto, STObject const& obj)
 {
-    if (obj.isFieldPresent(sfBalance))
-    {
-        STAmount amount = obj.getFieldAmount(sfBalance);
-        populateAmount(*proto.mutable_balance(), amount);
-    }
-    if (obj.isFieldPresent(sfFlags))
-    {
-        proto.set_flags(obj.getFieldU32(sfFlags));
-    }
-    if (obj.isFieldPresent(sfLowLimit))
-    {
-        STAmount amount = obj.getFieldAmount(sfLowLimit);
-        populateAmount(*proto.mutable_low_limit(), amount);
-    }
-    if (obj.isFieldPresent(sfHighLimit))
-    {
-        STAmount amount = obj.getFieldAmount(sfHighLimit);
-        populateAmount(*proto.mutable_high_limit(), amount);
-    }
-    if (obj.isFieldPresent(sfLowNode))
-    {
-        proto.set_low_node(obj.getFieldU64(sfLowNode));
-    }
-    if (obj.isFieldPresent(sfHighNode))
-    {
-        proto.set_high_node(obj.getFieldU64(sfHighNode));
-    }
-    if (obj.isFieldPresent(sfLowQualityIn))
-    {
-        proto.set_low_quality_in(obj.getFieldU32(sfLowQualityIn));
-    }
-    if (obj.isFieldPresent(sfLowQualityOut))
-    {
-        proto.set_low_quality_out(obj.getFieldU32(sfLowQualityOut));
-    }
-    if (obj.isFieldPresent(sfHighQualityIn))
-    {
-        proto.set_high_quality_in(obj.getFieldU32(sfHighQualityIn));
-    }
-    if (obj.isFieldPresent(sfHighQualityOut))
-    {
-        proto.set_high_quality_out(obj.getFieldU32(sfHighQualityOut));
-    }
+
+    populateAmendments(obj, proto);
+
+    populateMajorities(obj, proto);
+}
+
+void populateCheck(rpc::v1::Check& proto, STObject const& obj)
+{
+   populateAccount(obj, proto);
+
+    populateDestination(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateOwnerNode(obj, proto);
+
+    populatePreviousTransactionID(obj, proto);
+
+    populatePreviousTransactionLedgerSequence(obj, proto);
+
+    populateSendMax(obj, proto);
+
+    populateSequence(obj, proto);
+
+    populateDestinationNode(obj, proto);
+
+    populateDestinationTag(obj, proto);
+
+    populateExpiration(obj, proto);
+
+    populateInvoiceID(obj, proto);
+
+    populateSourceTag(obj, proto);
+}
+
+void populateDepositPreauth(rpc::v1::DepositPreauthObject& proto, STObject const& obj)
+{
+    populateAccount(obj, proto);
+
+    populateAuthorize(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateOwnerNode(obj, proto);
+
+    populatePreviousTransactionID(obj, proto);
+
+    populatePreviousTransactionLedgerSequence(obj, proto);
+}
+
+void populateFeeSettings(rpc::v1::FeeSettings& proto, STObject const& obj)
+{
+   populateBaseFee(obj, proto);
+
+   populateReferenceFeeUnits(obj, proto);
+
+   populateReserveBase(obj, proto);
+
+   populateReserveIncrement(obj, proto);
+
+   populateFlags(obj, proto);
+}
+
+
+void populateEscrow(rpc::v1::Escrow& proto, STObject const& obj)
+{
+    populateAccount(obj, proto);
+
+    populateDestination(obj, proto);
+
+    populateAmount(obj, proto);
+
+    populateCondition(obj, proto);
+
+    populateCancelAfter(obj, proto);
+
+    populateFinishAfter(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateSourceTag(obj, proto);
+
+    populateDestinationTag(obj, proto);
+
+    populateOwnerNode(obj, proto);
+
+    populateDestinationNode(obj, proto);
+
+    populatePreviousTransactionID(obj, proto);
+
+    populatePreviousTransactionLedgerSequence(obj, proto);
+
+}
+
+void
+populateLedgerHashes(rpc::v1::LedgerHashes& proto, STObject const& obj)
+{
+    populateLastLedgerSequence(obj, proto);
+
+    populateHashes(obj, proto);
+
+    populateFlags(obj, proto);
+}
+
+void
+populatePayChannel(rpc::v1::PayChannel& proto, STObject const& obj)
+{
+    populateAccount(obj, proto);
+
+    populateAmount(obj, proto);
+
+    populateBalance(obj, proto);
+
+    populatePublicKey(obj, proto);
+
+    populateSettleDelay(obj, proto);
+
+    populateOwnerNode(obj, proto);
+
+    populatePreviousTransactionID(obj, proto);
+
+    populatePreviousTransactionLedgerSequence(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateExpiration(obj, proto);
+
+    populateCancelAfter(obj, proto);
+
+    populateSourceTag(obj, proto);
+
+    populateDestinationTag(obj, proto);
+}
+
+void
+populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
+{
+
+    populateFlags(obj, proto);
+
+    populateRootIndex(obj, proto);
+
+    populateIndexes(obj, proto);
+
+    populateIndexNext(obj, proto);
+
+    populateIndexPrevious(obj, proto);
+
+    populateTakerPaysIssuer(obj, proto);
+
+    populateTakerPaysCurrency(obj, proto);
+
+    populateTakerGetsCurrency(obj, proto);
+
+    populateTakerGetsIssuer(obj, proto);
 }
 
 void
 populateOffer(rpc::v1::Offer& proto, STObject const& obj)
 {
-    if (obj.isFieldPresent(sfAccount))
-    {
-        AccountID account = obj.getAccountID(sfAccount);
-        proto.set_account(toBase58(account));
-    }
-    if (obj.isFieldPresent(sfSequence))
-    {
-        proto.set_sequence(obj.getFieldU32(sfSequence));
-    }
-    if (obj.isFieldPresent(sfFlags))
-    {
-        proto.set_flags(obj.getFieldU32(sfFlags));
-    }
-    if (obj.isFieldPresent(sfTakerPays))
-    {
-        STAmount amount = obj.getFieldAmount(sfTakerPays);
-        populateAmount(*proto.mutable_taker_pays(), amount);
-    }
-    if (obj.isFieldPresent(sfTakerGets))
-    {
-        STAmount amount = obj.getFieldAmount(sfTakerGets);
-        populateAmount(*proto.mutable_taker_gets(), amount);
-    }
-    if (obj.isFieldPresent(sfBookDirectory))
-    {
-        auto field = obj.getFieldH256(sfBookDirectory);
-        proto.set_book_directory(field.data(), field.size());
-    }
-    if (obj.isFieldPresent(sfBookNode))
-    {
-        proto.set_book_node(obj.getFieldU64(sfBookNode));
-    }
-    if (obj.isFieldPresent(sfExpiration))
-    {
-        proto.set_expiration(obj.getFieldU32(sfExpiration));
-    }
+
+    populateAccount(obj, proto);
+
+    populateSequence(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateTakerPays(obj, proto);
+
+    populateTakerGets(obj, proto);
+
+    populateBookDirectory(obj, proto);
+
+    populateBookNode(obj, proto);
+}
+
+void
+populateRippleState(rpc::v1::RippleState& proto, STObject const& obj)
+{
+
+    populateBalance(obj, proto);
+
+    populateFlags(obj, proto);
+
+    populateLowNode(obj, proto);
+
+    populateHighNode(obj, proto);
+
+    populateLowQualityIn(obj, proto);
+
+    populateLowQualityOut(obj, proto);
+
+    populateHighQualityIn(obj, proto);
+
+    populateHighQualityOut(obj, proto);
+
+    populatePreviousTransactionID(obj, proto);
+
+    populatePreviousTransactionLedgerSequence(obj, proto);
 }
 
 void
 populateSignerList(rpc::v1::SignerList& proto, STObject const& obj)
 {
-    proto.set_flags(obj.getFieldU32(sfFlags));
 
-    auto prevTxnID = obj.getFieldH256(sfPreviousTxnID);
-    proto.set_previous_txn_id(prevTxnID.data(), prevTxnID.size());
+    populateFlags(obj, proto);
 
-    proto.set_previous_transaction_ledger_sequence(
-        obj.getFieldU32(sfPreviousTxnLgrSeq));
+    populatePreviousTransactionID(obj, proto);
 
-    proto.set_owner_node(obj.getFieldU64(sfOwnerNode));
+    populatePreviousTransactionLedgerSequence(obj, proto);
 
-    proto.set_signer_list_id(obj.getFieldU32(sfSignerListID));
+    populateOwnerNode(obj, proto);
 
-    proto.set_signer_quorum(obj.getFieldU32(sfSignerQuorum));
+    populateSignerEntries(obj, proto);
 
-    STArray const& signerEntries = obj.getFieldArray(sfSignerEntries);
+    populateSignerQuorum(obj, proto);
 
-    for (auto it = signerEntries.begin(); it != signerEntries.end(); ++it)
-    {
-        rpc::v1::SignerEntry& signerEntryProto = *proto.add_signer_entries();
-
-        signerEntryProto.mutable_account()->set_address(
-            toBase58(it->getAccountID(sfAccount)));
-        signerEntryProto.set_signer_weight(it->getFieldU16(sfSignerWeight));
-    }
+    populateSignerListID(obj, proto);
 }
 
 
-void
-populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
-{
-    if (obj.isFieldPresent(sfOwner))
-    {
-        AccountID ownerAccount = obj.getAccountID(sfOwner);
-        proto.set_owner(toBase58(ownerAccount));
-    }
-    if (obj.isFieldPresent(sfTakerPaysCurrency))
-    {
-        uint160 tpCurr = obj.getFieldH160(sfTakerPaysCurrency);
-        proto.mutable_taker_pays_currency()->set_code(
-            tpCurr.data(), tpCurr.size());
-    }
-    if (obj.isFieldPresent(sfTakerPaysIssuer))
-    {
-        uint160 tpIss = obj.getFieldH160(sfTakerPaysIssuer);
-        proto.set_taker_pays_issuer(tpIss.data(), tpIss.size());
-    }
-    if (obj.isFieldPresent(sfTakerGetsCurrency))
-    {
-        uint160 tgCurr = obj.getFieldH160(sfTakerGetsCurrency);
-        proto.mutable_taker_gets_currency()->set_code(
-            tgCurr.data(), tgCurr.size());
-    }
-    if (obj.isFieldPresent(sfTakerGetsIssuer))
-    {
-        uint160 tgIss = obj.getFieldH160(sfTakerGetsIssuer);
-        proto.set_taker_gets_issuer(tgIss.data(), tgIss.size());
-    }
-    if (obj.isFieldPresent(sfIndexes))
-    {
-        const STVector256& vec = obj.getFieldV256(sfIndexes);
-        for (size_t i = 0; i < vec.size(); ++i)
-        {
-            uint256 const& elt = vec[i];
-            proto.add_indexes(elt.data(), elt.size());
-        }
-    }
-    if (obj.isFieldPresent(sfRootIndex))
-    {
-        uint256 rootIndex = obj.getFieldH256(sfRootIndex);
-        proto.set_root_index(rootIndex.data(), rootIndex.size());
-    }
-    if (obj.isFieldPresent(sfIndexNext))
-    {
-        proto.set_index_next(obj.getFieldU64(sfIndexNext));
-    }
-    if (obj.isFieldPresent(sfIndexPrevious))
-    {
-        proto.set_index_previous(obj.getFieldU64(sfIndexPrevious));
-    }
-}
+
 
 void
 populateLedgerEntryType(rpc::v1::AffectedNode& proto, std::uint16_t lgrType)
@@ -1521,31 +1505,52 @@ template <class T>
 void
 populateFields(T& proto, STObject const& obj, std::uint16_t type)
 {
-    if (type == ltACCOUNT_ROOT)
+    switch (type)
     {
-        RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
-    }
-    else if (type == ltRIPPLE_STATE)
-    {
-        RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
-    }
-    else if (type == ltOFFER)
-    {
-        RPC::populateOffer(*proto.mutable_offer(), obj);
-    }
-    else if (type == ltDIR_NODE)
-    {
-        RPC::populateDirectoryNode(*proto.mutable_directory_node(), obj);
-    }
-    else
-    {
-        // Ledger object not supported by protobuf/grpc yet
+        case ltACCOUNT_ROOT:
+            RPC::populateAccountRoot(*proto.mutable_account_root(), obj);
+            break;
+        case ltAMENDMENTS:
+            RPC::populateAmendments(*proto.mutable_amendments(), obj);
+            break;
+        case ltDIR_NODE:
+            RPC::populateDirectoryNode(*proto.mutable_directory_node(), obj);
+            break;
+        case ltRIPPLE_STATE:
+            RPC::populateRippleState(*proto.mutable_ripple_state(), obj);
+            break;
+        case ltSIGNER_LIST:
+            RPC::populateSignerList(*proto.mutable_signer_list(), obj);
+            break;
+        case ltOFFER:
+            RPC::populateOffer(*proto.mutable_offer(), obj);
+            break;
+        case ltLEDGER_HASHES:
+            RPC::populateLedgerHashes(*proto.mutable_ledger_hashes(), obj);
+            break;
+        case ltFEE_SETTINGS:
+            RPC::populateFeeSettings(*proto.mutable_fee_settings(), obj);
+            break;
+        case ltESCROW:
+            RPC::populateEscrow(*proto.mutable_escrow(), obj);
+            break;
+        case ltPAYCHAN:
+            RPC::populatePayChannel(*proto.mutable_pay_channel(), obj);
+            break;
+        case ltCHECK:
+            RPC::populateCheck(*proto.mutable_check(), obj);
+            break;
+        case ltDEPOSIT_PREAUTH:
+            RPC::populateDepositPreauth(*proto.mutable_deposit_preauth(), obj);
+            break;
     }
 }
 
 void
 populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 {
+
+    std::cout << "populating meta" << std::endl;
     proto.set_transaction_index(txMeta->getIndex());
 
     populateTransactionResultType(
@@ -1639,7 +1644,6 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
         }
     }
 }
-*/
 
 
 void

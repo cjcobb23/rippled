@@ -282,8 +282,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
             //std::cout << "request = " << request.DebugString() << std::endl;
             status =
                 stub_->GetAccountTransactionHistory(&context, request, &reply);
-           // std::cout << "reply is = "
-           //   << reply.DebugString() << std::endl;
+           std::cout << "reply is = "
+             << reply.DebugString() << std::endl;
 
         }
     };
@@ -555,7 +555,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         env.close();
 
         // SignerListSet
-        env (signers (alice, 1, {{"bogie", 1}, {"demon", 1}}), sig (alie));
+        env (signers (alice, 1, {{"bogie", 1}, {"demon", 1}, {gw, 1}}), sig (alie));
 
         // Escrow
         {
@@ -674,10 +674,15 @@ class AccountTxPaging_test : public beast::unit_test::suite
         env (deposit::auth (alice, gw), sig (alie));
         env.close();
 
+        auto const baseFee = env.current()->fees().base;
+        env (noop (alice), msig (gw), fee (2 * baseFee), memo("data","format","type"));
+        env.close();
+
         // Setup is done.  Look at the transactions returned by account_tx.
 
         static const TxCheck txCheck []
         {
+            {21,15, [](auto res){std::cout << "This one ** " << res.DebugString() << std::endl; return true;}},
             {20,14, [](auto res){return true;}},
             {19,13, [](auto res){return true;}},
             {18,13, [](auto res){return true;}},

@@ -6,6 +6,7 @@ import "rpc/v1/ledger_objects.proto";
 import "rpc/v1/amount.proto";
 import "rpc/v1/ledger.proto";
 
+//TODO change to follow new format?
 // A request to get info about an account.
 message GetAccountInfoRequest {
     // The address to get info about.
