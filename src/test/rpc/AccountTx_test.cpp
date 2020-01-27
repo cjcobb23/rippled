@@ -449,10 +449,12 @@ class AccountTx_test : public beast::unit_test::suite
         BEAST_EXPECT (std::extent<decltype (sanity)>::value ==
             result[jss::result][jss::transactions].size());
 
+        std::cout << "PRINTING ALL *****" << std::endl;
         for (unsigned int index {0};
             index < std::extent<decltype (sanity)>::value; ++index)
         {
-            std::cout << txs[index][jss::tx] << std::endl;
+            std::cout << "printing txn" << std::endl;
+            std::cout << txs[index] << std::endl;
             checkSanity (txs[index], sanity[index]);
         }
     }

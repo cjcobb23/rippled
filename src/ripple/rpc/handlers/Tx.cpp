@@ -423,7 +423,7 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
 
     };
 
-    auto fillTxn = [&args,&res,&request,&response] ()
+    auto fillTxn = [&context,&args,&res,&request,&response] ()
     {
         std::shared_ptr<STTx const> stTxn = res.first.txn->getSTransaction();
         if(args.binary)
@@ -436,8 +436,17 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
             RPC::populateTransaction(*response.mutable_transaction(), stTxn);
         }
 
-        response.set_ledger_index(res.first.txn->getLedger());
+        auto ledgerIndex = res.first.txn->getLedger();
+
+        response.set_ledger_index(ledgerIndex);
         response.set_hash(request.hash());
+        if(ledgerIndex)
+        {
+            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(ledgerIndex);
+            if(ct)
+               response.mutable_date()->set_value(ct->time_since_epoch().count());
+
+        }
     };
 
 

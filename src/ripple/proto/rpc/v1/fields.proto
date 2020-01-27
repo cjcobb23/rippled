@@ -396,6 +396,7 @@ message Amendment
 
 message CloseTime
 {
+    // time in seconds since Ripple epoch
     uint32 value = 1;
 }
 
@@ -433,6 +434,11 @@ message Hash
     bytes value = 1;
 }
 
+message Date
+{
+    // time in seconds since Ripple epoch
+    uint32 value = 1;
+}
 
 
 
