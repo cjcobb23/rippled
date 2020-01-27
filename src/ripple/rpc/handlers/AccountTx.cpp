@@ -545,6 +545,9 @@ doAccountTxGrpc(
             txnProto->set_ledger_index(txnBasic->getLedger());
             auto& hash = txnBasic->getID();
             txnProto->set_hash(hash.data(), hash.size());
+            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(txnBasic->getLedger());
+            if(ct)
+                txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
         }
     }
     else
@@ -560,6 +563,9 @@ doAccountTxGrpc(
             txnProto->set_meta_binary(std::get<1>(txn));
             txnProto->set_ledger_index(std::get<2>(txn));
             txnProto->set_validated(validated);
+            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(std::get<2>(txn));
+            if(ct)
+                txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
 
         }
            // Json::Value& jvObj = jvTxns.append(Json::objectValue);

@@ -46,6 +46,8 @@ message GetTransactionResponse {
         // Variable length
         bytes meta_binary = 7;
     }
+
+    Date date = 9;
 }
 
 // A message encompassing all transactions.

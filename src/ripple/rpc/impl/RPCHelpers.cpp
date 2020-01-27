@@ -1123,6 +1123,8 @@ void
 populateSignerListSet(rpc::v1::SignerListSet& proto, STObject const& obj)
 {
     populateSignerQuorum(obj, proto);
+
+    populateSignerEntries(obj, proto);
 }
 
 void
