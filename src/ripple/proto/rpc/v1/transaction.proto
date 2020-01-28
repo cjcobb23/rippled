@@ -12,6 +12,11 @@ import "rpc/v1/fields.proto";
 //TODO change to follow new format?
 message GetTransactionRequest {
     // hash of the transaction. 32 bytes
+    // ATTN: this is in binary, not hex. The JSON API accepts a hex string for
+    // a transaction hash, but here we need that hex string converted into its
+    // binary form. Each pair of hex characters should be converted into its
+    // corresponding byte. For example, the 4 character hex string "00FF"
+    // should be converted to a 2 byte array: [0, 255]
     bytes hash = 1;
 
     // if true, return data in binary format

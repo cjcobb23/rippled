@@ -507,8 +507,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
         uint32_t ledgerIndex;
         std::string hash;
         std::function<bool(rpc::v1::Transaction const& res)> checkTxn;
-       // std::function<bool(rpc::v1::Meta const& res)> checkMeta;
     };
+
+	struct MetaCheck {
+
+        std::function<bool(rpc::v1::Meta const& res)> checkMeta = [](auto& dummy) { return true;};
+	};
 
     void
     testAccountTxContentsGrpc()
@@ -523,6 +527,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
         std::unique_ptr<Config> config = envconfig(addGrpcConfig);
         std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
         Env env(*this, std::move(config));
+		// Set time to this value (or greater) to get delivered_amount in meta
+		env.timeKeeper().set( NetClock::time_point{446000001s});
         Account const alice {"alice"};
         Account const alie {"alie"};
         Account const gw {"gw"};
@@ -535,7 +541,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         env (noop (alice));
 
         // Payment
-        env (pay (alice, gw, XRP (100)));
+        env (pay (alice, gw, XRP (100)), stag(42), dtag(24), last_ledger_seq(20));
 
         // Regular key set
         env (regkey(alice, alie));
@@ -687,321 +693,760 @@ class AccountTxPaging_test : public beast::unit_test::suite
             {21,
              15,
              "7B71E7F4B6B8D11794E90C05E1A339E4DDA59F0415A040F84BC5D81C26BB71D7",
-             [](auto res) { return res.has_account_set(); }},
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_account_set()) &&
+                     BEAST_EXPECT(res.has_fee()) &&
+                     BEAST_EXPECT(res.fee().drops() == 20) &&
+                     BEAST_EXPECT(res.memos_size() == 1) &&
+                     BEAST_EXPECT(res.memos(0).has_memo_data()) &&
+                     BEAST_EXPECT(res.memos(0).memo_data().value() == "data") &&
+                     BEAST_EXPECT(res.memos(0).has_memo_format()) &&
+                     BEAST_EXPECT(
+                            res.memos(0).memo_format().value() == "format") &&
+                     BEAST_EXPECT(res.memos(0).has_memo_type()) &&
+                     BEAST_EXPECT(res.memos(0).memo_type().value() == "type") &&
+                     BEAST_EXPECT(res.has_signing_public_key()) &&
+                     BEAST_EXPECT(res.signing_public_key().value() == "") &&
+                     BEAST_EXPECT(res.signers_size() == 1) &&
+                     BEAST_EXPECT(res.signers(0).has_account()) &&
+                     BEAST_EXPECT(
+                            res.signers(0).account().value().address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                     BEAST_EXPECT(res.signers(0).has_transaction_signature()) &&
+                     BEAST_EXPECT(
+                            strHex(res.signers(0)
+                                       .transaction_signature()
+                                       .value()) ==
+                            "3044022018CAA75EC1D9C5993075BA2CE1817C5378E6A365B7"
+                            "A0B00B7720266D55DA18740220578A5F9693AC6CBE9E128E52"
+                            "89C38197D0410958FC949FA2DAFB176BB3A3964D") &&
+                     BEAST_EXPECT(res.signers(0).has_signing_public_key()) &&
+                     BEAST_EXPECT(
+                            strHex(
+                                res.signers(0).signing_public_key().value()) ==
+                            "038FDA65CFAADC4571D1C5AA5ADF0F881FCDBFD57B70714714"
+                            "EB38BEE2553CA33A"); /*TODO memos and signers*/
+             }},
             {20,
              14,
              "8D063704F3B3E3F9EF97804371AEF4BBBE615F3A0A3E7C22704C5841998A0D3D",
-             [](auto res) {
-                 return res.has_deposit_preauth() &&
-                     res.deposit_preauth().authorize().value().address() ==
-                     "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_deposit_preauth()) &&
+                     BEAST_EXPECT(
+                            res.deposit_preauth()
+                                .authorize()
+                                .value()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
              }},
             {19,
              13,
              "69951DF2ABB18CA830206811BEB95D87B019209B1281C3C2E1F63D3CDC888B4F",
-             [](auto res) {
-                 return res.has_check_cancel() &&
-                     strHex(res.check_cancel().check_id().value()) ==
-                     "0047B03EBBB0E4A2F93290DAFD8969F65655F6AA913351469B1516D88"
-                     "E5C9AE9";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_check_cancel()) &&
+                     BEAST_EXPECT(
+                            strHex(res.check_cancel().check_id().value()) ==
+                            "0047B03EBBB0E4A2F93290DAFD8969F65655F6AA913351469B"
+                            "1516D88"
+                            "E5C9AE9");
              }},
             {18,
              13,
              "D97D44D2AA611A40D902B017907261C298152FB3E6E95376E9C997C2DFD0A108",
-             [](auto res) {
-                 return res.has_check_cash() &&
-                     strHex(res.check_cash().check_id().value()) ==
-                     "359E11CA7A773F9BB0A670D2607DA36937B66583CF1A06118962A831B"
-                     "4654363" &&
-res.check_cash().amount().value().has_xrp_amount() &&
-                     res.check_cash().amount().value().xrp_amount().drops() ==
-                     200000000;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_check_cash()) &&
+                     BEAST_EXPECT(
+                            strHex(res.check_cash().check_id().value()) ==
+                            "359E11CA7A773F9BB0A670D2607DA36937B66583CF1A061189"
+                            "62A831B"
+                            "4654363") &&
+                     BEAST_EXPECT(res.check_cash()
+                                      .amount()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.check_cash()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 200000000);
              }},
             {17,
              12,
              "8404599D719703DAB563107DBF0B41FCEA65D84072B20C5F392B665794DC64F6",
-             [](auto res) {
-                 return res.has_check_create() &&
-                     res.check_create().destination().value().address() ==
-                     "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3" &&
-                     res.check_create().send_max().value().has_xrp_amount() &&
-                     res.check_create()
-                         .send_max()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 300000000;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_check_create()) &&
+                     BEAST_EXPECT(
+                            res.check_create()
+                                .destination()
+                                .value()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                     BEAST_EXPECT(res.check_create()
+                                      .send_max()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.check_create()
+                                .send_max()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 300000000);
              }},
             {5,
              12,
              "5AD812CB1C71DD10BDC854FE791633BC389A6FB08F6CC154EE8E29276D0F1DD8",
-             [](auto res) {
-                 return res.has_check_create() &&
-                     res.check_create().destination().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn" &&
-                     res.check_create().send_max().value().has_xrp_amount() &&
-                     res.check_create()
-                         .send_max()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 200000000;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_check_create()) &&
+                     BEAST_EXPECT(
+                            res.check_create()
+                                .destination()
+                                .value()
+                                .address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(res.check_create()
+                                      .send_max()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.check_create()
+                                .send_max()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 200000000);
              }},
             {4,
              11,
              "766A206FF6FAD41F533EBA4C7F5146BB450DCA7C106559D9C7075F3F9AD04BEA",
-             [](auto res) {
-                 return res.has_payment_channel_claim() &&
-                     strHex(res.payment_channel_claim().channel().value()) ==
-                     "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56FE8E67C1"
-                     "689E2FB" &&
-                     strHex(res.payment_channel_claim().public_key().value()) ==
-                     "0388935426E0D08083314842EDFBB2D517BD47699F9A4527318A8E104"
-                     "68C97C052";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_payment_channel_claim()) &&
+                     BEAST_EXPECT(
+                            strHex(res.payment_channel_claim()
+                                       .channel()
+                                       .value()) ==
+                            "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56F"
+                            "E8E67C1"
+                            "689E2FB") &&
+                     BEAST_EXPECT(
+                            strHex(res.payment_channel_claim()
+                                       .public_key()
+                                       .value()) ==
+                            "0388935426E0D08083314842EDFBB2D517BD47699F9A452731"
+                            "8A8E104"
+                            "68C97C052");
              }},
             {16,
              10,
              "CE97C5D8BED19043668FF7682BBB5568A19891CA9EE70797C8EB079B65B5234B",
-             [](auto res) {
-                 return res.has_payment_channel_fund() &&
-                     strHex(res.payment_channel_fund().channel().value()) ==
-                     "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56FE8E67C1"
-                     "689E2FB" &&
-                     res.payment_channel_fund().amount().value().has_xrp_amount() &&
-                     res.payment_channel_fund()
-                         .amount()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 200000000;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_payment_channel_fund()) &&
+                     BEAST_EXPECT(
+                            strHex(
+                                res.payment_channel_fund().channel().value()) ==
+                            "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56F"
+                            "E8E67C1"
+                            "689E2FB") &&
+                     BEAST_EXPECT(res.payment_channel_fund()
+                                      .amount()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.payment_channel_fund()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 200000000);
              }},
             {15,
              9,
              "50B9472E2BA855BD7C7EABFA653081E12075357559D3E1D4875ECEC52ADD441A",
-             [](auto res) {
-                 return res.has_payment_channel_create() &&
-                     res.payment_channel_create().amount().value().has_xrp_amount() &&
-                     res.payment_channel_create()
-                         .amount()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 500000000 &&
-                     res.payment_channel_create()
-                         .destination()
-                         .value()
-                         .address() == "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3" &&
-                     res.payment_channel_create().settle_delay().value() ==
-                     100 &&
-                     strHex(
-                         res.payment_channel_create().public_key().value()) ==
-                     "0388935426E0D08083314842EDFBB2D517BD47699F9A4527318A8E104"
-                     "68C97C052";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_payment_channel_create()) &&
+                     BEAST_EXPECT(res.payment_channel_create()
+                                      .amount()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.payment_channel_create()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 500000000) &&
+                     BEAST_EXPECT(
+                            res.payment_channel_create()
+                                .destination()
+                                .value()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                     BEAST_EXPECT(
+                            res.payment_channel_create()
+                                .settle_delay()
+                                .value() == 100) &&
+                     BEAST_EXPECT(
+                            strHex(res.payment_channel_create()
+                                       .public_key()
+                                       .value()) ==
+                            "0388935426E0D08083314842EDFBB2D517BD47699F9A452731"
+                            "8A8E104"
+                            "68C97C052");
              }},
             {14,
              8,
              "94E30771C8F0227F37BAADB4D1C4772E7191608E781B7D27BE9318D57B16847D",
-             [](auto res) {
-                 return res.has_escrow_cancel() &&
-                     res.escrow_cancel().owner().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn" &&
-                     res.escrow_cancel().offer_sequence().value() == 12
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_escrow_cancel()) &&
+                     BEAST_EXPECT(
+                            res.escrow_cancel().owner().value().address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(
+                            res.escrow_cancel().offer_sequence().value() == 12
 
-                     ;
+                     );
              }},
             {13,
              8,
              "643431B1A3FC92878555C511659ED5017B571ACBE2DF0F8FDF4A7AF56B279FF5",
-             [](auto res) {
-                 return res.has_escrow_finish() &&
-                     res.escrow_finish().owner().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn" &&
-                     res.escrow_finish().offer_sequence().value() == 11
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_escrow_finish()) &&
+                     BEAST_EXPECT(
+                            res.escrow_finish().owner().value().address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(
+                            res.escrow_finish().offer_sequence().value() == 11
 
-                     ;
+                     );
              }},
             {12,
              7,
-             "31135E7C76A7DC01A6ECF12D402F699E527B8E3A328ECD95E791704EE7DF3D51",
-             [](auto res) {
-                 return res.has_escrow_create() &&
-                     res.escrow_create().amount().value().has_xrp_amount() &&
-                     res.escrow_create()
-                         .amount()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 500000000 &&
-                     res.escrow_create().destination().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn" &&
-                     res.escrow_create().cancel_after().value() == 123 &&
-                     res.escrow_create().finish_after().value() == 122;
+"B8D01F3CEDBC00493CFF311A281D61DB36C7832700C066D0F7495FAE1D5157C1",
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_escrow_create()) &&
+                     BEAST_EXPECT(res.escrow_create()
+                                      .amount()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.escrow_create()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 500000000) &&
+                     BEAST_EXPECT(
+                            res.escrow_create()
+                                .destination()
+                                .value()
+                                .address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(
+                            res.escrow_create().cancel_after().value() ==
+                            446000133) &&
+                     BEAST_EXPECT(
+                            res.escrow_create().finish_after().value() == 446000132);
              }},
             {11,
              7,
-             "DC3C895307F4190A20D7757A2378F253E5AB1CD85DAA4BCD1D2B2F96CA2B215B",
-             [](auto res) {
-                 return res.has_escrow_create() &&
-                     res.escrow_create().amount().value().has_xrp_amount() &&
-                     res.escrow_create()
-                         .amount()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 500000000 &&
-                     res.escrow_create().destination().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn" &&
-                     res.escrow_create().finish_after().value() == 122;
+"9C3B730E82298B74CEA8A2A8E9903946A8D4D2C41029B829CFC22F401746DBD4",
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_escrow_create()) &&
+                     BEAST_EXPECT(res.escrow_create()
+                                      .amount()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.escrow_create()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 500000000) &&
+                     BEAST_EXPECT(
+                            res.escrow_create()
+                                .destination()
+                                .value()
+                                .address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(
+                            res.escrow_create().finish_after().value() == 446000132);
              }},
             {10,
              7,
              "3E5C670AFC56E478A715B722BA6406283AAD11C32E1813DDBAEA52E2C2822BB1",
-             [](auto res) {
-                 return res.has_signer_list_set() &&
-                     res.signer_list_set().signer_quorum().value() == 1 &&
-                     res.signer_list_set().signer_entries().size() == 3 &&
-                     res.signer_list_set()
-                         .signer_entries()[0]
-                         .account()
-                         .value()
-                         .address() == "rXZVaSDvesEDh9bstf6Vw36XKGi7B35kw" &&
-                     res.signer_list_set()
-                         .signer_entries()[0]
-                         .signer_weight()
-                         .value() == 1 &&
-                     res.signer_list_set()
-                         .signer_entries()[1]
-                         .account()
-                         .value()
-                         .address() == "rharXKno1ZNYDDeNmsYva3e79J956edxrZ" &&
-                     res.signer_list_set()
-                         .signer_entries()[1]
-                         .signer_weight()
-                         .value() == 1 &&
-                     res.signer_list_set()
-                         .signer_entries()[2]
-                         .account()
-                         .value()
-                         .address() == "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3" &&
-                     res.signer_list_set()
-                         .signer_entries()[2]
-                         .signer_weight()
-                         .value() == 1
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_signer_list_set()) &&
+                     BEAST_EXPECT(
+                            res.signer_list_set().signer_quorum().value() ==
+                            1) &&
+                     BEAST_EXPECT(
+                            res.signer_list_set().signer_entries().size() ==
+                            3) &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[0]
+                                .account()
+                                .value()
+                                .address() ==
+                            "rXZVaSDvesEDh9bstf6Vw36XKGi7B35kw") &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[0]
+                                .signer_weight()
+                                .value() == 1) &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[1]
+                                .account()
+                                .value()
+                                .address() ==
+                            "rharXKno1ZNYDDeNmsYva3e79J956edxrZ") &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[1]
+                                .signer_weight()
+                                .value() == 1) &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[2]
+                                .account()
+                                .value()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                     BEAST_EXPECT(
+                            res.signer_list_set()
+                                .signer_entries()[2]
+                                .signer_weight()
+                                .value() == 1
 
-                     ;
+                     );
              }},
             {9,
              6,
              "6244B46A29C902C23C2826C9ED9E6D4744F852E304F17039A2F9C7482BA21DBC",
-             [](auto res) {
-                 return res.has_offer_cancel() &&
-                     res.offer_cancel().offer_sequence().value() == 8;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_offer_cancel()) &&
+                     BEAST_EXPECT(
+                            res.offer_cancel().offer_sequence().value() == 8);
              }},
             {8,
              5,
              "770C01548178D79D286B8BEC0D061934DB0D8396798B6BC2F9719FF9BFB112AD",
-             [](auto res) {
-                 return res.has_offer_create() &&
-                     res.offer_create().taker_gets().value().has_xrp_amount() &&
-                     res.offer_create()
-                         .taker_gets()
-                         .value()
-                         .xrp_amount()
-                         .drops() == 150000000 &&
-                         res.offer_create().taker_pays().value().has_issued_currency_amount() &&
-                     res.offer_create()
-                         .taker_pays()
-                         .value()
-                         .issued_currency_amount()
-                         .currency()
-                         .name() == "USD" &&
-                     res.offer_create()
-                         .taker_pays()
-                         .value()
-                         .issued_currency_amount()
-                         .value() == "50" &&
-                     res.offer_create()
-                         .taker_pays()
-                         .value()
-                         .issued_currency_amount()
-                         .issuer()
-                         .address() == "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_offer_create()) &&
+                     BEAST_EXPECT(res.offer_create()
+                                      .taker_gets()
+                                      .value()
+                                      .has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.offer_create()
+                                .taker_gets()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 150000000) &&
+                     BEAST_EXPECT(res.offer_create()
+                                      .taker_pays()
+                                      .value()
+                                      .has_issued_currency_amount()) &&
+                     BEAST_EXPECT(
+                            res.offer_create()
+                                .taker_pays()
+                                .value()
+                                .issued_currency_amount()
+                                .currency()
+                                .name() == "USD") &&
+                     BEAST_EXPECT(
+                            res.offer_create()
+                                .taker_pays()
+                                .value()
+                                .issued_currency_amount()
+                                .value() == "50") &&
+                     BEAST_EXPECT(
+                            res.offer_create()
+                                .taker_pays()
+                                .value()
+                                .issued_currency_amount()
+                                .issuer()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
              }},
             {7,
              5,
              "F55F557D78BB867BD34EBA10CF4C58C1CC18EE9CE1E0DB32B4881E9DB7A7F3A5",
-             [](auto res) {
-                 return res.has_trust_set() &&
-                     res.trust_set().limit_amount().value().has_issued_currency_amount() &&
-                     res.trust_set()
-                         .limit_amount()
-                         .value()
-                         .issued_currency_amount()
-                         .currency()
-                         .name() == "USD" &&
-                     res.trust_set()
-                         .limit_amount()
-                         .value()
-                         .issued_currency_amount()
-                         .value() == "200" &&
-                     res.trust_set()
-                         .limit_amount()
-                         .value()
-                         .issued_currency_amount()
-                         .issuer()
-                         .address() == "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_trust_set()) &&
+                     BEAST_EXPECT(res.trust_set()
+                                      .limit_amount()
+                                      .value()
+                                      .has_issued_currency_amount()) &&
+                     BEAST_EXPECT(
+                            res.trust_set()
+                                .limit_amount()
+                                .value()
+                                .issued_currency_amount()
+                                .currency()
+                                .name() == "USD") &&
+                     BEAST_EXPECT(
+                            res.trust_set()
+                                .limit_amount()
+                                .value()
+                                .issued_currency_amount()
+                                .value() == "200") &&
+                     BEAST_EXPECT(
+                            res.trust_set()
+                                .limit_amount()
+                                .value()
+                                .issued_currency_amount()
+                                .issuer()
+                                .address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
              }},
             {6,
              4,
              "2C6290DA2B6D3696752D2F8A2F684971FCC1F88F557CA8D44AC4D63759BFFB17",
-             [](auto res) {
-                 return res.has_set_regular_key() &&
-                     res.set_regular_key().regular_key().value().address() ==
-                     "r91N98XHbq8RqAXQa5mQcfwrFTMa2fnkxV";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_set_regular_key()) &&
+                     BEAST_EXPECT(
+                            res.set_regular_key()
+                                .regular_key()
+                                .value()
+                                .address() ==
+                            "r91N98XHbq8RqAXQa5mQcfwrFTMa2fnkxV");
              }},
             {5,
              4,
-             "F4E10D1DE6A673EA3DFCE34725F078E76AC770CD5884D56416A8A64FABE58AA0",
-             [](auto res) {
-                 return res.has_payment() &&
-                     res.payment().amount().value().has_xrp_amount() &&
-                     res.payment().amount().value().xrp_amount().drops() ==
-                     100000000 &&
-                     res.payment().destination().value().address() ==
-                     "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3";
+"A9FE93A51361ED922E039F8C77E15E672465AD41DADACB101DF59E48145D005F",
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_payment()) &&
+                     BEAST_EXPECT(
+                            res.payment().amount().value().has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.payment()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 100000000) &&
+                     BEAST_EXPECT(
+                            res.payment().destination().value().address() ==
+                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                     BEAST_EXPECT(res.has_source_tag()) &&
+                     BEAST_EXPECT(res.source_tag().value() == 42) &&
+                     BEAST_EXPECT(res.payment().has_destination_tag()) &&
+                     BEAST_EXPECT(
+                            res.payment().destination_tag().value() == 24) &&
+                     BEAST_EXPECT(res.has_last_ledger_sequence()) &&
+                     BEAST_EXPECT(res.last_ledger_sequence().value() == 20) &&
+                     BEAST_EXPECT(res.has_transaction_signature()) &&
+                     BEAST_EXPECT(res.has_account()) &&
+                     BEAST_EXPECT(
+                            res.account().value().address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(res.has_flags()) &&
+                     BEAST_EXPECT(res.flags().value() == 2147483648);
              }},
             {4,
              4,
              "782A3A3D00C05A10C3193E2EE161CCCF76E95FCF7B3FBA7427CDF69F7D22D59E",
-             [](auto res) { return res.has_account_set(); }},
+             [this](auto res) { return res.has_account_set(); }},
             {3,
              3,
              "9CE54C3B934E473A995B477E92EC229F99CED5B62BF4D2ACE4DC42719103AE2F",
-             [](auto res) {
-                 return res.has_account_set() &&
-                     res.account_set().set_flag().value() == 8;
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_account_set()) &&
+                     BEAST_EXPECT(res.account_set().set_flag().value() == 8);
              }},
             {1,
              3,
              "2B5054734FA43C6C7B54F61944FAD6178ACD5D0272B39BA7FCD32A5D3932FBFF",
-             [](auto res) {
-                 return res.has_payment() &&
-                     res.payment().amount().value().has_xrp_amount() &&
-                     res.payment().amount().value().xrp_amount().drops() ==
-                     1000000000010 &&
-                     res.payment().destination().value().address() ==
-                     "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn";
+             [this](auto res) {
+                 return BEAST_EXPECT(res.has_payment()) &&
+                     BEAST_EXPECT(
+                            res.payment().amount().value().has_xrp_amount()) &&
+                     BEAST_EXPECT(
+                            res.payment()
+                                .amount()
+                                .value()
+                                .xrp_amount()
+                                .drops() == 1000000000010) &&
+                     BEAST_EXPECT(
+                            res.payment().destination().value().address() ==
+                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                     BEAST_EXPECT(res.has_transaction_signature()) &&
+                     BEAST_EXPECT(
+                            strHex(res.transaction_signature().value()) ==
+
+"30440220474CC4207C1AF5B54092876C1A62E3314CE92455F7C43F723CD0BE8F0CD0158002201D87D6F4292F27325FF2E40C77977BD3DD97A782FECA6558BC83D282921B3AB6") &&
+                     BEAST_EXPECT(res.has_signing_public_key()) &&
+                     BEAST_EXPECT(
+                            strHex(res.signing_public_key().value()) ==
+"0330E7FC9D56BB25D6893BA3F317AE5BCF33B3291BD63DB32654A313222F7FD020")
+;
              }},
         };
 
-        auto doCheck  = [](auto txn, auto txCheck)
+
+        static const MetaCheck txMetaCheck[] {
+
+
+            {[this](auto meta) {
+                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                               }},
+                {[this](auto meta) {
+                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+                                   return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+                                                                      return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                                   }},
+                {[this](auto meta) {
+
+                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+
+                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                                   }},
+                {[this](auto meta) {
+                                                                    return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_SIGNER_LIST) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                           BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
+                                           BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                           BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                           BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                           BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                           BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
+                                           BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                           BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                           BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                           BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                                   }},
+                {[this](auto meta) {
+                                                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_RIPPLE_STATE);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) {
+                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
+                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                                   }},
+                {[this](auto meta) { return false;}}
+        };
+
+
+        auto doCheck  = [this](auto txn, auto txCheck)
         {
-            return txn.has_transaction() &&
-                txn.validated() &&
-                (strHex(txn.hash()) == txCheck.hash) &&
-                txn.ledger_index() == txCheck.ledgerIndex &&
-                (txn.transaction().sequence().value() == txCheck.sequence) &&
+            return BEAST_EXPECT(txn.has_transaction()) &&
+                BEAST_EXPECT(txn.validated()) &&
+                BEAST_EXPECT(strHex(txn.hash()) == txCheck.hash) &&
+                BEAST_EXPECT(txn.ledger_index() == txCheck.ledgerIndex) &&
+                BEAST_EXPECT(txn.transaction().sequence().value() == txCheck.sequence) &&
                 txCheck.checkTxn(txn.transaction());
+        };
+
+		auto doMetaCheck = [](auto txn, auto txMetaCheck)
+        {
+
+            return txn.has_meta() && txn.meta().has_transaction_result() &&
+                txn.meta().transaction_result().result() == "tesSUCCESS" &&
+                txMetaCheck.checkMeta(txn.meta());
         };
 
         auto [res, status] = next(grpcPort,env,alice.human());
         //std::cout << res.DebugString() << std::endl;
 
         if(!BEAST_EXPECT(status.error_code() == 0))
+
             return;
 
         BEAST_EXPECT(
@@ -1013,7 +1458,9 @@ res.check_cash().amount().value().has_xrp_amount() &&
 std::cout << strHex(res.transactions()[i].hash()) << std::endl;
             std::cout << (res.transactions()[i]).DebugString() << std::endl;
             if(!BEAST_EXPECT(doCheck(res.transactions()[i],txCheck[i])))
-				return;
+                return;
+            if(!BEAST_EXPECT(doMetaCheck(res.transactions()[i],txMetaCheck[i])))
+                return;
         }
     }
 

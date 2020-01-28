@@ -34,6 +34,12 @@ seq::operator()(Env&, JTx& jt) const
         jt[jss::Sequence] = *num_;
 }
 
+void
+last_ledger_seq::operator()(Env&, JTx& jt) const
+{
+    jt["LastLedgerSequence"] = num_;
+}
+
 } // jtx
 } // test
 } // ripple
