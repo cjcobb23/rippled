@@ -1419,8 +1419,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                                rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                                        BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
                                                rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) { return false;}}
+                                   }}
         };
 
 
