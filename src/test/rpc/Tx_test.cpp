@@ -50,11 +50,16 @@ class Tx_test : public beast::unit_test::suite
     {
         if (amount.native())
         {
+            if(!BEAST_EXPECT(proto_amount.has_xrp_amount()))
+                return;
             BEAST_EXPECT(
                 proto_amount.xrp_amount().drops() == amount.xrp().drops());
         }
         else
         {
+            if(!BEAST_EXPECT(proto_amount.has_issued_currency_amount()))
+                return;
+
             rpc::v1::IssuedCurrencyAmount issuedCurrency =
                 proto_amount.issued_currency_amount();
             Issue const& issue = amount.issue();
@@ -70,55 +75,173 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
+    cmpPaymentTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
     {
+        if (!BEAST_EXPECT(proto.has_payment()))
+            return;
+
+        if (!BEAST_EXPECT(
+                safe_cast<TxType>(txnSt->getFieldU16(sfTransactionType)) ==
+                TxType::ttPAYMENT))
+            return;
+
         AccountID account = txnSt->getAccountID(sfAccount);
+
+        if (!BEAST_EXPECT(proto.has_account()))
+            return;
         BEAST_EXPECT(proto.account().value().address() == toBase58(account));
 
         STAmount amount = txnSt->getFieldAmount(sfAmount);
+        if (!BEAST_EXPECT(proto.payment().has_amount()))
+            return;
         cmpAmount(proto.payment().amount().value(), amount);
 
         AccountID accountDest = txnSt->getAccountID(sfDestination);
+        if (!BEAST_EXPECT(proto.payment().has_destination()))
+            return;
         BEAST_EXPECT(
-            proto.payment().destination().value().address() == toBase58(accountDest));
+            proto.payment().destination().value().address() ==
+            toBase58(accountDest));
 
         STAmount fee = txnSt->getFieldAmount(sfFee);
+        if (!BEAST_EXPECT(proto.has_fee()))
+            return;
         BEAST_EXPECT(proto.fee().drops() == fee.xrp().drops());
 
-        BEAST_EXPECT(proto.sequence().value() == txnSt->getFieldU32(sfSequence));
+        if (!BEAST_EXPECT(proto.has_sequence()))
+            return;
+        BEAST_EXPECT(
+            proto.sequence().value() == txnSt->getFieldU32(sfSequence));
+
+        if (!BEAST_EXPECT(proto.has_signing_public_key()))
+            return;
 
         Blob signingPubKey = txnSt->getFieldVL(sfSigningPubKey);
-        BEAST_EXPECT(proto.signing_public_key().value() == toByteString(signingPubKey));
-
-        BEAST_EXPECT(proto.flags().value() == txnSt->getFieldU32(sfFlags));
-
         BEAST_EXPECT(
-            proto.last_ledger_sequence().value() ==
-            txnSt->getFieldU32(sfLastLedgerSequence));
+            proto.signing_public_key().value() == toByteString(signingPubKey));
+
+        if (txnSt->isFieldPresent(sfFlags))
+        {
+            if (!BEAST_EXPECT(proto.has_flags()))
+                return;
+            BEAST_EXPECT(proto.flags().value() == txnSt->getFieldU32(sfFlags));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.has_flags());
+        }
+
+        if (txnSt->isFieldPresent(sfLastLedgerSequence))
+        {
+            if (!BEAST_EXPECT(proto.has_last_ledger_sequence()))
+                return;
+
+            BEAST_EXPECT(
+                proto.last_ledger_sequence().value() ==
+                txnSt->getFieldU32(sfLastLedgerSequence));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.has_last_ledger_sequence());
+        }
+
+        if (!BEAST_EXPECT(proto.has_transaction_signature()))
+            return;
 
         Blob blob = txnSt->getFieldVL(sfTxnSignature);
-        BEAST_EXPECT(proto.transaction_signature().value() == toByteString(blob));
+        BEAST_EXPECT(
+            proto.transaction_signature().value() == toByteString(blob));
 
         if (txnSt->isFieldPresent(sfSendMax))
         {
+            if (!BEAST_EXPECT(proto.payment().has_send_max()))
+                return;
             STAmount const& send_max = txnSt->getFieldAmount(sfSendMax);
             cmpAmount(proto.payment().send_max().value(), send_max);
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.payment().has_send_max());
         }
 
         if (txnSt->isFieldPresent(sfAccountTxnID))
         {
+            if (!BEAST_EXPECT(proto.has_account_transaction_id()))
+                return;
             auto field = txnSt->getFieldH256(sfAccountTxnID);
-            BEAST_EXPECT(proto.account_transaction_id().value() == toByteString(field));
+            BEAST_EXPECT(
+                proto.account_transaction_id().value() == toByteString(field));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.has_account_transaction_id());
+        }
+
+        if (txnSt->isFieldPresent(sfSourceTag))
+        {
+            if (!BEAST_EXPECT(proto.has_source_tag()))
+                return;
+            BEAST_EXPECT(
+                proto.source_tag().value() == txnSt->getFieldU32(sfSourceTag));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.has_source_tag());
+        }
+
+        if (txnSt->isFieldPresent(sfDestinationTag))
+        {
+            if (!BEAST_EXPECT(proto.payment().has_destination_tag()))
+                return;
+
+            BEAST_EXPECT(
+                proto.payment().destination_tag().value() ==
+                txnSt->getFieldU32(sfDestinationTag));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.payment().has_destination_tag());
+        }
+
+        if (txnSt->isFieldPresent(sfInvoiceID))
+        {
+            if (!BEAST_EXPECT(proto.payment().has_invoice_id()))
+                return;
+
+            auto field = txnSt->getFieldH256(sfInvoiceID);
+            BEAST_EXPECT(
+                proto.payment().invoice_id().value() == toByteString(field));
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.payment().has_invoice_id());
+        }
+
+        if (txnSt->isFieldPresent(sfDeliverMin))
+        {
+            if (!BEAST_EXPECT(proto.payment().has_deliver_min()))
+                return;
+            STAmount const& deliverMin = txnSt->getFieldAmount(sfDeliverMin);
+            cmpAmount(proto.payment().deliver_min().value(), deliverMin);
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.payment().has_deliver_min());
         }
 
         // populate path data
         STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
+        if (!BEAST_EXPECT(pathset.size() == proto.payment().paths_size()))
+            return;
+
         int ind = 0;
         for (auto it = pathset.begin(); it < pathset.end(); ++it)
         {
             STPath const& path = *it;
 
             const rpc::v1::Path& protoPath = proto.payment().paths(ind++);
+            if (!BEAST_EXPECT(protoPath.elements_size() == path.size()))
+                continue;
 
             int ind2 = 0;
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
@@ -132,26 +255,172 @@ class Tx_test : public beast::unit_test::suite
                     if (elt.hasCurrency())
                     {
                         Currency const& currency = elt.getCurrency();
-                        BEAST_EXPECT(
-                            protoElement.currency().name() ==
-                            to_string(currency));
+                        if (BEAST_EXPECT(protoElement.has_currency()))
+                        {
+                            BEAST_EXPECT(
+                                protoElement.currency().name() ==
+                                to_string(currency));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoElement.has_currency());
                     }
                     if (elt.hasIssuer())
                     {
                         AccountID const& issuer = elt.getIssuerID();
-                        BEAST_EXPECT(
-                            protoElement.issuer().address() ==
-                            toBase58(issuer));
+                        if (BEAST_EXPECT(protoElement.has_issuer()))
+                        {
+                            BEAST_EXPECT(
+                                protoElement.issuer().address() ==
+                                toBase58(issuer));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoElement.has_issuer());
                     }
                 }
                 else
                 {
-                    AccountID const& path_account = elt.getAccountID();
-                    BEAST_EXPECT(
-                        protoElement.account().address() ==
-                        toBase58(path_account));
+                    if (BEAST_EXPECT(protoElement.has_account()))
+                    {
+                        AccountID const& path_account = elt.getAccountID();
+                        BEAST_EXPECT(
+                            protoElement.account().address() ==
+                            toBase58(path_account));
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoElement.has_account());
+                    }
+
+                    BEAST_EXPECT(!protoElement.has_issuer());
+                    BEAST_EXPECT(!protoElement.has_currency());
                 }
             }
+        }
+
+        if (txnSt->isFieldPresent(sfMemos))
+        {
+            auto arr = txnSt->getFieldArray(sfMemos);
+            if (BEAST_EXPECT(proto.memos_size() == arr.size()))
+            {
+                for (size_t i = 0; i < arr.size(); ++i)
+                {
+                    auto protoMemo = proto.memos(i);
+                    auto stMemo = arr[i];
+
+                    if (stMemo.isFieldPresent(sfMemoData))
+                    {
+                        if (BEAST_EXPECT(protoMemo.has_memo_data()))
+                        {
+                            BEAST_EXPECT(
+                                protoMemo.memo_data().value() ==
+                                toByteString(stMemo.getFieldVL(sfMemoData)));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoMemo.has_memo_data());
+                    }
+
+                    if (stMemo.isFieldPresent(sfMemoType))
+                    {
+                        if (BEAST_EXPECT(protoMemo.has_memo_type()))
+                        {
+                            BEAST_EXPECT(
+                                protoMemo.memo_type().value() ==
+                                toByteString(stMemo.getFieldVL(sfMemoType)));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoMemo.has_memo_type());
+                    }
+
+                    if (stMemo.isFieldPresent(sfMemoFormat))
+                    {
+                        if (BEAST_EXPECT(protoMemo.has_memo_format()))
+                        {
+                            BEAST_EXPECT(
+                                protoMemo.memo_format().value() ==
+                                toByteString(stMemo.getFieldVL(sfMemoFormat)));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoMemo.has_memo_format());
+                    }
+                }
+            }
+        }
+        else
+        {
+            BEAST_EXPECT(proto.memos_size() == 0);
+        }
+
+        if (txnSt->isFieldPresent(sfSigners))
+        {
+            auto arr = txnSt->getFieldArray(sfSigners);
+            if (BEAST_EXPECT(proto.signers_size() == arr.size()))
+            {
+                for (size_t i = 0; i < arr.size(); ++i)
+                {
+                    auto protoSigner = proto.signers(i);
+                    auto stSigner = arr[i];
+
+                    if (stSigner.isFieldPresent(sfAccount))
+                    {
+                        if (BEAST_EXPECT(protoSigner.has_account()))
+                        {
+                            BEAST_EXPECT(
+                                protoSigner.account().value().address() ==
+                                toBase58(stSigner.getAccountID(sfAccount)));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoSigner.has_account());
+                    }
+
+                    if (stSigner.isFieldPresent(sfTxnSignature))
+                    {
+                        if (BEAST_EXPECT(
+                                protoSigner.has_transaction_signature()))
+                        {
+                            Blob blob = stSigner.getFieldVL(sfTxnSignature);
+                            BEAST_EXPECT(
+                                protoSigner.transaction_signature().value() ==
+                                toByteString(blob));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoSigner.has_transaction_signature());
+                    }
+
+                    if (stSigner.isFieldPresent(sfSigningPubKey))
+                    {
+                        if (BEAST_EXPECT(protoSigner.has_signing_public_key()))
+                        {
+                            Blob signingPubKey =
+                                stSigner.getFieldVL(sfSigningPubKey);
+                            BEAST_EXPECT(
+                                protoSigner.signing_public_key().value() ==
+                                toByteString(signingPubKey));
+                        }
+                    }
+                    else
+                    {
+                        BEAST_EXPECT(!protoSigner.has_signing_public_key());
+                    }
+                }
+            }
+        }
+        else
+        {
+            BEAST_EXPECT(proto.signers_size() == 0);
         }
     }
 
@@ -170,9 +439,17 @@ class Tx_test : public beast::unit_test::suite
         BEAST_EXPECT(
             proto.transaction_result().result_type() == r.result_type());
 
+
+
         if (txMeta->hasDeliveredAmount())
         {
+            if(!BEAST_EXPECT(proto.has_delivered_amount()))
+                return;
             cmpAmount(proto.delivered_amount(), txMeta->getDeliveredAmount());
+        }
+        else
+        {
+            BEAST_EXPECT(!proto.has_delivered_amount());
         }
     }
 
@@ -245,6 +522,8 @@ class Tx_test : public beast::unit_test::suite
             for (bool b : {false, true})
             {
                 auto const result = grpcTx(id, b);
+                std::cout << "printing txn" << std::endl;
+                std::cout << result.second.DebugString() << std::endl;
 
                 BEAST_EXPECT(result.first == true);
                 BEAST_EXPECT(result.second.ledger_index() == index);
@@ -257,7 +536,7 @@ class Tx_test : public beast::unit_test::suite
                 }
                 else
                 {
-                    cmpTx(result.second.transaction(), tx);
+                    cmpPaymentTx(result.second.transaction(), tx);
                 }
 
                 if (ledger && !b)

@@ -571,26 +571,14 @@ populateProtoArray(
     T const& getProto,
     R const& populateProto)
 {
-    std::cout << "populate proto array" << std::endl;
     if (obj.isFieldPresent(outerField) &&
         obj.peekAtField(outerField).getSType() == SerializedTypeID::STI_ARRAY)
     {
-        std::cout << "got outer field" << std::endl;
         auto arr = obj.getFieldArray(outerField);
         for (auto it = arr.begin(); it != arr.end(); ++it)
         {
-            std::cout << "looping" << std::endl;
-            std::cout << it->getFullText() << std::endl;
-            std::cout << it->isFieldPresent(innerField) << std::endl;
             populateProto(*it, *getProto());
-//            if (it->isFieldPresent(innerField) &&
-//                it->peekAtField(innerField).getSType() == SerializedTypeID::STI_OBJECT)
-//            {
-//                std::cout << "got inner object" << std::endl;
-//                auto proto = getProto();
-//                auto innerObj = it->getField(innerField).downcast<STObject>();
-//                populateProto(innerObj, *proto);
-//            }
+
         }
     }
 }
