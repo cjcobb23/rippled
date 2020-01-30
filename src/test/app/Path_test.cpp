@@ -463,6 +463,7 @@ public:
         STAmount sa;
         std::tie(st, sa, std::ignore) = find_paths(env,
             "alice", "bob", Account("bob")["USD"](5));
+        std::cout << st.getJson(JsonOptions::none) << std::endl;
         BEAST_EXPECT(same(st, stpath("gateway")));
         BEAST_EXPECT(equal(sa, Account("alice")["USD"](5)));
     }

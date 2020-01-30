@@ -229,7 +229,6 @@ class Tx_test : public beast::unit_test::suite
             BEAST_EXPECT(!proto.payment().has_deliver_min());
         }
 
-        // populate path data
         STPathSet const& pathset = txnSt->getFieldPathSet(sfPaths);
         if (!BEAST_EXPECT(pathset.size() == proto.payment().paths_size()))
             return;
@@ -509,6 +508,35 @@ class Tx_test : public beast::unit_test::suite
             txns.emplace_back(env.tx());
             env.close();
         }
+
+
+
+
+
+        std::cout << "printing txns " << std::endl;
+        auto const gw = Account("gateway");
+        auto const USD = gw["USD"];
+        env.fund(XRP(10000), "alice", "bob", gw);
+        env.trust(USD(600), "alice");
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+        env.trust(USD(700), "bob");
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+        env(pay(gw, "alice", USD(70)));
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+        txns.emplace_back(env.tx());
+        env.close();
+        env(pay(gw, "bob", USD(50)));
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+        txns.emplace_back(env.tx());
+        env.close();
+        env(pay("alice","bob",Account("bob")["USD"](5)),path(gw));
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+
+        txns.emplace_back(env.tx());
+        env.close();
+
+
+
         auto const endLegSeq = env.closed()->info().seq;
 
         // Find the existing transactions
