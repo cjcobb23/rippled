@@ -145,12 +145,15 @@ class Tx_test : public beast::unit_test::suite
             BEAST_EXPECT(!proto.has_last_ledger_sequence());
         }
 
-        if (!BEAST_EXPECT(proto.has_transaction_signature()))
-            return;
+        if(txnSt->isFieldPresent(sfTxnSignature))
+        {
+            if (!BEAST_EXPECT(proto.has_transaction_signature()))
+                return;
 
-        Blob blob = txnSt->getFieldVL(sfTxnSignature);
-        BEAST_EXPECT(
-            proto.transaction_signature().value() == toByteString(blob));
+            Blob blob = txnSt->getFieldVL(sfTxnSignature);
+            BEAST_EXPECT(
+                    proto.transaction_signature().value() == toByteString(blob));
+        }
 
         if (txnSt->isFieldPresent(sfSendMax))
         {
@@ -492,46 +495,149 @@ class Tx_test : public beast::unit_test::suite
 
         Account A1{"A1"};
         Account A2{"A2"};
+        Account A3{"A3"};
         env.fund(XRP(10000), A1);
         env.fund(XRP(10000), A2);
         env.close();
         env.trust(A2["USD"](1000), A1);
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
+        env.close();
+        env(fset(A2,5));
+
+
+        // SignerListSet
+        env (signers (A2, 1, {{"bogie", 1}, {"demon", 1}, {A1, 1}, {A3, 1}}), sig (A2));
+        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
         env.close();
         std::vector<std::shared_ptr<STTx const>> txns;
         auto const startLegSeq = env.current()->info().seq;
+
+        uint256 prevHash;
         for (int i = 0; i < 14; ++i)
         {
+            std::cout << "in loop" << std::endl;
+
+            auto const baseFee = env.current()->fees().base;
+            auto txfee = fee(i+ (2*baseFee));
+            auto lls = last_ledger_seq(i + startLegSeq + 20);
+            auto dsttag = dtag(i * 456);
+            auto srctag = stag(i * 321);
+            auto sm = sendmax(A2["USD"](1000));
+            auto dm = delivermin(A2["USD"](50));
+            auto txf = txflags(131072);
+            auto txnid = account_txn_id(prevHash);
+            auto inv = invoice_id2(prevHash);
+            auto mem1 = memo("foo","bar","baz");
+            auto mem2 = memo("dragons","elves","goblins");
             if (i & 1)
-                env(pay(A2, A1, A2["USD"](100)));
+            {
+                if(i & 2)
+                {
+                env(pay(A2, A1, A2["USD"](100)),
+                        txfee,
+                    srctag,
+                    dsttag,
+                    lls,
+                    sm,
+                    dm,
+                    txf,
+                    txnid,
+                    inv,
+                    mem1,
+                    mem2,
+                    sig(A2)
+                    );
+                } else
+                {
+
+                env(pay(A2, A1, A2["USD"](100)),
+                        txfee,
+                    srctag,
+                    dsttag,
+                    lls,
+                    sm,
+                    dm,
+                    txf,
+                    txnid,
+                    inv,
+                    mem1,
+                    mem2,
+                    //sig(A2)
+                    msig(A3) //TOOD why does this crash?
+                    );
+                }
+            }
             else
-                env(pay(A2, A1, A2["XRP"](200)));
+            {
+                if(i&2)
+                {
+
+                env(pay(A2, A1, A2["XRP"](200)),
+                                        txfee,
+                    srctag,
+                    dsttag,
+                    lls,
+                    txnid,
+                    inv,
+                    mem1,
+                    mem2,
+                    sig(A2)
+                    );
+                }
+                else
+                {
+
+                env(pay(A2, A1, A2["XRP"](200)),
+                        txfee,
+                    srctag,
+                    dsttag,
+                    lls,
+                    txnid,
+                    inv,
+                    mem1,
+                    mem2,
+                    //sig(A2)
+                    msig(A3) //TOOD why does this crash?
+                    );
+                }
+
+/*
+                env(pay(A2, A1, A2["XRP"](200)),
+                        fee((i+1)*baseFee),
+                    stag(i * 123),
+                    dtag(i * 456),
+                    last_ledger_seq(i + startLegSeq + 32),
+                    //sendmax(XRP(10000)),
+                    //delivermin(XRP(100)),
+                    account_txn_id(prevHash),
+                    invoice_id2(prevHash),
+                    memo("xrp","btc","eth"),
+                    memo("data","format","type")
+
+                    );
+                    */
+            }
             txns.emplace_back(env.tx());
+            std::cout << "emplaced" << std::endl;
+            prevHash = txns.back()->getTransactionID();
+            std::cout << "gotprev hash" << std::endl;
             env.close();
+            std::cout << "closed" << std::endl;
         }
 
-
-
-
-
-        std::cout << "printing txns " << std::endl;
+        // Payment with Paths
         auto const gw = Account("gateway");
         auto const USD = gw["USD"];
         env.fund(XRP(10000), "alice", "bob", gw);
         env.trust(USD(600), "alice");
-        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
         env.trust(USD(700), "bob");
-        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
         env(pay(gw, "alice", USD(70)));
-        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
         txns.emplace_back(env.tx());
         env.close();
         env(pay(gw, "bob", USD(50)));
-        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
         txns.emplace_back(env.tx());
         env.close();
         env(pay("alice","bob",Account("bob")["USD"](5)),path(gw));
-        std::cout << env.tx()->getJson(JsonOptions::none) << std::endl;
-
         txns.emplace_back(env.tx());
         env.close();
 
@@ -551,7 +657,7 @@ class Tx_test : public beast::unit_test::suite
             {
                 auto const result = grpcTx(id, b);
                 std::cout << "printing txn" << std::endl;
-                std::cout << result.second.DebugString() << std::endl;
+                std::cout << result.second.transaction().DebugString() << std::endl;
 
                 BEAST_EXPECT(result.first == true);
                 BEAST_EXPECT(result.second.ledger_index() == index);
