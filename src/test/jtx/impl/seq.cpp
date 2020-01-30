@@ -40,6 +40,21 @@ last_ledger_seq::operator()(Env&, JTx& jt) const
     jt["LastLedgerSequence"] = num_;
 }
 
+
+void
+account_txn_id::operator()(Env&, JTx& jt) const
+{
+    std::cout << "hash is " << strHex(hash_) << std::endl;
+    if(!hash_.isZero())
+        jt["AccountTxnID"] = strHex(hash_);
+}
+
+void
+invoice_id2::operator()(Env&, JTx& jt) const
+{
+        jt["InvoiceID"] = strHex(hash_);
+}
+
 } // jtx
 } // test
 } // ripple
