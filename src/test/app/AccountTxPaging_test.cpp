@@ -300,6 +300,38 @@ class AccountTxPaging_test : public beast::unit_test::suite
     }
 
     std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    nextBinary(
+        std::string grpcPort,
+        test::jtx::Env& env,
+        std::string const& account = "",
+        int ledger_min = -1,
+        int ledger_max = -1,
+        int limit = -1,
+        bool forward = false,
+        rpc::v1::Marker* marker = nullptr)
+    {
+        GrpcAccountTxClient client{grpcPort};
+        auto& request = client.request;
+        if(account != "")
+            request.mutable_account()->set_address(account);
+        if(ledger_min != -1)
+            request.mutable_ledger_range()->set_ledger_index_min(ledger_min);
+        if(ledger_max != -1)
+            request.mutable_ledger_range()->set_ledger_index_max(ledger_max);
+        request.set_forward(forward);
+        request.set_binary(true);
+        if(limit != -1)
+            request.set_limit(limit);
+        if (marker)
+        {
+            *request.mutable_marker() = *marker;
+        }
+
+        client.AccountTx();
+        return {client.reply, client.status};
+    }
+
+    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     next(
         std::string grpcPort,
         test::jtx::Env& env,
@@ -534,23 +566,34 @@ class AccountTxPaging_test : public beast::unit_test::suite
         Account const gw {"gw"};
         auto const USD {gw["USD"]};
 
+
+        std::vector<std::shared_ptr<STTx const>> txns;
+
         env.fund(XRP(1000000), alice, gw);
         env.close();
+
 
         // AccountSet
         env (noop (alice));
 
+        txns.emplace_back(env.tx());
         // Payment
         env (pay (alice, gw, XRP (100)), stag(42), dtag(24), last_ledger_seq(20));
 
+        txns.emplace_back(env.tx());
         // Regular key set
         env (regkey(alice, alie));
         env.close();
 
+        txns.emplace_back(env.tx());
         // Trust and Offers
         env (trust (alice, USD (200)), sig (alie));
+
+        txns.emplace_back(env.tx());
         std::uint32_t const offerSeq {env.seq(alice)};
         env (offer (alice, USD (50), XRP (150)), sig (alie));
+
+        txns.emplace_back(env.tx());
         env.close();
 
         {
@@ -562,9 +605,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
         }
         env.close();
 
+        txns.emplace_back(env.tx());
+
         // SignerListSet
         env (signers (alice, 1, {{"bogie", 1}, {"demon", 1}, {gw, 1}}), sig (alie));
 
+        txns.emplace_back(env.tx());
         // Escrow
         {
             // Create an escrow.  Requires either a CancelAfter or FinishAfter.
@@ -589,6 +635,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             std::uint32_t const escrowFinishSeq {env.seq(alice)};
             env (escrowWithFinish, sig (alie));
 
+            txns.emplace_back(env.tx());
             Json::Value escrowWithCancel {escrow (alice, alice, XRP (500))};
             escrowWithCancel[sfFinishAfter.jsonName] =
                 nextTime.time_since_epoch().count();
@@ -599,6 +646,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             env (escrowWithCancel, sig (alie));
             env.close();
 
+            txns.emplace_back(env.tx());
             {
                 Json::Value escrowFinish;
                 escrowFinish[jss::TransactionType] = jss::EscrowFinish;
@@ -607,6 +655,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 escrowFinish[sfOwner.jsonName] = alice.human();
                 escrowFinish[sfOfferSequence.jsonName] = escrowFinishSeq;
                 env (escrowFinish, sig (alie));
+
+        txns.emplace_back(env.tx());
             }
             {
                 Json::Value escrowCancel;
@@ -616,6 +666,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 escrowCancel[sfOwner.jsonName] = alice.human();
                 escrowCancel[sfOfferSequence.jsonName] = escrowCancelSeq;
                 env (escrowCancel, sig (alie));
+
+                txns.emplace_back(env.tx());
             }
             env.close();
         }
@@ -636,6 +688,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             env (payChanCreate, sig (alie));
             env.close();
 
+        txns.emplace_back(env.tx());
             std::string const payChanIndex {
                 strHex (keylet::payChan (alice, gw, payChanSeq).key)};
 
@@ -649,6 +702,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     XRP (200).value().getJson (JsonOptions::none);
                 env (payChanFund, sig (alie));
                 env.close();
+
+        txns.emplace_back(env.tx());
             }
             {
                 Json::Value payChanClaim;
@@ -659,6 +714,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 payChanClaim[sfPublicKey.jsonName] = strHex(alice.pk().slice());
                 env (payChanClaim);
                 env.close();
+
+        txns.emplace_back(env.tx());
             }
         }
 
@@ -668,13 +725,23 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 getCheckIndex (alice, env.seq (alice))};
             env (check::create (alice, gw, XRP (300)), sig (alie));
 
+            auto txn = env.tx();
             uint256 const gwCheckId {
                 getCheckIndex (gw, env.seq (gw))};
             env (check::create (gw, alice, XRP (200)));
             env.close();
 
+            //need to switch the order of the previous 2 txns, since they are
+            //in the same ledger and account_tx returns them in a different
+            //order
+        txns.emplace_back(env.tx());
+        txns.emplace_back(txn);
             env (check::cash (alice, gwCheckId, XRP (200)), sig (alie));
+
+        txns.emplace_back(env.tx());
             env (check::cancel (alice, aliceCheckId), sig (alie));
+
+        txns.emplace_back(env.tx());
             env.close();
         }
 
@@ -682,11 +749,13 @@ class AccountTxPaging_test : public beast::unit_test::suite
         env (deposit::auth (alice, gw), sig (alie));
         env.close();
 
+        txns.emplace_back(env.tx());
         // Multi Sig with memo
         auto const baseFee = env.current()->fees().base;
         env (noop (alice), msig (gw), fee (2 * baseFee), memo("data","format","type"));
         env.close();
 
+        txns.emplace_back(env.tx());
         // Setup is done.  Look at the transactions returned by account_tx.
 
         static const TxCheck txCheck[]{
@@ -1442,7 +1511,6 @@ class AccountTxPaging_test : public beast::unit_test::suite
         };
 
         auto [res, status] = next(grpcPort,env,alice.human());
-        //std::cout << res.DebugString() << std::endl;
 
         if(!BEAST_EXPECT(status.error_code() == 0))
 
@@ -1450,16 +1518,36 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         BEAST_EXPECT(
             res.transactions().size() == std::extent<decltype(txCheck)>::value);
-        std::cout << "PRINTING ALL ****" << std::endl;
         for(int i = 0; i < res.transactions().size(); ++i)
         {
-            std::cout << "printing txn" << std::endl;
-std::cout << strHex(res.transactions()[i].hash()) << std::endl;
-            std::cout << (res.transactions()[i]).DebugString() << std::endl;
             if(!BEAST_EXPECT(doCheck(res.transactions()[i],txCheck[i])))
                 return;
             if(!BEAST_EXPECT(doMetaCheck(res.transactions()[i],txMetaCheck[i])))
                 return;
+
+        }
+
+        std::tie(res, status) = nextBinary(grpcPort, env, alice.human());
+
+        //txns vector does not contain the first two transactions returned by
+        //account_tx
+        if(!BEAST_EXPECT(res.transactions().size() == txns.size()+2))
+            return;
+
+        std::reverse(txns.begin(), txns.end());
+        for(int i = 0; i < txns.size(); ++i)
+        {
+            auto toByteString = [](auto data) {
+                const char* bytes = reinterpret_cast<const char*>(data.data());
+                return std::string(bytes, data.size());
+            };
+
+            auto tx = txns[i];
+            Serializer s = tx->getSerializer();
+            std::string bin = toByteString(s);
+            if(!BEAST_EXPECT(res.transactions(i).transaction_binary() == bin))
+                std::cout << i << std::endl;
+
         }
     }
 

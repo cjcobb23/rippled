@@ -70,10 +70,12 @@ struct AccountTxArgs
     std::optional<Marker> marker;
 };
 
-using TxnData = NetworkOPs::AccountTx;
-using TxnDataBinary = NetworkOPs::txnMetaLedgerType;
-using TxnsData = std::vector<std::pair<TxnData,bool>>;
-using TxnsDataBinary = std::vector<std::pair<TxnDataBinary, bool>>;
+using TxnsData = NetworkOPs::AccountTxs;
+using TxnsDataBinary = NetworkOPs::MetaTxsList;
+
+
+//using TxnsData = std::vector<std::pair<TxnData,bool>>;
+//using TxnsDataBinary = std::vector<std::pair<TxnDataBinary, bool>>;
 
 struct AccountTxResult
 {
@@ -88,8 +90,6 @@ struct AccountTxResult
     uint32_t limit;
 
     std::optional<Marker> marker;
-
-    bool validated;
 
     AccountID account;
 };
@@ -110,7 +110,6 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
         return {result, rpcLGR_IDXS_INVALID};
     }
 
-    result.validated = true;
 
     std::uint32_t uLedgerMin = uValidatedMin;
     std::uint32_t uLedgerMax = uValidatedMax;
@@ -160,12 +159,10 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
                 return {result, status};
             }
 
-            result.validated =
+            bool validated =
                 RPC::isValidated(context.ledgerMaster, *ledger, context.app);
 
-            // Note, if result.validated is false, we return an error
-            // Therefore, in a successful response, validated can only be true
-            if (!result.validated || ledger->info().seq > uValidatedMax ||
+            if (!validated || ledger->info().seq > uValidatedMax ||
                     ledger->info().seq < uValidatedMin)
             {
                 return {result, rpcLGR_NOT_VALIDATED};
@@ -182,44 +179,29 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
     if (args.binary)
     {
 
-        auto txns = context.netOps.getTxsAccountB(
+        result.transactions = std::move(context.netOps.getTxsAccountB(
                 args.account,
                 uLedgerMin,
                 uLedgerMax,
                 args.forward,
                 *args.marker,
                 args.limit,
-                isUnlimited(context.role));
-        result.transactions = TxnsDataBinary{};
+                isUnlimited(context.role)));
 
-        auto& txnsData = std::get<TxnsDataBinary>(result.transactions);
-        for (auto& it : txns)
-        {
-            std::uint32_t uLedgerIndex = std::get<2>(it);
-
-            bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
-                uValidatedMax >= uLedgerIndex;
-
-            txnsData.emplace_back(
-                    it,
-                    validated);
-        }
     }
     else
     {
 
-        auto txns = context.netOps.getTxsAccount(
+        result.transactions = std::move(context.netOps.getTxsAccount(
                 args.account,
                 uLedgerMin,
                 uLedgerMax,
                 args.forward,
                 *args.marker,
                 args.limit,
-                isUnlimited(context.role));
-        result.transactions = TxnsData{};
-        auto& txnsData = std::get<TxnsData>(result.transactions);
+                isUnlimited(context.role)));
 
-        for (auto const& [txn, txMeta] : txns)
+        for (auto const& [txn, txMeta] : std::get<TxnsData>(result.transactions))
         {
             if (!txMeta->hasDeliveredAmount())
             {
@@ -230,11 +212,6 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
                     txMeta->setDeliveredAmount(*amount);
                 }
             }
-
-            std::uint32_t uLedgerIndex = txMeta->getLgrSeq();
-            bool validated = bValidated && uValidatedMin <= uLedgerIndex &&
-                uValidatedMax >= uLedgerIndex;
-            txnsData.emplace_back(std::make_pair(txn, txMeta), validated);
         }
     }
 
@@ -352,24 +329,24 @@ doAccountTxGrpc(
     if (std::holds_alternative<TxnsData>(res.first.transactions))
     {
         assert(!args.binary);
-        for (auto const& [txn, validated] :
+        for (auto const& [txn, txnMeta] :
              std::get<TxnsData>(res.first.transactions))
         {
             auto txnProto = response.add_transactions();
-            auto const& [txnBasic, txnMeta] = txn;
 
-            if (txnBasic)
+            if (txn)
                 RPC::populateTransaction(
-                    *txnProto->mutable_transaction(), txnBasic->getSTransaction());
+                    *txnProto->mutable_transaction(), txn->getSTransaction());
 
             if (txnMeta)
                 RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
 
-            txnProto->set_validated(validated);
-            txnProto->set_ledger_index(txnBasic->getLedger());
-            auto& hash = txnBasic->getID();
+            // account_tx always returns validated data
+            txnProto->set_validated(true);
+            txnProto->set_ledger_index(txn->getLedger());
+            auto& hash = txn->getID();
             txnProto->set_hash(hash.data(), hash.size());
-            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(txnBasic->getLedger());
+            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(txn->getLedger());
             if(ct)
                 txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
         }
@@ -378,43 +355,25 @@ doAccountTxGrpc(
     {
         assert(args.binary);
 
-        for (auto const& [txn, validated] :
+        for (auto const& txn :
              std::get<TxnsDataBinary>(res.first.transactions))
         {
             auto txnProto = response.add_transactions();
-            txnProto->set_transaction_binary(std::get<0>(txn));
+            Blob const& txnBlob = std::get<0>(txn);
+            txnProto->set_transaction_binary(txnBlob.data(), txnBlob.size());
 
-            txnProto->set_meta_binary(std::get<1>(txn));
+            Blob const& metaBlob = std::get<1>(txn);
+            txnProto->set_meta_binary(metaBlob.data(), metaBlob.size());
             txnProto->set_ledger_index(std::get<2>(txn));
-            txnProto->set_validated(validated);
+            // account_tx always returns validated data
+            txnProto->set_validated(true);
             auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(std::get<2>(txn));
             if(ct)
                 txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
-
         }
-           // Json::Value& jvObj = jvTxns.append(Json::objectValue);
-
-           // jvObj[jss::tx_blob] = std::get<0>(txn);
-           // jvObj[jss::meta] = std::get<1>(txn);
-           // jvObj[jss::ledger_index] = std::get<2>(txn);
-           // jvObj[jss::validated] = validated;
     }
 
-//    if (res.first.marker)
-//    {
-//        response[jss::marker] = Json::objectValue;
-//        response[jss::marker][jss::ledger] = res.first.marker->first;
-//        response[jss::marker][jss::seq] = res.first.marker->second;
-//    }
-//
-//    response[jss::validated] = res.first.validated;
-//    response[jss::limit] = res.first.limit;
-//    response[jss::account] = params[jss::account].asString();
-//    response[jss::ledger_index_min] = res.first.ledgerRange.min;
-//    response[jss::ledger_index_max] = res.first.ledgerRange.max;
-//
-
-    response.set_validated(res.first.validated);
+    response.set_validated(true);
     response.set_limit(res.first.limit);
     response.mutable_account()->set_address(request.account().address());
     response.set_ledger_index_min(res.first.ledgerRange.min);
@@ -425,9 +384,6 @@ doAccountTxGrpc(
         response.mutable_marker()->set_ledger_index(res.first.marker->first);
         response.mutable_marker()->set_account_sequence(res.first.marker->second);
     }
-
-
-    std::cout << "handler success" << std::endl;
 
     return {response, grpc::Status::OK};
 }
@@ -553,21 +509,20 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
     if (std::holds_alternative<TxnsData>(res.first.transactions))
     {
         assert(!args.binary);
-        for (auto const& [txn, validated] :
+        for (auto const& [txn, txnMeta] :
              std::get<TxnsData>(res.first.transactions))
         {
             Json::Value& jvObj = jvTxns.append(Json::objectValue);
 
-            auto const& [txnBasic, txnMeta] = txn;
 
-            if (txnBasic)
-                jvObj[jss::tx] = txnBasic->getJson(JsonOptions::include_date);
+            if (txn)
+                jvObj[jss::tx] = txn->getJson(JsonOptions::include_date);
 
             if (txnMeta)
             {
                 auto metaJ = txnMeta->getJson(JsonOptions::include_date);
                 jvObj[jss::meta] = std::move(metaJ);
-                jvObj[jss::validated] = validated;
+                jvObj[jss::validated] = true;
                 if(txnMeta->hasDeliveredAmount() && txnMeta->getDeliveredAmount().isDefault())
                 {
                     //When the delivered amount is set to the default value of STAmount,
@@ -581,15 +536,15 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
     {
         assert(args.binary);
 
-        for (auto const& [txn, validated] :
+        for (auto const& txn :
              std::get<TxnsDataBinary>(res.first.transactions))
         {
             Json::Value& jvObj = jvTxns.append(Json::objectValue);
 
-            jvObj[jss::tx_blob] = std::get<0>(txn);
-            jvObj[jss::meta] = std::get<1>(txn);
+            jvObj[jss::tx_blob] = strHex(std::get<0>(txn));
+            jvObj[jss::meta] = strHex(std::get<1>(txn));
             jvObj[jss::ledger_index] = std::get<2>(txn);
-            jvObj[jss::validated] = validated;
+            jvObj[jss::validated] = true;
         }
     }
 
@@ -600,7 +555,7 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
         response[jss::marker][jss::seq] = res.first.marker->second;
     }
 
-    response[jss::validated] = res.first.validated;
+    response[jss::validated] = true;
     response[jss::limit] = res.first.limit;
     response[jss::account] = params[jss::account].asString();
     response[jss::ledger_index_min] = res.first.ledgerRange.min;

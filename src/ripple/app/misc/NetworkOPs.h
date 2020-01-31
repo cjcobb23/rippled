@@ -233,7 +233,7 @@ public:
         int limit,
         bool bUnlimited) = 0;
 
-    using txnMetaLedgerType = std::tuple<std::string, std::string, std::uint32_t>;
+    using txnMetaLedgerType = std::tuple<Blob, Blob, std::uint32_t>;
     using MetaTxsList       = std::vector<txnMetaLedgerType>;
 
     virtual MetaTxsList getAccountTxsB (AccountID const& account,

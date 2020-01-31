@@ -2128,7 +2128,7 @@ std::vector<NetworkOPsImp::txnMetaLedgerType> NetworkOPsImp::getAccountTxsB (
                 rangeCheckedCast<std::uint32_t>(ledgerSeq.value_or (0));
 
             ret.emplace_back (
-                strHex (rawTxn), strHex (txnMeta), seq);
+                std::move(rawTxn), std::move(txnMeta), seq);
         }
     }
 
@@ -2221,7 +2221,7 @@ NetworkOPsImp::getTxsAccountB (
         Blob const& rawTxn,
         Blob const& rawMeta)
     {
-        ret.emplace_back (strHex(rawTxn), strHex (rawMeta), ledgerIndex);
+        ret.emplace_back (std::move(rawTxn), std::move(rawMeta), ledgerIndex);
     };
 
     accountTxPage(app_.getTxnDB (), app_.accountIDCache(),
@@ -2251,7 +2251,7 @@ NetworkOPsImp::getTxsAccountB(
                      std::string const& status,
                      Blob const& rawTxn,
                      Blob const& rawMeta) {
-        ret.emplace_back(strHex(rawTxn), strHex(rawMeta), ledgerIndex);
+        ret.emplace_back(std::move(rawTxn), std::move(rawMeta), ledgerIndex);
     };
 
     accountTxPage(
