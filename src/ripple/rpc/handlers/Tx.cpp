@@ -27,6 +27,7 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/DeliveredAmount.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
+#include <ripple/rpc/impl/GRPCHelpers.h>
 #include <ripple/rpc/GRPCHandlers.h>
 
 namespace ripple {
@@ -348,9 +349,16 @@ doTxJson(RPC::JsonContext& context)
 
     auto fillDelivered = [&args,&res,&ret]() {
 
-        ret[jss::meta][jss::delivered_amount] =
-            res.first.deliveredAmount->getJson(
-                    JsonOptions::include_date);
+        if(res.first.deliveredAmount->isDefault())
+        {
+            ret[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
+        }
+        else
+        {
+            ret[jss::meta][jss::delivered_amount] =
+                res.first.deliveredAmount->getJson(
+                        JsonOptions::include_date);
+        }
     };
 
     auto fillValidated = [&args,&res,&ret]() {
@@ -461,11 +469,13 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
         response.set_meta_binary(slice.data(), slice.size());
     };
 
-    auto fillDelivered = [&args,&res,&response,&status] ()
-    {
-
-        RPC::populateAmount(*response.mutable_meta()->mutable_delivered_amount(),
-                *res.first.deliveredAmount);
+    auto fillDelivered = [&args, &res, &response, &status]() {
+        if(!res.first.deliveredAmount->isDefault())
+        {
+        RPC::populateProtoAmount(
+            *res.first.deliveredAmount,
+            *response.mutable_meta()->mutable_delivered_amount());
+        }
     };
 
     auto fillValidated = [&args,&res,&response,&status]()

@@ -43,11 +43,13 @@ namespace RPC {
   GetLedgerIndex is a callable that returns a LedgerIndex
   GetCloseTime is a callable that returns a
                boost::optional<NetClock::time_point>
+
+  If the STAmount returned is the default STAmount, the delivered amount is
+  unavailable
  */
 template<class GetFix1623Enabled, class GetLedgerIndex, class GetCloseTime>
-void
-insertDeliveredAmount(
-    Json::Value& meta,
+std::optional<STAmount>
+getDeliveredAmount(
     GetFix1623Enabled const& getFix1623Enabled,
     GetLedgerIndex const& getLedgerIndex,
     GetCloseTime const& getCloseTime,
@@ -59,228 +61,10 @@ insertDeliveredAmount(
         if (tt != ttPAYMENT &&
             tt != ttCHECK_CASH &&
             tt != ttACCOUNT_DELETE)
-            return;
-
-        if (tt == ttCHECK_CASH &&
-            !getFix1623Enabled())
-            return;
-    }
-
-    // if the transaction failed nothing could have been delivered.
-    if (transactionMeta.getResultTER() != tesSUCCESS)
-        return;
-
-    if (transactionMeta.hasDeliveredAmount())
-    {
-        meta[jss::delivered_amount] =
-            transactionMeta.getDeliveredAmount()
-                .getJson(JsonOptions::include_date);
-        return;
-    }
-
-    if (serializedTx->isFieldPresent(sfAmount))
-    {
-        using namespace std::chrono_literals;
-
-        // Ledger 4594095 is the first ledger in which the DeliveredAmount field
-        // was present when a partial payment was made and its absence indicates
-        // that the amount delivered is listed in the Amount field.
-        //
-        // If the ledger closed long after the DeliveredAmount code was deployed
-        // then its absence indicates that the amount delivered is listed in the
-        // Amount field. DeliveredAmount went live January 24, 2014.
-        // 446000000 is in Feb 2014, well after DeliveredAmount went live
-        if (getLedgerIndex() >= 4594095 ||
-            getCloseTime() > NetClock::time_point{446000000s})
-        {
-            meta[jss::delivered_amount] =
-                serializedTx->getFieldAmount(sfAmount)
-                   .getJson(JsonOptions::include_date);
-            return;
-        }
-    }
-
-    // report "unavailable" which cannot be parsed into a sensible amount.
-    meta[jss::delivered_amount] = Json::Value("unavailable");
-}
-
-void
-insertDeliveredAmount(
-    Json::Value& meta,
-    ReadView const& ledger,
-    std::shared_ptr<STTx const> serializedTx,
-    TxMeta const& transactionMeta)
-{
-    if (!serializedTx)
-        return;
-
-    auto const info = ledger.info();
-    auto const getFix1623Enabled = [&ledger] {
-        return ledger.rules().enabled(fix1623);
-    };
-    auto const getLedgerIndex = [&info] {
-        return info.seq;
-    };
-    auto const getCloseTime = [&info] {
-        return info.closeTime;
-    };
-
-    insertDeliveredAmount(
-        meta,
-        getFix1623Enabled,
-        getLedgerIndex,
-        getCloseTime,
-        std::move(serializedTx),
-        transactionMeta);
-}
-
-void
-insertDeliveredAmount(
-    Json::Value& meta,
-    RPC::JsonContext& context,
-    std::shared_ptr<Transaction> transaction,
-    TxMeta const& transactionMeta)
-{
-    if (!transaction)
-        return;
-
-    auto const serializedTx = transaction->getSTransaction ();
-    if (! serializedTx)
-        return;
-
-
-    // These lambdas are used to compute the values lazily
-    auto const getFix1623Enabled = [&context]() -> bool {
-        auto const view = context.app.openLedger().current();
-        if (!view)
-            return false;
-        return view->rules().enabled(fix1623);
-    };
-    auto const getLedgerIndex = [&transaction]() -> LedgerIndex {
-        return transaction->getLedger();
-    };
-    auto const getCloseTime =
-        [&context, &transaction]() -> boost::optional<NetClock::time_point> {
-        return context.ledgerMaster.getCloseTimeBySeq(transaction->getLedger());
-    };
-
-    insertDeliveredAmount(
-        meta,
-        getFix1623Enabled,
-        getLedgerIndex,
-        getCloseTime,
-        std::move(serializedTx),
-        transactionMeta);
-}
-
-// TODO get rid of the code duplication between this function and the preceding
-// function
-void
-insertDeliveredAmount(
-    rpc::v1::CurrencyAmount& proto,
-    RPC::Context& context,
-    std::shared_ptr<Transaction> transaction,
-    TxMeta const& transactionMeta)
-{
-    if (!transaction)
-        return;
-
-    auto const serializedTx = transaction->getSTransaction();
-    if (!serializedTx)
-        return;
-
-    // These lambdas are used to compute the values lazily
-    auto const getFix1623Enabled = [&context]() -> bool {
-        auto const view = context.app.openLedger().current();
-        if (!view)
-            return false;
-        return view->rules().enabled(fix1623);
-    };
-    auto const getLedgerIndex = [&transaction]() -> LedgerIndex {
-        return transaction->getLedger();
-    };
-    auto const getCloseTime =
-        [&context, &transaction]() -> boost::optional<NetClock::time_point> {
-        return context.ledgerMaster.getCloseTimeBySeq(transaction->getLedger());
-    };
-
-    {
-        TxType const tt{serializedTx->getTxnType()};
-        if (tt != ttPAYMENT &&
-            tt != ttCHECK_CASH &&
-            tt != ttACCOUNT_DELETE)
-            return;
-
-        if (tt == ttCHECK_CASH &&
-            !getFix1623Enabled())
-            return;
-    }
-
-    // if the transaction failed nothing could have been delivered.
-    if (transactionMeta.getResultTER() != tesSUCCESS)
-        return;
-
-    if (transactionMeta.hasDeliveredAmount())
-    {
-        populateAmount(proto, transactionMeta.getDeliveredAmount());
-        return;
-    }
-
-    if (serializedTx->isFieldPresent(sfAmount))
-    {
-        using namespace std::chrono_literals;
-
-        // Ledger 4594095 is the first ledger in which the DeliveredAmount field
-        // was present when a partial payment was made and its absence indicates
-        // that the amount delivered is listed in the Amount field.
-        //
-        // If the ledger closed long after the DeliveredAmount code was deployed
-        // then its absence indicates that the amount delivered is listed in the
-        // Amount field. DeliveredAmount went live January 24, 2014.
-        // 446000000 is in Feb 2014, well after DeliveredAmount went live
-        if (getLedgerIndex() >= 4594095 ||
-            getCloseTime() > NetClock::time_point{446000000s})
-        {
-            populateAmount(proto, serializedTx->getFieldAmount(sfAmount));
-            return;
-        }
-    }
-}
-
-std::optional<STAmount>
-getDeliveredAmount(
-    RPC::Context& context,
-    std::shared_ptr<Transaction> transaction,
-    TxMeta const& transactionMeta)
-{
-    if (!transaction)
-        return {};
-
-    auto const serializedTx = transaction->getSTransaction();
-    if (!serializedTx)
-        return {};
-
-    // These lambdas are used to compute the values lazily
-    auto const getFix1623Enabled = [&context]() -> bool {
-        auto const view = context.app.openLedger().current();
-        if (!view)
-            return false;
-        return view->rules().enabled(fix1623);
-    };
-    auto const getLedgerIndex = [&transaction]() -> LedgerIndex {
-        return transaction->getLedger();
-    };
-    auto const getCloseTime =
-        [&context, &transaction]() -> boost::optional<NetClock::time_point> {
-        return context.ledgerMaster.getCloseTimeBySeq(transaction->getLedger());
-    };
-
-    {
-        TxType const tt{serializedTx->getTxnType()};
-        if (tt != ttPAYMENT && tt != ttCHECK_CASH && tt != ttACCOUNT_DELETE)
             return {};
 
-        if (tt == ttCHECK_CASH && !getFix1623Enabled())
+        if (tt == ttCHECK_CASH &&
+            !getFix1623Enabled())
             return {};
     }
 
@@ -312,7 +96,109 @@ getDeliveredAmount(
         }
     }
 
-    return {};
+    return 0;
+}
+
+void
+insertDeliveredAmount(
+    Json::Value& meta,
+    ReadView const& ledger,
+    std::shared_ptr<STTx const> serializedTx,
+    TxMeta const& transactionMeta)
+{
+    if (!serializedTx)
+        return;
+
+    auto const info = ledger.info();
+    auto const getFix1623Enabled = [&ledger] {
+        return ledger.rules().enabled(fix1623);
+    };
+    auto const getLedgerIndex = [&info] { return info.seq; };
+    auto const getCloseTime = [&info] { return info.closeTime; };
+
+    auto amt = getDeliveredAmount(
+        getFix1623Enabled,
+        getLedgerIndex,
+        getCloseTime,
+        std::move(serializedTx),
+        transactionMeta);
+    if (amt)
+    {
+        if (amt->isDefault())
+        {
+            // report "unavailable" which cannot be parsed into a sensible
+            // amount.
+            meta[jss::delivered_amount] = Json::Value("unavailable");
+        }
+        else
+        {
+            meta[jss::delivered_amount] =
+                amt->getJson(JsonOptions::include_date);
+        }
+    }
+}
+
+std::optional<STAmount>
+getDeliveredAmount(
+    RPC::Context& context,
+    std::shared_ptr<Transaction> transaction,
+    TxMeta const& transactionMeta)
+{
+
+    if (!transaction)
+        return {};
+
+    auto const serializedTx = transaction->getSTransaction ();
+    if (! serializedTx)
+        return {};
+
+
+    // These lambdas are used to compute the values lazily
+    auto const getFix1623Enabled = [&context]() -> bool {
+        auto const view = context.app.openLedger().current();
+        if (!view)
+            return false;
+        return view->rules().enabled(fix1623);
+    };
+    auto const getLedgerIndex = [&transaction]() -> LedgerIndex {
+        return transaction->getLedger();
+    };
+    auto const getCloseTime =
+        [&context, &transaction]() -> boost::optional<NetClock::time_point> {
+        return context.ledgerMaster.getCloseTimeBySeq(transaction->getLedger());
+    };
+
+    return getDeliveredAmount(
+        getFix1623Enabled,
+        getLedgerIndex,
+        getCloseTime,
+        std::move(serializedTx),
+        transactionMeta);
+}
+
+void
+insertDeliveredAmount(
+    Json::Value& meta,
+    RPC::JsonContext& context,
+    std::shared_ptr<Transaction> transaction,
+    TxMeta const& transactionMeta)
+{
+    auto amt = getDeliveredAmount(context, transaction, transactionMeta);
+
+    if (amt)
+    {
+        if (amt->isDefault())
+        {
+            // report "unavailable" which cannot be parsed into a sensible
+            // amount.
+            meta[jss::delivered_amount] = Json::Value("unavailable");
+        }
+        else
+        {
+            meta[jss::delivered_amount] =
+                amt->getJson(JsonOptions::include_date);
+        }
+    }
 }
 
 }  // namespace RPC

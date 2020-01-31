@@ -4,6 +4,7 @@ package rpc.v1;
 
 import "rpc/v1/amount.proto";
 import "rpc/v1/ledger_objects.proto";
+import "rpc/v1/fields.proto";
 
 //TODO change to follow new format?
 message Meta {
@@ -15,7 +16,7 @@ message Meta {
 
    repeated AffectedNode affected_nodes = 3;
 
-   CurrencyAmount delivered_amount = 4;
+   DeliveredAmount delivered_amount = 4;
 }
 
 message TransactionResult {
@@ -76,9 +77,7 @@ message ModifiedNode {
 
     LedgerObject previous_fields = 2;
 
-    // 32 bytes
-    bytes previous_transaction_id = 3;
+    PreviousTransactionID previous_transaction_id = 3;
 
-    uint32 previous_transaction_ledger_sequence = 4;
-
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 4;
 }
