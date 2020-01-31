@@ -440,6 +440,11 @@ message Date
     uint32 value = 1;
 }
 
+message DeliveredAmount
+{
+    CurrencyAmount value = 1;
+}
+
 
 
 

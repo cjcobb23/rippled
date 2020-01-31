@@ -163,6 +163,30 @@ populateProtoAccount(
 
 template <class T>
 void
+populateProtoAmount(STAmount const& amount, T& proto)
+{
+    if (amount.native())
+    {
+        proto.mutable_value()->mutable_xrp_amount()->set_drops(
+            amount.xrp().drops());
+    }
+    else
+    {
+        Issue const& issue = amount.issue();
+
+        rpc::v1::IssuedCurrencyAmount* issued =
+           proto.mutable_value()->mutable_issued_currency_amount();
+
+        issued->mutable_currency()->set_name(to_string(issue.currency));
+        issued->mutable_currency()->set_code(
+            issue.currency.data(), Currency::size());
+        issued->mutable_issuer()->set_address(toBase58(issue.account));
+        issued->set_value(to_string(amount.iou()));
+    }
+}
+
+template <class T>
+void
 populateProtoAmount(
     STObject const& obj,
     SF_Amount const& field,
@@ -171,25 +195,7 @@ populateProtoAmount(
     if (obj.isFieldPresent(field))
     {
         auto amount = obj.getFieldAmount(field);
-
-        if (amount.native())
-        {
-            getProto()->mutable_value()->mutable_xrp_amount()->set_drops(
-                amount.xrp().drops());
-        }
-        else
-        {
-            Issue const& issue = amount.issue();
-
-            rpc::v1::IssuedCurrencyAmount* issued =
-                getProto()->mutable_value()->mutable_issued_currency_amount();
-
-            issued->mutable_currency()->set_name(to_string(issue.currency));
-            issued->mutable_currency()->set_code(
-                issue.currency.data(), Currency::size());
-            issued->mutable_issuer()->set_address(toBase58(issue.account));
-            issued->set_value(to_string(amount.iou()));
-        }
+        populateProtoAmount(amount, *getProto());
     }
 }
 
@@ -309,9 +315,15 @@ void populateDeliverMin(STObject const& obj, T& proto)
 template <class T>
 void populateSendMax(STObject const& obj, T& proto)
 {
-
     populateProtoAmount(
         obj, sfSendMax, [&proto]() { return proto.mutable_send_max(); });
+}
+
+template <class T>
+void populateDeliveredAmount(STObject const& obj, T& proto)
+{
+    populateProtoAmount(
+        obj, sfDeliveredAmount, [&proto]() { return proto.mutable_delivered_amount(); });
 }
 
 template <class T>

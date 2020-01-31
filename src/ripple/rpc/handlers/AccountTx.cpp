@@ -35,182 +35,6 @@
 
 namespace ripple {
 
-// {
-//   account: account,
-//   ledger_index_min: ledger_index  // optional, defaults to earliest
-//   ledger_index_max: ledger_index, // optional, defaults to latest
-//   binary: boolean,                // optional, defaults to false
-//   forward: boolean,               // optional, defaults to false
-//   limit: integer,                 // optional
-//   marker: opaque                  // optional, resume previous query
-// }
-Json::Value doAccountTx (RPC::JsonContext& context)
-{
-    auto& params = context.params;
-
-    int limit = params.isMember (jss::limit) ?
-            params[jss::limit].asUInt () : -1;
-    bool bBinary = params.isMember (jss::binary) && params[jss::binary].asBool ();
-    bool bForward = params.isMember (jss::forward) && params[jss::forward].asBool ();
-    std::uint32_t   uLedgerMin;
-    std::uint32_t   uLedgerMax;
-    std::uint32_t   uValidatedMin;
-    std::uint32_t   uValidatedMax;
-    bool bValidated = context.ledgerMaster.getValidatedRange (
-        uValidatedMin, uValidatedMax);
-
-    if (!bValidated)
-    {
-        // Don't have a validated ledger range.
-        return rpcError (rpcLGR_IDXS_INVALID);
-    }
-
-    if (!params.isMember (jss::account))
-        return rpcError (rpcINVALID_PARAMS);
-
-    auto const account = parseBase58<AccountID>(
-        params[jss::account].asString());
-    if (! account)
-        return rpcError (rpcACT_MALFORMED);
-
-    context.loadType = Resource::feeMediumBurdenRPC;
-
-    if (params.isMember (jss::ledger_index_min) ||
-        params.isMember (jss::ledger_index_max))
-    {
-        std::int64_t iLedgerMin  = params.isMember (jss::ledger_index_min)
-                ? params[jss::ledger_index_min].asInt () : -1;
-        std::int64_t iLedgerMax  = params.isMember (jss::ledger_index_max)
-                ? params[jss::ledger_index_max].asInt () : -1;
-
-        uLedgerMin  = iLedgerMin == -1 ? uValidatedMin :
-            ((iLedgerMin >= uValidatedMin) ? iLedgerMin : uValidatedMin);
-        uLedgerMax  = iLedgerMax == -1 ? uValidatedMax :
-            ((iLedgerMax <= uValidatedMax) ? iLedgerMax : uValidatedMax);
-
-        if (uLedgerMax < uLedgerMin)
-            return rpcError (rpcLGR_IDXS_INVALID);
-    }
-    else if(params.isMember (jss::ledger_hash) ||
-            params.isMember (jss::ledger_index))
-    {
-        std::shared_ptr<ReadView const> ledger;
-        auto ret = RPC::lookupLedger (ledger, context);
-
-        if (! ledger)
-            return ret;
-
-        std::cout << "ledger index" << std::endl;
-        std::cout << "validated = " << ret[jss::validated].asBool()
-            << "ledger info seq = " << ledger->info().seq
-            << "uValidatedMax = " << uValidatedMax
-            << "uValidatedMin = " << uValidatedMin
-            << std::endl;
-
-
-
-        if (! ret[jss::validated].asBool() ||
-            (ledger->info().seq > uValidatedMax) ||
-            (ledger->info().seq < uValidatedMin))
-        {
-            return rpcError (rpcLGR_NOT_VALIDATED);
-        }
-
-        uLedgerMin = uLedgerMax = ledger->info().seq;
-    }
-    else
-    {
-        uLedgerMin = uValidatedMin;
-        uLedgerMax = uValidatedMax;
-    }
-
-    Json::Value resumeToken;
-
-    if (params.isMember(jss::marker))
-         resumeToken = params[jss::marker];
-
-#ifndef DEBUG
-
-    try
-    {
-#endif
-        Json::Value ret (Json::objectValue);
-
-        ret[jss::account] = context.app.accountIDCache().toBase58(*account);
-        Json::Value& jvTxns = (ret[jss::transactions] = Json::arrayValue);
-
-        if (bBinary)
-        {
-            auto txns = context.netOps.getTxsAccountB (
-                *account, uLedgerMin, uLedgerMax, bForward, resumeToken, limit,
-                isUnlimited (context.role));
-
-            for (auto& it: txns)
-            {
-                Json::Value& jvObj = jvTxns.append (Json::objectValue);
-
-                jvObj[jss::tx_blob] = std::get<0> (it);
-                jvObj[jss::meta] = std::get<1> (it);
-
-                std::uint32_t uLedgerIndex = std::get<2> (it);
-
-                jvObj[jss::ledger_index] = uLedgerIndex;
-                jvObj[jss::validated] = bValidated &&
-                    uValidatedMin <= uLedgerIndex &&
-                    uValidatedMax >= uLedgerIndex;
-            }
-        }
-        else
-        {
-            auto txns = context.netOps.getTxsAccount (
-                *account, uLedgerMin, uLedgerMax, bForward, resumeToken, limit,
-                isUnlimited (context.role));
-
-            for (auto const& [txn, txMeta]: txns)
-            {
-                Json::Value& jvObj = jvTxns.append (Json::objectValue);
-
-                if (txn)
-                    jvObj[jss::tx] =
-                        txn->getJson (JsonOptions::include_date);
-
-                if (txMeta)
-                {
-                    auto metaJ = txMeta->getJson (JsonOptions::include_date);
-                    insertDeliveredAmount (metaJ, context, txn, *txMeta);
-                    jvObj[jss::meta] = std::move(metaJ);
-
-                    std::uint32_t uLedgerIndex = txMeta->getLgrSeq ();
-
-                    jvObj[jss::validated] = bValidated &&
-                        uValidatedMin <= uLedgerIndex &&
-                        uValidatedMax >= uLedgerIndex;
-                }
-            }
-        }
-
-        //Add information about the original query
-        ret[jss::ledger_index_min] = uLedgerMin;
-        ret[jss::ledger_index_max] = uLedgerMax;
-        if (params.isMember (jss::limit))
-            ret[jss::limit]        = limit;
-        if (resumeToken)
-            ret[jss::marker] = resumeToken;
-
-        return ret;
-#ifndef DEBUG
-    }
-    catch (std::exception const&)
-    {
-        return rpcError (rpcINTERNAL);
-    }
-
-#endif
-}
-
-
-
-
 //Ledger sequence, Account sequence
 //TODO this type needs to be defined somewhere else,
 //to be used by NetworkOps and AccountTxPaging and here
@@ -608,7 +432,15 @@ doAccountTxGrpc(
     return {response, grpc::Status::OK};
 }
 
-
+// {
+//   account: account,
+//   ledger_index_min: ledger_index  // optional, defaults to earliest
+//   ledger_index_max: ledger_index, // optional, defaults to latest
+//   binary: boolean,                // optional, defaults to false
+//   forward: boolean,               // optional, defaults to false
+//   limit: integer,                 // optional
+//   marker: opaque                  // optional, resume previous query
+// }
 Json::Value doAccountTxJson (RPC::JsonContext& context)
 {
 
@@ -736,6 +568,12 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
                 auto metaJ = txnMeta->getJson(JsonOptions::include_date);
                 jvObj[jss::meta] = std::move(metaJ);
                 jvObj[jss::validated] = validated;
+                if(txnMeta->hasDeliveredAmount() && txnMeta->getDeliveredAmount().isDefault())
+                {
+                    //When the delivered amount is set to the default value of STAmount,
+                    //return unavailable
+                    jvObj[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
+                }
             }
         }
     }

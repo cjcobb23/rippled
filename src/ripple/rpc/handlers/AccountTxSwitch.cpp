@@ -39,7 +39,7 @@ Json::Value doAccountTxSwitch (RPC::JsonContext& context)
     {
         return doAccountTxOld(context);
     }
-    return doAccountTx(context);
+    return doAccountTxJson(context);
 }
 
 } // ripple

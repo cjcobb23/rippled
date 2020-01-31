@@ -319,11 +319,9 @@ ledgerFromRequest(
     LedgerCase ledgerCase = request.ledger().ledger_case();
 
 
-    std::cout << ledgerCase << std::endl;
 
     if (ledgerCase == LedgerCase::kHash)
     {
-        std::cout << "hash" << std::endl;
         uint256 ledgerHash = uint256::fromVoid(request.ledger().hash().data());
         if (ledgerHash.size() != request.ledger().hash().size())
             return {rpcINVALID_PARAMS, "ledgerHashMalformed"};
@@ -335,7 +333,6 @@ ledgerFromRequest(
     else if (ledgerCase == LedgerCase::kSequence)
     {
 
-        std::cout << "sequence" << std::endl;
         ledger = ledgerMaster.getLedgerBySeq(request.ledger().sequence());
 
         if (ledger == nullptr)
@@ -361,11 +358,9 @@ ledgerFromRequest(
     {
         if(ledgerCase == LedgerCase::kShortcut)
         {
-            std::cout << "shortcut" << std::endl;
         }
         else
         {
-            std::cout << "not set" << std::endl;
         }
         if (isValidatedOld(ledgerMaster, context.app.config().standalone()))
             return {rpcNO_NETWORK, "InsufficientNetworkMode"};
@@ -937,18 +932,6 @@ chooseLedgerEntryType(Json::Value const& params)
     return result;
 }
 
-// Only populate the protobuf field if the field is present in obj
-template <class FieldType>
-void
-populateIfPresent(
-    STObject const& obj,
-    FieldType const& field,
-    std::function<void(STObject const&,FieldType const&)>const & populate)
-{
-    if (obj.isFieldPresent(field))
-        populate(obj, field);
-}
-
 void
 populateAccountSet(rpc::v1::AccountSet& proto, STObject const& obj)
 {
@@ -1505,7 +1488,7 @@ populateLedgerEntryType(rpc::v1::AffectedNode& proto, std::uint16_t lgrType)
 
 template <class T>
 void
-populateFields(T& proto, STObject const& obj, std::uint16_t type)
+populateLedgerObject(T& proto, STObject& obj, std::uint16_t type)
 {
     switch (type)
     {
@@ -1548,11 +1531,46 @@ populateFields(T& proto, STObject const& obj, std::uint16_t type)
     }
 }
 
+template <class T>
+void populateFields(
+    STObject& obj,
+    SField const& field,
+    uint16_t lgrType,
+    T const& getProto)
+{
+    // final fields
+    if (obj.isFieldPresent(field))
+    {
+        STObject& data = obj.getField(field).downcast<STObject>();
+
+        populateLedgerObject(*getProto(), data, lgrType);
+    }
+}
+
+template <class T>
+void populateFinalFields(STObject & obj, uint16_t lgrType, T const& getProto)
+{
+    populateFields(obj, sfFinalFields, lgrType, getProto);
+}
+
+
+template <class T>
+void populatePreviousFields(STObject & obj, uint16_t lgrType, T const& getProto)
+{
+    populateFields(obj, sfPreviousFields, lgrType, getProto);
+}
+
+
+template <class T>
+void populateNewFields(STObject & obj, uint16_t lgrType, T const& getProto)
+{
+    populateFields(obj, sfNewFields, lgrType, getProto);
+}
+
 void
 populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 {
 
-    std::cout << "populating meta" << std::endl;
     proto.set_transaction_index(txMeta->getIndex());
 
     populateTransactionResultType(
@@ -1577,72 +1595,31 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
         // modified node
         if (obj.getFName() == sfModifiedNode)
         {
-            // final fields
-            if (obj.isFieldPresent(sfFinalFields))
-            {
-                STObject& finalFields =
-                    obj.getField(sfFinalFields).downcast<STObject>();
+            populateFinalFields(obj, lgrType, [&node]() {
+                return node->mutable_modified_node()->mutable_final_fields();
+            });
 
-                rpc::v1::LedgerObject* finalFieldsProto =
-                    node->mutable_modified_node()->mutable_final_fields();
+            populatePreviousFields(obj, lgrType, [&node]() {
+                return node->mutable_modified_node()->mutable_previous_fields();
+            });
 
-                populateFields(*finalFieldsProto, finalFields, lgrType);
-            }
-            // previous fields
-            if (obj.isFieldPresent(sfPreviousFields))
-            {
-                STObject& prevFields =
-                    obj.getField(sfPreviousFields).downcast<STObject>();
+            populatePreviousTransactionID(obj, *node->mutable_modified_node());
 
-                rpc::v1::LedgerObject* prevFieldsProto =
-                    node->mutable_modified_node()->mutable_previous_fields();
-
-                populateFields(*prevFieldsProto, prevFields, lgrType);
-            }
-
-            // prev txn id and prev txn ledger seq
-            if(obj.isFieldPresent(sfPreviousTxnID))
-            {
-                uint256 prevTxnId = obj.getFieldH256(sfPreviousTxnID);
-                node->mutable_modified_node()->set_previous_transaction_id(
-                        prevTxnId.data(), prevTxnId.size());
-            }
-            if(obj.isFieldPresent(sfPreviousTxnLgrSeq))
-            {
-                node->mutable_modified_node()
-                    ->set_previous_transaction_ledger_sequence(
-                            obj.getFieldU32(sfPreviousTxnLgrSeq));
-            }
+            populatePreviousTransactionLedgerSequence(obj, *node->mutable_modified_node());
         }
         // created node
         else if (obj.getFName() == sfCreatedNode)
         {
-            // new fields
-            if (obj.isFieldPresent(sfNewFields))
-            {
-                STObject& newFields =
-                    obj.getField(sfNewFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* newFieldsProto =
-                    node->mutable_created_node()->mutable_new_fields();
-
-                populateFields(*newFieldsProto, newFields, lgrType);
-            }
+            populateNewFields(obj, lgrType, [&node]() {
+                return node->mutable_created_node()->mutable_new_fields();
+            });
         }
         // deleted node
         else if (obj.getFName() == sfDeletedNode)
         {
-            // final fields
-            if (obj.isFieldPresent(sfFinalFields))
-            {
-                STObject& finalFields =
-                    obj.getField(sfFinalFields).downcast<STObject>();
-
-                rpc::v1::LedgerObject* finalFieldsProto =
-                    node->mutable_deleted_node()->mutable_final_fields();
-
-                populateFields(*finalFieldsProto, finalFields, lgrType);
-            }
+            populateFinalFields(obj, lgrType, [&node]() {
+                return node->mutable_deleted_node()->mutable_final_fields();
+            });
         }
     }
 }
@@ -1699,26 +1676,6 @@ populateQueueData(
         if (totalSpend)
             proto.mutable_max_spend_drops_total()->set_drops(
                 (*totalSpend).drops());
-    }
-}
-
-void
-populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount)
-{
-    if (amount.native())
-    {
-        proto.mutable_xrp_amount()->set_drops(amount.xrp().drops());
-    }
-    else
-    {
-        rpc::v1::IssuedCurrencyAmount* issued =
-            proto.mutable_issued_currency_amount();
-        Issue const& issue = amount.issue();
-        Currency currency = issue.currency;
-        issued->mutable_currency()->set_name(to_string(issue.currency));
-        issued->mutable_currency()->set_code(currency.data(), currency.size());
-        issued->set_value(to_string(amount.iou()));
-        issued->mutable_issuer()->set_address(toBase58(issue.account));
     }
 }
 
