@@ -58,7 +58,7 @@ struct AccountTxArgs
     AccountID account;
 
     std::optional<
-        std::variant<LedgerRange, RPC::LedgerShortcut, LedgerSequence, LedgerHash>>
+        std::variant<LedgerRange, LedgerShortcut, LedgerSequence, LedgerHash>>
         ledger;
 
     bool binary = false;
@@ -201,20 +201,7 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
                 args.limit,
                 isUnlimited(context.role)));
 
-        for (auto const& [txn, txMeta] : std::get<TxnsData>(result.transactions))
-        {
-            if (!txMeta->hasDeliveredAmount())
-            {
-                std::optional<STAmount> amount =
-                    getDeliveredAmount(context, txn, *txMeta);
-                if (amount)
-                {
-                    txMeta->setDeliveredAmount(*amount);
-                }
-            }
-        }
     }
-
 
     result.ledgerRange = {uLedgerMin,uLedgerMax};
     result.limit = args.limit;
@@ -340,6 +327,17 @@ doAccountTxGrpc(
 
             if (txnMeta)
                 RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
+
+            if (!txnMeta->hasDeliveredAmount())
+            {
+                std::optional<STAmount> amount =
+                    getDeliveredAmount(context, txn->getSTransaction(), *txnMeta,
+                            [&txn](){ return txn->getLedger();});
+                if (amount)
+                {
+                    txnMeta->setDeliveredAmount(*amount);
+                }
+            }
 
             // account_tx always returns validated data
             txnProto->set_validated(true);
@@ -523,12 +521,15 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
                 auto metaJ = txnMeta->getJson(JsonOptions::include_date);
                 jvObj[jss::meta] = std::move(metaJ);
                 jvObj[jss::validated] = true;
-                if(txnMeta->hasDeliveredAmount() && txnMeta->getDeliveredAmount().isDefault())
-                {
-                    //When the delivered amount is set to the default value of STAmount,
-                    //return unavailable
-                    jvObj[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
-                }
+
+
+                insertDeliveredAmount(jvObj[jss::meta], context, txn, *txnMeta);
+          //      if(txnMeta->hasDeliveredAmount() && txnMeta->getDeliveredAmount().isDefault())
+          //      {
+          //          //When the delivered amount is set to the default value of STAmount,
+          //          //return unavailable
+          //          jvObj[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
+          //      }
             }
         }
     }
