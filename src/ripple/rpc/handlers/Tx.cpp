@@ -92,8 +92,6 @@ struct TxResult
 
     std::variant<std::shared_ptr<TxMeta>, Blob> meta;
 
-    std::optional<STAmount> deliveredAmount;
-
     bool validated = false;
 
     uint256 hash;
@@ -211,10 +209,10 @@ doTxHelp(TxArgs& args, RPC::Context& context)
                 result.meta = std::make_shared<TxMeta>(
                     txn->getID(), ledger->seq(), *rawMeta);
 
-                result.deliveredAmount = RPC::getDeliveredAmount(
-                    context,
-                    txn,
-                    *(std::get<std::shared_ptr<TxMeta>>(result.meta)));
+//                result.deliveredAmount = RPC::getDeliveredAmount(
+//                    context,
+//                    txn,
+//                    *(std::get<std::shared_ptr<TxMeta>>(result.meta)));
             }
         }
         if (ok)
@@ -271,10 +269,7 @@ populateResponse(
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
             {
                 fillMeta(meta);
-                if (res.first.deliveredAmount)
-                {
-                    fillDelivered();
-                }
+                fillDelivered();
             }
         }
         fillValidated();
@@ -347,18 +342,21 @@ doTxJson(RPC::JsonContext& context)
         ret[jss::meta] = meta->getJson(JsonOptions::none);
     };
 
-    auto fillDelivered = [&args,&res,&ret]() {
+    auto fillDelivered = [&args,&res,&ret,&context]() {
 
-        if(res.first.deliveredAmount->isDefault())
-        {
-            ret[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
-        }
-        else
-        {
-            ret[jss::meta][jss::delivered_amount] =
-                res.first.deliveredAmount->getJson(
-                        JsonOptions::include_date);
-        }
+
+        insertDeliveredAmount(ret[jss::meta], context, res.first.txn, *std::get<std::shared_ptr<TxMeta>>(res.first.meta));
+//
+//        if(res.first.deliveredAmount->isDefault())
+//        {
+//            ret[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
+//        }
+//        else
+//        {
+//            ret[jss::meta][jss::delivered_amount] =
+//                res.first.deliveredAmount->getJson(
+//                        JsonOptions::include_date);
+//        }
     };
 
     auto fillValidated = [&args,&res,&ret]() {
@@ -447,7 +445,7 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
         auto ledgerIndex = res.first.txn->getLedger();
 
         response.set_ledger_index(ledgerIndex);
-        response.set_hash(request.hash());
+        response.set_hash(std::move(request.hash()));
         if(ledgerIndex)
         {
             auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(ledgerIndex);
@@ -469,13 +467,26 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
         response.set_meta_binary(slice.data(), slice.size());
     };
 
-    auto fillDelivered = [&args, &res, &response, &status]() {
-        if(!res.first.deliveredAmount->isDefault())
+    auto fillDelivered = [&args, &res, &response, &context, &status]() {
+
+        if(res.first.txn)
         {
-        RPC::populateProtoAmount(
-            *res.first.deliveredAmount,
-            *response.mutable_meta()->mutable_delivered_amount());
+         auto amt =getDeliveredAmount(context, res.first.txn->getSTransaction(), *std::get<std::shared_ptr<TxMeta>>(res.first.meta),
+                 [&res]() { return res.first.txn->getLedger();});
+         if(amt)
+         {
+
+             RPC::populateProtoAmount(
+                     *amt,
+                     *response.mutable_meta()->mutable_delivered_amount());
+         }
         }
+//        if(!res.first.deliveredAmount->isDefault())
+//        {
+//        RPC::populateProtoAmount(
+//            *res.first.deliveredAmount,
+//            *response.mutable_meta()->mutable_delivered_amount());
+//        }
     };
 
     auto fillValidated = [&args,&res,&response,&status]()

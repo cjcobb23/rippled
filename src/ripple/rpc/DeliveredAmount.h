@@ -70,11 +70,13 @@ insertDeliveredAmount(
     std::shared_ptr<Transaction>,
     TxMeta const&);
 
+
 std::optional<STAmount>
 getDeliveredAmount(
     RPC::Context& context,
-    std::shared_ptr<Transaction> transaction,
-    TxMeta const& transactionMeta);
+    std::shared_ptr<STTx const> serializedTx,
+    TxMeta const& transactionMeta,
+    std::function<LedgerIndex()> const& getLedgerIndex);
 /** @} */
 
 } // RPC
