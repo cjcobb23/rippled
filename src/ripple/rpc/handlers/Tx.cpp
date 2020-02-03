@@ -102,7 +102,7 @@ struct TxArgs
 
     bool binary = false;
 
-    //TODO: change to pair? or named struct?
+    // TODO: change to pair? or named struct?
     std::optional<uint32_t> minLedger;
 
     std::optional<uint32_t> maxLedger;
@@ -127,26 +127,25 @@ doTxHelp(TxArgs& args, RPC::Context& context)
         if (*args.maxLedger - *args.minLedger > MAX_RANGE)
             return {result, rpcEXCESSIVE_LGR_RANGE};
 
-        range = ClosedInterval<uint32_t> (*args.minLedger, *args.maxLedger);
+        range = ClosedInterval<uint32_t>(*args.minLedger, *args.maxLedger);
     }
 
     std::shared_ptr<Transaction> txn;
-    auto ec {rpcSUCCESS};
+    auto ec{rpcSUCCESS};
 
     if (rangeProvided)
     {
         boost::variant<std::shared_ptr<Transaction>, bool> v =
-            context.app.getMasterTransaction().fetch(
-                args.hash, range, ec);
+            context.app.getMasterTransaction().fetch(args.hash, range, ec);
 
-        if (v.which () == 1)
+        if (v.which() == 1)
         {
-            result.searchedAll = boost::get<bool> (v);
+            result.searchedAll = boost::get<bool>(v);
             return {result, rpcTXN_NOT_FOUND};
         }
         else
         {
-            txn = boost::get<std::shared_ptr<Transaction>> (v);
+            txn = boost::get<std::shared_ptr<Transaction>>(v);
         }
     }
     else
@@ -165,7 +164,7 @@ doTxHelp(TxArgs& args, RPC::Context& context)
 
     // populate transaction data
     result.txn = txn;
-    if(txn->getLedger() == 0)
+    if (txn->getLedger() == 0)
     {
         return {result, rpcSUCCESS};
     }
@@ -210,12 +209,12 @@ doTxHelp(TxArgs& args, RPC::Context& context)
     return {result, rpcSUCCESS};
 }
 
-//TODO is this function actually helpful? Created it to abstract the response
-//populating logic, but maybe this is not really helpful
+// TODO is this function actually helpful? Created it to abstract the response
+// populating logic, but maybe this is not really helpful
 void
 populateResponse(
     TxArgs& args,
-    std::pair<TxResult, error_code_i> & res,
+    std::pair<TxResult, error_code_i>& res,
     auto& fillTxn,
     auto& fillErr,
     auto& fillErrSearch,
@@ -224,11 +223,10 @@ populateResponse(
     auto& fillDelivered,
     auto& fillValidated)
 {
-    //handle errors
+    // handle errors
     if (res.second != rpcSUCCESS)
     {
-        if (res.second == rpcTXN_NOT_FOUND &&
-            res.first.searchedAll.has_value())
+        if (res.second == rpcTXN_NOT_FOUND && res.first.searchedAll.has_value())
         {
             fillErrSearch();
         }
@@ -237,18 +235,19 @@ populateResponse(
             fillErr();
         }
     }
-    //no errors
+    // no errors
     else
     {
         fillTxn();
 
-        //fill binary metadata
+        // fill binary metadata
         if (args.binary && std::holds_alternative<Blob>(res.first.meta))
         {
             fillMetaBn();
         }
-        //fill meta data
-        else if (std::holds_alternative<std::shared_ptr<TxMeta>>(res.first.meta))
+        // fill meta data
+        else if (std::holds_alternative<std::shared_ptr<TxMeta>>(
+                     res.first.meta))
         {
             // check that meta is not nullptr
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
@@ -260,7 +259,6 @@ populateResponse(
         fillValidated();
     }
 }
-
 
 Json::Value
 doTxJson(RPC::JsonContext& context)
@@ -303,27 +301,20 @@ doTxJson(RPC::JsonContext& context)
         ret = res.first.txn->getJson(JsonOptions::include_date, args.binary);
     };
 
-    auto fillErr = [&args,&res,&ret]() {
+    auto fillErr = [&args, &res, &ret]() { ret = rpcError(res.second); };
 
-        ret = rpcError(res.second);
-    };
-
-    auto fillErrSearch = [&args,&res,&ret]() {
-
+    auto fillErrSearch = [&args, &res, &ret]() {
         auto jvResult = Json::Value(Json::objectValue);
         jvResult[jss::searched_all] = *res.first.searchedAll;
 
         ret = rpcError(res.second, jvResult);
     };
 
-    auto fillMetaBn = [&args,&res,&ret]() {
-
+    auto fillMetaBn = [&args, &res, &ret]() {
         ret[jss::meta] = strHex(makeSlice(std::get<Blob>(res.first.meta)));
     };
 
-
-    auto fillMeta = [&args,&res,&ret](auto& meta) {
-
+    auto fillMeta = [&args, &res, &ret](auto& meta) {
         ret[jss::meta] = meta->getJson(JsonOptions::none);
     };
 
@@ -335,10 +326,8 @@ doTxJson(RPC::JsonContext& context)
             *std::get<std::shared_ptr<TxMeta>>(res.first.meta));
     };
 
-    auto fillValidated = [&args,&res,&ret]() {
-
+    auto fillValidated = [&args, &res, &ret]() {
         ret[jss::validated] = res.first.validated;
-
     };
 
     populateResponse(
@@ -371,16 +360,15 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
     args.hash = uint256::fromVoid(hashBytes.data());
     if (args.hash.size() != hashBytes.size())
     {
-        grpc::Status errorStatus{
-            grpc::StatusCode::INVALID_ARGUMENT, "ledger hash malformed"};
+        grpc::Status errorStatus{grpc::StatusCode::INVALID_ARGUMENT,
+                                 "ledger hash malformed"};
         return {response, errorStatus};
     }
 
-
     args.binary = request.binary();
 
-    if(request.ledger_range().ledger_index_min() != 0
-            && request.ledger_range().ledger_index_max() != 0)
+    if (request.ledger_range().ledger_index_min() != 0 &&
+        request.ledger_range().ledger_index_max() != 0)
     {
         args.minLedger = request.ledger_range().ledger_index_min();
         args.maxLedger = request.ledger_range().ledger_index_max();
@@ -388,27 +376,23 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
 
     std::pair<TxResult, error_code_i> res = doTxHelp(args, context);
 
-    auto fillErr = [&args,&res,&response,&status] ()
-    {
+    auto fillErr = [&args, &res, &response, &status]() {
         auto errorInfo = RPC::get_error_info(res.second);
         grpc::Status errorStatus{grpc::StatusCode::INTERNAL,
-            errorInfo.message.c_str()};
+                                 errorInfo.message.c_str()};
         status = errorStatus;
     };
 
-    auto fillErrSearched = [&args,&res,&response,&status] ()
-    {
-
-        grpc::Status errorStatus{grpc::StatusCode::NOT_FOUND,
+    auto fillErrSearched = [&args, &res, &response, &status]() {
+        grpc::Status errorStatus{
+            grpc::StatusCode::NOT_FOUND,
             "txn not found. searched_all = " + *res.first.searchedAll};
         status = errorStatus;
-
     };
 
-    auto fillTxn = [&context,&args,&res,&request,&response] ()
-    {
+    auto fillTxn = [&context, &args, &res, &request, &response]() {
         std::shared_ptr<STTx const> stTxn = res.first.txn->getSTransaction();
-        if(args.binary)
+        if (args.binary)
         {
             Serializer s = stTxn->getSerializer();
             response.set_transaction_binary(s.data(), s.size());
@@ -422,23 +406,21 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
 
         response.set_ledger_index(ledgerIndex);
         response.set_hash(std::move(request.hash()));
-        if(ledgerIndex)
+        if (ledgerIndex)
         {
-            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(ledgerIndex);
-            if(ct)
-               response.mutable_date()->set_value(ct->time_since_epoch().count());
-
+            auto ct =
+                context.app.getLedgerMaster().getCloseTimeBySeq(ledgerIndex);
+            if (ct)
+                response.mutable_date()->set_value(
+                    ct->time_since_epoch().count());
         }
     };
 
-
-    auto fillMeta = [&args,&res,&response,&status] (auto& meta)
-    {
+    auto fillMeta = [&args, &res, &response, &status](auto& meta) {
         RPC::populateMeta(*response.mutable_meta(), meta);
     };
 
-    auto fillMetaBn = [&args,&res,&response,&status] ()
-    {
+    auto fillMetaBn = [&args, &res, &response, &status]() {
         Slice slice = makeSlice(std::get<Blob>(res.first.meta));
         response.set_meta_binary(slice.data(), slice.size());
     };
@@ -459,8 +441,7 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
         }
     };
 
-    auto fillValidated = [&args,&res,&response,&status]()
-    {
+    auto fillValidated = [&args, &res, &response, &status]() {
         response.set_validated(res.first.validated);
     };
 
