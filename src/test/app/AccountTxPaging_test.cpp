@@ -1249,248 +1249,374 @@ class AccountTxPaging_test : public beast::unit_test::suite
              }},
         };
 
-
-        static const MetaCheck txMetaCheck[] {
-
-
+        //TODO these tests depend on ledger objects being present in
+        //a specific order. Maybe change to order agnostic, as we are not
+        //testing the order here, and I am not sure if the order is stable
+        static const MetaCheck txMetaCheck[]{
             {[this](auto meta) {
-                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                               }},
-                {[this](auto meta) {
-                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-                                   return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-                                                                      return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
-                                   }},
-                {[this](auto meta) {
-
-                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-
-                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
-                                   }},
-                {[this](auto meta) {
-                                                                    return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_SIGNER_LIST) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                           BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
-                                           BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                           BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                           BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                           BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                           BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
-                                           BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                           BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                           BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                           BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                                   rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
-                                   }},
-                {[this](auto meta) {
-                                                                   return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(2).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(3).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                                       BEAST_EXPECT(meta.affected_nodes(4).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_RIPPLE_STATE);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }},
-                {[this](auto meta) {
-                                       return BEAST_EXPECT(meta.transaction_index() == 0) &&
-                                       BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
-                                       BEAST_EXPECT(meta.affected_nodes(0).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                                       BEAST_EXPECT(meta.affected_nodes(1).ledger_entry_type() ==
-                                               rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
-                                   }}
-        };
-
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ESCROW) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ESCROW) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_SIGNER_LIST) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(2).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(3).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(4).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_RIPPLE_STATE);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 1) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 2) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }},
+            {[this](auto meta) {
+                return BEAST_EXPECT(meta.transaction_index() == 0) &&
+                    BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(0).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                    BEAST_EXPECT(
+                           meta.affected_nodes(1).ledger_entry_type() ==
+                           rpc::v1::LedgerEntryType::
+                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+            }}};
 
         auto doCheck  = [this](auto txn, auto txCheck)
         {
