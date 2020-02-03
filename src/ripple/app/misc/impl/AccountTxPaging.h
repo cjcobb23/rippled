@@ -61,7 +61,7 @@ accountTxPage (
     bool bAdmin,
     std::uint32_t pageLength);
 
-//TODO better typing for marker? Struct with named fields instead of pair?
+
 void
 accountTxPage (
     DatabaseCon& connection,
@@ -75,7 +75,7 @@ accountTxPage (
     std::int32_t minLedger,
     std::int32_t maxLedger,
     bool forward,
-    std::pair<uint32_t,uint32_t>& marker,
+    std::optional<NetworkOPs::AccountTxMarker>& marker,
     int limit,
     bool bAdmin,
     std::uint32_t page_length);

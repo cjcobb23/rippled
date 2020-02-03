@@ -467,7 +467,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         // Ledger min/max index
         {
-            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0, 0)));
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human())));
 
             BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0, 100)));
 
@@ -480,7 +480,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         // Ledger index min only
         {
-            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 0)));
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), -1)));
 
             BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), 1)));
 
@@ -491,7 +491,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
         // Ledger index max only
         {
-            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), -1, 0)));
+            BEAST_EXPECT(hasTxs(next(grpcPort, env, A1.human(), -1, -1)));
 
             BEAST_EXPECT(hasTxs(
                 next(grpcPort, env, A1.human(), -1, env.current()->info().seq)));

@@ -35,16 +35,11 @@
 
 namespace ripple {
 
-//Ledger sequence, Account sequence
-//TODO this type needs to be defined somewhere else,
-//to be used by NetworkOps and AccountTxPaging and here
-using Marker = std::pair<uint32_t, uint32_t>;
 using LedgerSequence = uint32_t;
 using LedgerHash = uint256;
 using LedgerShortcut = RPC::LedgerShortcut;
-//TODO change this to an enum
 
-
+using AccountTxMarker = NetworkOPs::AccountTxMarker;
 
 struct LedgerRange {
 
@@ -53,12 +48,14 @@ struct LedgerRange {
     uint32_t max;
 };
 
+using LedgerSpecifier =
+        std::variant<LedgerRange, LedgerShortcut, LedgerSequence, LedgerHash>;
+
 struct AccountTxArgs
 {
     AccountID account;
 
-    std::optional<
-        std::variant<LedgerRange, LedgerShortcut, LedgerSequence, LedgerHash>>
+    std::optional<LedgerSpecifier>
         ledger;
 
     bool binary = false;
@@ -67,19 +64,14 @@ struct AccountTxArgs
 
     uint32_t limit = 0;
 
-    std::optional<Marker> marker;
+    std::optional<AccountTxMarker> marker;
 };
 
 using TxnsData = NetworkOPs::AccountTxs;
 using TxnsDataBinary = NetworkOPs::MetaTxsList;
 
-
-//using TxnsData = std::vector<std::pair<TxnData,bool>>;
-//using TxnsDataBinary = std::vector<std::pair<TxnDataBinary, bool>>;
-
 struct AccountTxResult
 {
-    // bool indicates whether txn is validated
     std::variant<
         TxnsData,
         TxnsDataBinary>
@@ -89,10 +81,89 @@ struct AccountTxResult
 
     uint32_t limit;
 
-    std::optional<Marker> marker;
-
-    AccountID account;
+    std::optional<AccountTxMarker> marker;
 };
+
+std::variant<LedgerRange, RPC::Status>
+getLedgerRange(
+    RPC::Context& context,
+    std::optional<std::variant<
+        LedgerRange,
+        LedgerShortcut,
+        LedgerSequence,
+        LedgerHash>> const& ledgerSpecifier)
+{
+    std::uint32_t uValidatedMin;
+    std::uint32_t uValidatedMax;
+    bool bValidated =
+        context.ledgerMaster.getValidatedRange(uValidatedMin, uValidatedMax);
+
+    if (!bValidated)
+    {
+        // Don't have a validated ledger range.
+        return rpcLGR_IDXS_INVALID;
+    }
+
+
+    std::uint32_t uLedgerMin = uValidatedMin;
+    std::uint32_t uLedgerMax = uValidatedMax;
+    // Does request specify a ledger or ledger range?
+    if(ledgerSpecifier)
+    {
+
+        if (std::holds_alternative<LedgerRange>(*ledgerSpecifier))
+        {
+            auto& ledgerRange = std::get<LedgerRange>(*ledgerSpecifier);
+            if(ledgerRange.min > uValidatedMin)
+            {
+                uLedgerMin = ledgerRange.min;
+            }
+            if(ledgerRange.max < uValidatedMax)
+            {
+                uLedgerMax = ledgerRange.max;
+            }
+            if (uLedgerMax < uLedgerMin)
+                return rpcLGR_IDXS_INVALID;
+        }
+        else
+        {
+            std::shared_ptr<ReadView const> ledgerView;
+            RPC::Status status{RPC::Status::OK};
+            if (std::holds_alternative<LedgerSequence>(*ledgerSpecifier))
+            {
+                status = getLedger(
+                        ledgerView, std::get<LedgerSequence>(*ledgerSpecifier), context);
+            }
+            else if (std::holds_alternative<LedgerHash>(*ledgerSpecifier))
+            {
+                status =
+                    getLedger(ledgerView, std::get<LedgerHash>(*ledgerSpecifier), context);
+            }
+            else
+            {
+                assert(std::holds_alternative<LedgerShortcut>(*ledgerSpecifier));
+                status = getLedger(
+                        ledgerView, std::get<LedgerShortcut>(*ledgerSpecifier), context);
+            }
+            if (!ledgerView)
+            {
+                return status;
+            }
+
+            bool validated =
+                RPC::isValidated(context.ledgerMaster, *ledgerView, context.app);
+
+            if (!validated || ledgerView->info().seq > uValidatedMax ||
+                    ledgerView->info().seq < uValidatedMin)
+            {
+                return rpcLGR_NOT_VALIDATED;
+            }
+            uLedgerMin = uLedgerMax = ledgerView->info().seq;
+        }
+    }
+    return LedgerRange{uLedgerMin, uLedgerMax};
+}
+
 
 std::pair<AccountTxResult, RPC::Status>
 doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
@@ -110,107 +181,174 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
         return {result, rpcLGR_IDXS_INVALID};
     }
 
+    auto lgrRange = getLedgerRange(context, args.ledger);
+    if(std::holds_alternative<RPC::Status>(lgrRange))
+    {
+        // An error occurred getting the requested ledger range
+        return {result, std::get<RPC::Status>(lgrRange)};
+    }
 
-    std::uint32_t uLedgerMin = uValidatedMin;
-    std::uint32_t uLedgerMax = uValidatedMax;
+    result.ledgerRange = std::get<LedgerRange>(lgrRange);
 
     context.loadType = Resource::feeMediumBurdenRPC;
-
-    // Does request specify a ledger or ledger range?
-    if(args.ledger)
-    {
-
-        if (std::holds_alternative<LedgerRange>(*args.ledger))
-        {
-            auto& ledgerRange = std::get<LedgerRange>(*args.ledger);
-            if(ledgerRange.min > uValidatedMin)
-            {
-                uLedgerMin = ledgerRange.min;
-            }
-            if(ledgerRange.max < uValidatedMax)
-            {
-                uLedgerMax = ledgerRange.max;
-            }
-            if (uLedgerMax < uLedgerMin)
-                return {result, rpcLGR_IDXS_INVALID};
-        }
-        else
-        {
-            std::shared_ptr<ReadView const> ledger;
-            RPC::Status status{RPC::Status::OK};
-            if (std::holds_alternative<LedgerSequence>(*args.ledger))
-            {
-                status = getLedger(
-                        ledger, std::get<LedgerSequence>(*args.ledger), context);
-            }
-            else if (std::holds_alternative<LedgerHash>(*args.ledger))
-            {
-                status =
-                    getLedger(ledger, std::get<LedgerHash>(*args.ledger), context);
-            }
-            else
-            {
-                assert(std::holds_alternative<LedgerShortcut>(*args.ledger));
-                status = getLedger(
-                        ledger, std::get<LedgerShortcut>(*args.ledger), context);
-            }
-            if (!ledger)
-            {
-                return {result, status};
-            }
-
-            bool validated =
-                RPC::isValidated(context.ledgerMaster, *ledger, context.app);
-
-            if (!validated || ledger->info().seq > uValidatedMax ||
-                    ledger->info().seq < uValidatedMin)
-            {
-                return {result, rpcLGR_NOT_VALIDATED};
-            }
-            uLedgerMin = uLedgerMax = ledger->info().seq;
-        }
-    }
-
-    if (!args.marker)
-    {
-        args.marker = {0, 0};
-    }
 
     if (args.binary)
     {
 
         result.transactions = std::move(context.netOps.getTxsAccountB(
                 args.account,
-                uLedgerMin,
-                uLedgerMax,
+                result.ledgerRange.min,
+                result.ledgerRange.max,
                 args.forward,
-                *args.marker,
+                args.marker,
                 args.limit,
                 isUnlimited(context.role)));
-
     }
     else
     {
 
         result.transactions = std::move(context.netOps.getTxsAccount(
                 args.account,
-                uLedgerMin,
-                uLedgerMax,
+                result.ledgerRange.min,
+                result.ledgerRange.max,
                 args.forward,
-                *args.marker,
+                args.marker,
                 args.limit,
                 isUnlimited(context.role)));
-
     }
 
-    result.ledgerRange = {uLedgerMin,uLedgerMax};
     result.limit = args.limit;
-    if(args.marker->first != 0 || args.marker->second != 0)
+    if(args.marker)
         result.marker = args.marker;
 
-    result.account = args.account;
-
     return {result, rpcSUCCESS};
+}
+
+// parses args into a ledger specifier, or returns a grpc status object on error
+std::variant<std::optional<LedgerSpecifier>, grpc::Status>
+parseLedgerArgs(rpc::v1::GetAccountTransactionHistoryRequest const& params)
+{
+
+    LedgerSpecifier ledger;
+    grpc::Status status;
+    if(params.has_ledger_range())
+    {
+        uint32_t min = params.ledger_range().ledger_index_min();
+        uint32_t max = params.ledger_range().ledger_index_max();
+
+        // if min is set but not max, need to set max
+        if(min != 0 && max == 0)
+        {
+            max = UINT32_MAX;
+        }
+
+        return LedgerRange{min, max};
+    }
+    else if(params.has_ledger_specifier())
+    {
+        auto& specifier = params.ledger_specifier();
+        using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
+        LedgerCase ledgerCase = specifier.ledger_case();
+
+        if(ledgerCase == LedgerCase::kShortcut)
+        {
+            using LedgerSpecifier = rpc::v1::LedgerSpecifier;
+            if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_VALIDATED)
+            {
+                ledger = LedgerShortcut::VALIDATED;
+            } else if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_CLOSED)
+            {
+                ledger = LedgerShortcut::CLOSED;
+            } else if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_CURRENT)
+            {
+                ledger = LedgerShortcut::CURRENT;
+            }
+            else
+            {
+                return {};
+            }
+        }
+        else if(ledgerCase == LedgerCase::kSequence)
+        {
+            ledger = specifier.sequence();
+        }
+        else if(ledgerCase == LedgerCase::kHash)
+        {
+            if (uint256::size() != specifier.hash().size())
+            {
+                grpc::Status errorStatus{
+                    grpc::StatusCode::INVALID_ARGUMENT, "ledger hash malformed"};
+                return errorStatus;
+            }
+            ledger = uint256::fromVoid(specifier.hash().data());
+        }
+        return ledger;
+    }
+    return {};
+}
+
+void
+populateTransactionResult(
+    RPC::Context& context,
+    std::shared_ptr<Transaction> const& txn,
+    TxMeta::pointer const& txnMeta,
+    rpc::v1::GetTransactionResponse* txnProto)
+{
+    assert(txnProto);
+    if (txn)
+        RPC::populateTransaction(
+            *txnProto->mutable_transaction(), txn->getSTransaction());
+
+    if (txnMeta)
+        RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
+
+    if (txnMeta && !txnMeta->hasDeliveredAmount())
+    {
+        std::optional<STAmount> amount = getDeliveredAmount(
+            context, txn->getSTransaction(), *txnMeta, [&txn]() {
+                return txn->getLedger();
+            });
+        if (amount)
+        {
+            txnMeta->setDeliveredAmount(*amount);
+        }
+    }
+
+    // account_tx always returns validated data
+    txnProto->set_validated(true);
+    txnProto->set_ledger_index(txn->getLedger());
+    auto& hash = txn->getID();
+    txnProto->set_hash(hash.data(), hash.size());
+    auto closeTime =
+        context.app.getLedgerMaster().getCloseTimeBySeq(txn->getLedger());
+    if (closeTime)
+        txnProto->mutable_date()->set_value(
+            closeTime->time_since_epoch().count());
+}
+
+void
+populateTransactionResultBinary(
+    RPC::Context& context,
+    std::tuple<Blob, Blob, std::uint32_t>const& binaryData,
+    rpc::v1::GetTransactionResponse* txnProto)
+{
+    assert(txnProto);
+    Blob const& txnBlob = std::get<0>(binaryData);
+    txnProto->set_transaction_binary(txnBlob.data(), txnBlob.size());
+
+    Blob const& metaBlob = std::get<1>(binaryData);
+    txnProto->set_meta_binary(metaBlob.data(), metaBlob.size());
+
+    txnProto->set_ledger_index(std::get<2>(binaryData));
+
+    // account_tx always returns validated data
+    txnProto->set_validated(true);
+
+    auto closeTime = context.app.getLedgerMaster().getCloseTimeBySeq(
+        std::get<2>(binaryData));
+    if (closeTime)
+        txnProto->mutable_date()->set_value(
+            closeTime->time_since_epoch().count());
 }
 
 std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
@@ -233,72 +371,24 @@ doAccountTxGrpc(
     }
 
     args.account = *account;
-
     args.limit = request.limit();
-
     args.binary = request.binary();
     args.forward = request.forward();
 
     if(request.has_marker())
     {
-    args.marker = {request.marker().ledger_index(),
-                   request.marker().account_sequence()};
+        args.marker = {request.marker().ledger_index(),
+            request.marker().account_sequence()};
     }
 
-    if(request.has_ledger_range())
+    auto parseRes = parseLedgerArgs(request);
+    if(std::holds_alternative<grpc::Status>(parseRes))
     {
-        uint32_t min = request.ledger_range().ledger_index_min();
-        uint32_t max = request.ledger_range().ledger_index_max();
-
-        // if min is set but not max, need to set max
-        if(min != 0 && max == 0)
-        {
-            max = UINT32_MAX;
-        }
-
-        // {0,0} is the default value. If both 0, default to entire validated
-        // range
-        // TODO is this reasonable behavior?
-        if (min != 0 || max != 0)
-        {
-            args.ledger = LedgerRange{min, max};
-        }
+        return {response, std::get<grpc::Status>(parseRes)};
     }
-    else if(request.has_ledger_specifier())
+    else
     {
-        auto& specifier = request.ledger_specifier();
-        using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
-        LedgerCase ledgerCase = specifier.ledger_case();
-
-        if(ledgerCase == LedgerCase::kShortcut)
-        {
-            using LedgerSpecifier = rpc::v1::LedgerSpecifier;
-            if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_VALIDATED)
-            {
-                args.ledger = LedgerShortcut::VALIDATED;
-            } else if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_CLOSED)
-            {
-                args.ledger = LedgerShortcut::CLOSED;
-            } else if(specifier.shortcut() == LedgerSpecifier::SHORTCUT_CURRENT)
-            {
-                args.ledger = LedgerShortcut::CURRENT;
-            }
-        }
-        else if(ledgerCase == LedgerCase::kSequence)
-        {
-            args.ledger = specifier.sequence();
-        }
-        else if(ledgerCase == LedgerCase::kHash)
-        {
-            if (uint256::size() != specifier.hash().size())
-            {
-                grpc::Status errorStatus{
-                    grpc::StatusCode::INVALID_ARGUMENT, "ledger hash malformed"};
-                return {response, errorStatus};
-            }
-            args.ledger = uint256::fromVoid(specifier.hash().data());
-        }
-
+        args.ledger = std::get<std::optional<LedgerSpecifier>>(parseRes);
     }
 
     auto res = doAccountTxHelp(context, args);
@@ -316,37 +406,12 @@ doAccountTxGrpc(
     if (std::holds_alternative<TxnsData>(res.first.transactions))
     {
         assert(!args.binary);
+
         for (auto const& [txn, txnMeta] :
              std::get<TxnsData>(res.first.transactions))
         {
             auto txnProto = response.add_transactions();
-
-            if (txn)
-                RPC::populateTransaction(
-                    *txnProto->mutable_transaction(), txn->getSTransaction());
-
-            if (txnMeta)
-                RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
-
-            if (!txnMeta->hasDeliveredAmount())
-            {
-                std::optional<STAmount> amount =
-                    getDeliveredAmount(context, txn->getSTransaction(), *txnMeta,
-                            [&txn](){ return txn->getLedger();});
-                if (amount)
-                {
-                    txnMeta->setDeliveredAmount(*amount);
-                }
-            }
-
-            // account_tx always returns validated data
-            txnProto->set_validated(true);
-            txnProto->set_ledger_index(txn->getLedger());
-            auto& hash = txn->getID();
-            txnProto->set_hash(hash.data(), hash.size());
-            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(txn->getLedger());
-            if(ct)
-                txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
+            populateTransactionResult(context, txn,txnMeta,txnProto);
         }
     }
     else
@@ -357,33 +422,95 @@ doAccountTxGrpc(
              std::get<TxnsDataBinary>(res.first.transactions))
         {
             auto txnProto = response.add_transactions();
-            Blob const& txnBlob = std::get<0>(txn);
-            txnProto->set_transaction_binary(txnBlob.data(), txnBlob.size());
-
-            Blob const& metaBlob = std::get<1>(txn);
-            txnProto->set_meta_binary(metaBlob.data(), metaBlob.size());
-            txnProto->set_ledger_index(std::get<2>(txn));
-            // account_tx always returns validated data
-            txnProto->set_validated(true);
-            auto ct = context.app.getLedgerMaster().getCloseTimeBySeq(std::get<2>(txn));
-            if(ct)
-                txnProto->mutable_date()->set_value(ct->time_since_epoch().count());
+            populateTransactionResultBinary(context,txn,txnProto);
         }
     }
 
+    // account_tx always returns validated data
     response.set_validated(true);
     response.set_limit(res.first.limit);
-    response.mutable_account()->set_address(request.account().address());
+    response.mutable_account()->set_address(std::move(request.account().address()));
     response.set_ledger_index_min(res.first.ledgerRange.min);
     response.set_ledger_index_max(res.first.ledgerRange.max);
-
     if(res.first.marker)
     {
-        response.mutable_marker()->set_ledger_index(res.first.marker->first);
-        response.mutable_marker()->set_account_sequence(res.first.marker->second);
+        response.mutable_marker()->set_ledger_index(res.first.marker->ledgerSeq);
+        response.mutable_marker()->set_account_sequence(res.first.marker->txnSeq);
     }
 
     return {response, grpc::Status::OK};
+}
+
+// parses args into a ledger specifier, or returns a Json object on error
+std::variant<std::optional<LedgerSpecifier>, Json::Value>
+parseLedgerArgs(Json::Value const& params)
+{
+
+    Json::Value response;
+    if (params.isMember(jss::ledger_index_min) ||
+        params.isMember(jss::ledger_index_max))
+    {
+        uint32_t min = params.isMember(jss::ledger_index_min) &&
+                params[jss::ledger_index_min].asInt() >= 0
+            ? params[jss::ledger_index_min].asUInt()
+            : 0;
+        uint32_t max = params.isMember(jss::ledger_index_max) &&
+                params[jss::ledger_index_max].asInt() >= 0
+            ? params[jss::ledger_index_max].asUInt()
+            : UINT32_MAX;
+
+        return LedgerRange{min, max};
+    }
+    else if (params.isMember(jss::ledger_hash))
+    {
+        auto& hashValue = params[jss::ledger_hash];
+        if (!hashValue.isString())
+        {
+            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashNotString"};
+            status.inject(response);
+            return response;
+        }
+
+        LedgerHash hash;
+        if (!hash.SetHex(hashValue.asString()))
+        {
+            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashMalformed"};
+            status.inject(response);
+            return response;
+        }
+        return hash;
+    }
+    else if (params.isMember(jss::ledger_index))
+    {
+        LedgerSpecifier ledger;
+        if (params[jss::ledger_index].isNumeric())
+            ledger = params[jss::ledger_index].asInt();
+        else
+        {
+            std::string ledgerStr = params[jss::ledger_index].asString();
+            if (ledgerStr == "current" || ledgerStr.empty())
+            {
+                ledger = LedgerShortcut::CURRENT;
+            }
+            else if (ledgerStr == "closed")
+            {
+                ledger = LedgerShortcut::CLOSED;
+            }
+            else if (ledgerStr == "validated")
+            {
+                ledger = LedgerShortcut::VALIDATED;
+            }
+            else
+            {
+                RPC::Status status{rpcINVALID_PARAMS,
+                                   "ledger_index string malformed"};
+                status.inject(response);
+                return response;
+            }
+        }
+        return ledger;
+    }
+    return {};
 }
 
 // {
@@ -417,81 +544,33 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
 
     args.account = *account;
 
-    if (params.isMember(jss::ledger_index_min) ||
-        params.isMember(jss::ledger_index_max))
+    auto parseRes = parseLedgerArgs(params);
+    if(std::holds_alternative<Json::Value>(parseRes))
     {
-        uint32_t min = params.isMember(jss::ledger_index_min) &&
-            params[jss::ledger_index_min].asInt() >= 0
-            ? params[jss::ledger_index_min].asUInt()
-            : 0;
-        uint32_t max = params.isMember(jss::ledger_index_max) &&
-                params[jss::ledger_index_max].asInt() >= 0
-            ? params[jss::ledger_index_max].asUInt()
-            : UINT32_MAX;
+        return std::get<Json::Value>(parseRes);
+    }
+    else
+    {
+        args.ledger = std::get<std::optional<LedgerSpecifier>>(parseRes);
+    }
 
-        args.ledger = LedgerRange{min, max};
-    }
-    else if (params.isMember(jss::ledger_hash))
-    {
-        auto& hashValue = params[jss::ledger_hash];
-        if (!hashValue.isString())
-        {
-            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashNotString"};
-            status.inject(response);
-            return response;
-        }
-
-        args.ledger = LedgerHash{};
-        auto& hash = std::get<LedgerHash>(*args.ledger);
-        if (!hash.SetHex(hashValue.asString()))
-        {
-            RPC::Status status{rpcINVALID_PARAMS, "ledgerHashMalformed"};
-            status.inject(response);
-            return response;
-        }
-    }
-    else if (params.isMember(jss::ledger_index))
-    {
-        if (params[jss::ledger_index].isNumeric())
-            args.ledger = params[jss::ledger_index].asInt();
-        else
-        {
-            std::string ledgerStr = params[jss::ledger_index].asString();
-            if(ledgerStr == "current" || ledgerStr.empty())
-            {
-                args.ledger = LedgerShortcut::CURRENT;
-            }
-            else if(ledgerStr == "closed")
-            {
-                args.ledger = LedgerShortcut::CLOSED;
-            } else if(ledgerStr == "validated")
-            {
-                args.ledger = LedgerShortcut::VALIDATED;
-            }
-            else
-            {
-                RPC::Status status{rpcINVALID_PARAMS, "ledger_index string malformed"};
-                status.inject(response);
-                return response;
-            }
-        }
-    }
 
     if (params.isMember(jss::marker))
     {
         auto& token = params[jss::marker];
-        if (!token.isMember(jss::ledger) || !token.isMember(jss::seq))// ||
-//            !token[jss::ledger].isUInt() || !token[jss::seq].isConvertibleTo())
+        if (!token.isMember(jss::ledger) || !token.isMember(jss::seq) ||
+            !token[jss::ledger].isConvertibleTo(Json::ValueType::uintValue)
+                || !token[jss::seq].isConvertibleTo(Json::ValueType::uintValue))
         {
             RPC::Status status{
                 rpcINVALID_PARAMS,
                 "invalid marker. Provide ledger index via ledger field, and "
-                "account sequence number via seq field"};
+                "transaction sequence number via seq field"};
             status.inject(response);
             return response;
         }
-        args.marker = std::make_pair(
-            token[jss::ledger].asUInt(), token[jss::seq].asUInt());
+        args.marker = {
+            token[jss::ledger].asUInt(), token[jss::seq].asUInt()};
     }
 
     auto res = doAccountTxHelp(context, args);
@@ -512,7 +591,6 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
         {
             Json::Value& jvObj = jvTxns.append(Json::objectValue);
 
-
             if (txn)
                 jvObj[jss::tx] = txn->getJson(JsonOptions::include_date);
 
@@ -522,14 +600,7 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
                 jvObj[jss::meta] = std::move(metaJ);
                 jvObj[jss::validated] = true;
 
-
                 insertDeliveredAmount(jvObj[jss::meta], context, txn, *txnMeta);
-          //      if(txnMeta->hasDeliveredAmount() && txnMeta->getDeliveredAmount().isDefault())
-          //      {
-          //          //When the delivered amount is set to the default value of STAmount,
-          //          //return unavailable
-          //          jvObj[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
-          //      }
             }
         }
     }
@@ -552,17 +623,18 @@ Json::Value doAccountTxJson (RPC::JsonContext& context)
     if (res.first.marker)
     {
         response[jss::marker] = Json::objectValue;
-        response[jss::marker][jss::ledger] = res.first.marker->first;
-        response[jss::marker][jss::seq] = res.first.marker->second;
+        response[jss::marker][jss::ledger] = res.first.marker->ledgerSeq;
+        response[jss::marker][jss::seq] = res.first.marker->txnSeq;
     }
 
     response[jss::validated] = true;
     response[jss::limit] = res.first.limit;
-    response[jss::account] = params[jss::account].asString();
+    response[jss::account] = std::move(params[jss::account].asString());
     response[jss::ledger_index_min] = res.first.ledgerRange.min;
     response[jss::ledger_index_max] = res.first.ledgerRange.max;
 
     return response;
 }
+
 
 } // ripple
