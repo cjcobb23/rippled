@@ -85,7 +85,6 @@ getMetaHex (Ledger const& ledger,
     return true;
 }
 
-//TODO should some of these members be references?
 struct TxResult
 {
     Transaction::pointer txn;
@@ -94,19 +93,16 @@ struct TxResult
 
     bool validated = false;
 
-    uint256 hash;
-
     std::optional<bool> searchedAll;
 };
 
-//TODO change to refs if possible
 struct TxArgs
 {
     uint256 hash;
 
     bool binary = false;
 
-    //TODO: change to pair
+    //TODO: change to pair? or named struct?
     std::optional<uint32_t> minLedger;
 
     std::optional<uint32_t> maxLedger;
@@ -116,12 +112,6 @@ std::pair<TxResult, error_code_i>
 doTxHelp(TxArgs& args, RPC::Context& context)
 {
     TxResult result;
-
-    uint256 hash = args.hash;
-
-    // hash is included in the response
-    result.hash = hash;
-
 
     ClosedInterval<uint32_t> range;
 
@@ -147,7 +137,7 @@ doTxHelp(TxArgs& args, RPC::Context& context)
     {
         boost::variant<std::shared_ptr<Transaction>, bool> v =
             context.app.getMasterTransaction().fetch(
-                hash, range, ec);
+                args.hash, range, ec);
 
         if (v.which () == 1)
         {
@@ -161,7 +151,7 @@ doTxHelp(TxArgs& args, RPC::Context& context)
     }
     else
     {
-        txn = context.app.getMasterTransaction().fetch(hash, ec);
+        txn = context.app.getMasterTransaction().fetch(args.hash, ec);
     }
 
     if (ec == rpcDB_DESERIALIZATION)
@@ -197,7 +187,7 @@ doTxHelp(TxArgs& args, RPC::Context& context)
                 SerialIter it(item->slice());
                 it.skip(it.getVLDataLength());  // skip transaction
                 Blob blob = it.getVL();
-                result.meta = blob;
+                result.meta = std::move(blob);
             }
         }
         else
@@ -208,11 +198,6 @@ doTxHelp(TxArgs& args, RPC::Context& context)
                 ok = true;
                 result.meta = std::make_shared<TxMeta>(
                     txn->getID(), ledger->seq(), *rawMeta);
-
-//                result.deliveredAmount = RPC::getDeliveredAmount(
-//                    context,
-//                    txn,
-//                    *(std::get<std::shared_ptr<TxMeta>>(result.meta)));
             }
         }
         if (ok)
@@ -258,12 +243,12 @@ populateResponse(
         fillTxn();
 
         //fill binary metadata
-        if (args.binary && res.first.meta.index() == 1)
+        if (args.binary && std::holds_alternative<Blob>(res.first.meta))
         {
             fillMetaBn();
         }
         //fill meta data
-        else if (res.first.meta.index() == 0)
+        else if (std::holds_alternative<std::shared_ptr<TxMeta>>(res.first.meta))
         {
             // check that meta is not nullptr
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
@@ -342,21 +327,12 @@ doTxJson(RPC::JsonContext& context)
         ret[jss::meta] = meta->getJson(JsonOptions::none);
     };
 
-    auto fillDelivered = [&args,&res,&ret,&context]() {
-
-
-        insertDeliveredAmount(ret[jss::meta], context, res.first.txn, *std::get<std::shared_ptr<TxMeta>>(res.first.meta));
-//
-//        if(res.first.deliveredAmount->isDefault())
-//        {
-//            ret[jss::meta][jss::delivered_amount] = Json::Value("unavailable");
-//        }
-//        else
-//        {
-//            ret[jss::meta][jss::delivered_amount] =
-//                res.first.deliveredAmount->getJson(
-//                        JsonOptions::include_date);
-//        }
+    auto fillDelivered = [&args, &res, &ret, &context]() {
+        insertDeliveredAmount(
+            ret[jss::meta],
+            context,
+            res.first.txn,
+            *std::get<std::shared_ptr<TxMeta>>(res.first.meta));
     };
 
     auto fillValidated = [&args,&res,&ret]() {
@@ -468,25 +444,19 @@ doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
     };
 
     auto fillDelivered = [&args, &res, &response, &context, &status]() {
-
-        if(res.first.txn)
+        if (res.first.txn)
         {
-         auto amt =getDeliveredAmount(context, res.first.txn->getSTransaction(), *std::get<std::shared_ptr<TxMeta>>(res.first.meta),
-                 [&res]() { return res.first.txn->getLedger();});
-         if(amt)
-         {
-
-             RPC::populateProtoAmount(
-                     *amt,
-                     *response.mutable_meta()->mutable_delivered_amount());
-         }
+            auto amt = getDeliveredAmount(
+                context,
+                res.first.txn->getSTransaction(),
+                *std::get<std::shared_ptr<TxMeta>>(res.first.meta),
+                [&res]() { return res.first.txn->getLedger(); });
+            if (amt)
+            {
+                RPC::populateProtoAmount(
+                    *amt, *response.mutable_meta()->mutable_delivered_amount());
+            }
         }
-//        if(!res.first.deliveredAmount->isDefault())
-//        {
-//        RPC::populateProtoAmount(
-//            *res.first.deliveredAmount,
-//            *response.mutable_meta()->mutable_delivered_amount());
-//        }
     };
 
     auto fillValidated = [&args,&res,&response,&status]()

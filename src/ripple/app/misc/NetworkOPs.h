@@ -209,6 +209,12 @@ public:
     virtual void updateLocalTx (ReadView const& newValidLedger) = 0;
     virtual std::size_t getLocalTxCount () = 0;
 
+    struct AccountTxMarker
+    {
+        uint32_t ledgerSeq = 0;
+        uint32_t txnSeq = 0;
+    };
+
     // client information retrieval functions
     using AccountTx  = std::pair<std::shared_ptr<Transaction>, TxMeta::pointer>;
     using AccountTxs = std::vector<AccountTx>;
@@ -223,13 +229,14 @@ public:
         std::int32_t minLedger, std::int32_t maxLedger, bool forward,
         Json::Value& token, int limit, bool bUnlimited) = 0;
 
+
     virtual AccountTxs
     getTxsAccount(
         AccountID const& account,
         std::int32_t minLedger,
         std::int32_t maxLedger,
         bool forward,
-        std::pair<uint32_t, uint32_t>& marker,
+        std::optional<AccountTxMarker>& marker,
         int limit,
         bool bUnlimited) = 0;
 
@@ -250,7 +257,7 @@ public:
         std::int32_t minLedger,
         std::int32_t maxLedger,
         bool forward,
-        std::pair<uint32_t, uint32_t>& marker,
+        std::optional<AccountTxMarker>& marker,
         int limit,
         bool bUnlimited) = 0;
 

@@ -292,14 +292,14 @@ accountTxPage (
     std::int32_t minLedger,
     std::int32_t maxLedger,
     bool forward,
-    std::pair<uint32_t,uint32_t>& marker,
+    std::optional<NetworkOPs::AccountTxMarker>& marker,
     int limit,
     bool bAdmin,
     std::uint32_t page_length)
 {
     //TODO change marker to optional
     //0 could be a valid value for the marker
-    bool lookingForMarker = marker.first != 0 || marker.second != 0;
+    bool lookingForMarker = marker.has_value();
 
     std::uint32_t numberOfResults;
 
@@ -318,11 +318,12 @@ accountTxPage (
 
     if (lookingForMarker)
     {
-        findLedger = marker.first;
-        findSeq = marker.second;
+        findLedger = marker->ledgerSeq;
+        findSeq = marker->txnSeq;
     }
 
-    marker = {0,0};
+    // marker is also an output parameter, so need to reset
+    marker.reset();
 
 
     static std::string const prefix (
@@ -458,8 +459,9 @@ accountTxPage (
             }
             else if (numberOfResults == 0)
             {
-                marker.first = rangeCheckedCast<std::uint32_t>(ledgerSeq.value_or (0));
-                marker.second = txnSeq.value_or (0);
+                marker = {
+                    rangeCheckedCast<std::uint32_t>(ledgerSeq.value_or(0)),
+                    txnSeq.value_or(0)};
                 break;
             }
 

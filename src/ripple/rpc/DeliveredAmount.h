@@ -70,7 +70,6 @@ insertDeliveredAmount(
     std::shared_ptr<Transaction>,
     TxMeta const&);
 
-
 std::optional<STAmount>
 getDeliveredAmount(
     RPC::Context& context,

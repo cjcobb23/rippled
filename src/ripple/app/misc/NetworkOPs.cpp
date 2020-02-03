@@ -406,6 +406,7 @@ public:
         bool binary, bool count, bool bUnlimited);
 
     // Client information retrieval functions.
+    using NetworkOPs::AccountTxMarker;
     using NetworkOPs::AccountTxs;
     AccountTxs getAccountTxs (
         AccountID const& account,
@@ -423,7 +424,7 @@ public:
         std::int32_t minLedger,
         std::int32_t maxLedger,
         bool forward,
-        std::pair<uint32_t, uint32_t>& marker,
+        std::optional<AccountTxMarker>& marker,
         int limit,
         bool bUnlimited) override;
 
@@ -448,7 +449,7 @@ public:
         std::int32_t minLedger,
         std::int32_t maxLedger,
         bool forward,
-        std::pair<uint32_t, uint32_t>& marker,
+        std::optional<AccountTxMarker>& marker,
         int limit,
         bool bUnlimited) override;
 
@@ -2171,7 +2172,7 @@ NetworkOPsImp::getTxsAccount(
     std::int32_t minLedger,
     std::int32_t maxLedger,
     bool forward,
-    std::pair<uint32_t, uint32_t>& marker,
+    std::optional<AccountTxMarker>& marker,
     int limit,
     bool bUnlimited)
 {
@@ -2238,7 +2239,7 @@ NetworkOPsImp::getTxsAccountB(
     std::int32_t minLedger,
     std::int32_t maxLedger,
     bool forward,
-    std::pair<uint32_t, uint32_t>& marker,
+    std::optional<AccountTxMarker>& marker,
     int limit,
     bool bUnlimited)
 {
