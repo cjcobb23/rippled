@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package org.xrpl.rpc.v1;
+
+import "org/xrpl/rpc/v1/amount.proto";
+import "org/xrpl/rpc/v1/payment.proto";
+import "org/xrpl/rpc/v1/meta.proto";
+import "org/xrpl/rpc/v1/ledger.proto";
+import "org/xrpl/rpc/v1/transactiontypes.proto";
+import "org/xrpl/rpc/v1/fields.proto";
+
+//TODO change to follow new format?
+message GetTransactionRequest {
+    // hash of the transaction. 32 bytes
+    // ATTN: this is in binary, not hex. The JSON API accepts a hex string for
+    // a transaction hash, but here we need that hex string converted into its
+    // binary form. Each pair of hex characters should be converted into its
+    // corresponding byte. For example, the 4 character hex string "00FF"
+    // should be converted to a 2 byte array: [0, 255]
+    bytes hash = 1;
+
+    // if true, return data in binary format
+    bool binary = 2;
+
+    // min_ledger and max_ledger specify a ledger range to search
+    // both must be provided
+
+    LedgerRange ledger_range = 3;
+}
+
+message GetTransactionResponse {
+
+    // The actual transaction
+    oneof serialized_transaction {
+        Transaction transaction = 1;
+        // Variable length
+        bytes transaction_binary = 2;
+    };
+    // Sequence number of ledger that contains this transaction
+    uint32 ledger_index = 3;
+
+    // 32 bytes
+    bytes hash = 4;
+
+    // whether the ledger has been validated
+    bool validated = 5;
+
+    // metadata about the transaction
+    oneof serialized_meta {
+        Meta meta = 6;
+        // Variable length
+        bytes meta_binary = 7;
+    }
+
+    Date date = 9;
+}
+
+// A message encompassing all transactions.
+message Transaction {
+    // The account originating the transaction.
+    Account account = 1;
+
+    // The fee attached to the transaction.
+    // TODO should this have it's own message type? I think it is good to be
+    // explicit here about fees being specified in drops
+    XRPDropsAmount fee = 2;
+
+    // The sequence number for the transaction.
+    Sequence sequence = 3;
+
+    // Data specific to a the type of transaction being submitted.
+    oneof transaction_data {
+        Payment payment = 4;
+
+
+        AccountSet account_set = 13;
+
+
+        AccountDelete account_delete = 14;
+
+
+        CheckCancel check_cancel = 15;
+
+
+        CheckCash check_cash = 16;
+
+
+        CheckCreate check_create = 17;
+
+
+        DepositPreauth deposit_preauth = 18;
+
+
+        EscrowCancel escrow_cancel = 19;
+
+
+        EscrowCreate escrow_create = 20;
+
+
+        EscrowFinish escrow_finish = 21;
+
+
+        OfferCancel offer_cancel = 22;
+
+
+        OfferCreate offer_create = 23;
+
+
+        PaymentChannelClaim payment_channel_claim = 24;
+
+
+        PaymentChannelCreate payment_channel_create= 25;
+
+
+        PaymentChannelFund payment_channel_fund = 26;
+
+
+        SetRegularKey set_regular_key = 27;
+
+
+        SignerListSet signer_list_set = 28;
+
+
+        TrustSet trust_set = 29;
+
+        //TODO psuedo transactions?
+
+    }
+
+    // Public key of the account which signed the transaction
+    SigningPublicKey signing_public_key = 5;
+
+    TransactionSignature transaction_signature = 6;
+
+    Flags flags = 7;
+
+    LastLedgerSequence last_ledger_sequence = 8;
+
+    SourceTag source_tag = 9;
+
+    repeated Memo memos = 10;
+
+    repeated Signer signers = 11;
+
+    AccountTransactionID account_transaction_id = 12;
+}
+
+message Memo {
+
+    MemoData memo_data = 1;
+
+    MemoFormat memo_format = 2;
+
+    MemoType memo_type = 3;
+}
+
+message Signer  {
+
+    Account account = 1;
+
+    TransactionSignature transaction_signature = 2;
+
+    SigningPublicKey signing_public_key = 3;
+}
+
+
