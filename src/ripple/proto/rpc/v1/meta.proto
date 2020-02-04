@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package rpc.v1;
+package org.xrpl.rpc.v1;
 
 import "rpc/v1/amount.proto";
 import "rpc/v1/ledger_objects.proto";
