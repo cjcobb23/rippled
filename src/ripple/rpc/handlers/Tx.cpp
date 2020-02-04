@@ -344,15 +344,15 @@ doTxJson(RPC::JsonContext& context)
     return ret;
 }
 
-std::pair<rpc::v1::GetTransactionResponse, grpc::Status>
-doTxGrpc(RPC::GRPCContext<rpc::v1::GetTransactionRequest>& context)
+std::pair<org::xrpl::rpc::v1::GetTransactionResponse, grpc::Status>
+doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
 {
     // return values
-    rpc::v1::GetTransactionResponse response;
+    org::xrpl::rpc::v1::GetTransactionResponse response;
     grpc::Status status = grpc::Status::OK;
 
     // input
-    rpc::v1::GetTransactionRequest& request = context.params;
+    org::xrpl::rpc::v1::GetTransactionRequest& request = context.params;
 
     TxArgs args;
 

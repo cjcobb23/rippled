@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 package org.xrpl.rpc.v1;
+option java_package = "org.xrpl.rpc.v1";
+option java_multiple_files = true;
 
 import "org/xrpl/rpc/v1/fields.proto";
 import "org/xrpl/rpc/v1/ledger_objects.proto";

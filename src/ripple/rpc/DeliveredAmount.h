@@ -21,7 +21,7 @@
 #define RIPPLE_RPC_DELIVEREDAMOUNT_H_INCLUDED
 
 #include <memory>
-#include <rpc/v1/amount.pb.h>
+#include <org/xrpl/rpc/v1/amount.pb.h>
 
 namespace Json {
 class Value;
@@ -65,7 +65,7 @@ insertDeliveredAmount(
 
 void
 insertDeliveredAmount(
-    rpc::v1::CurrencyAmount& proto,
+    org::xrpl::rpc::v1::CurrencyAmount& proto,
     Context&,
     std::shared_ptr<Transaction>,
     TxMeta const&);

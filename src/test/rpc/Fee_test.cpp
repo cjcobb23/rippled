@@ -39,8 +39,8 @@ class Fee_test : public beast::unit_test::suite
     class GrpcFeeClient : public GRPCTestClientBase
     {
     public:
-        rpc::v1::GetFeeRequest request;
-        rpc::v1::GetFeeResponse reply;
+        org::xrpl::rpc::v1::GetFeeRequest request;
+        org::xrpl::rpc::v1::GetFeeResponse reply;
 
         explicit GrpcFeeClient(std::string const& grpcPort)
             : GRPCTestClientBase(grpcPort)
@@ -54,12 +54,12 @@ class Fee_test : public beast::unit_test::suite
         }
     };
 
-    std::pair<bool, rpc::v1::GetFeeResponse>
+    std::pair<bool, org::xrpl::rpc::v1::GetFeeResponse>
     grpcGetFee(std::string const& grpcPort)
     {
         GrpcFeeClient client(grpcPort);
         client.GetFee();
-        return std::pair<bool, rpc::v1::GetFeeResponse>(
+        return std::pair<bool, org::xrpl::rpc::v1::GetFeeResponse>(
             client.status.ok(), client.reply);
     }
 
@@ -104,14 +104,14 @@ class Fee_test : public beast::unit_test::suite
         BEAST_EXPECT(reply.max_queue_size() == *metrics.txQMaxSize);
 
         // fee levels data
-        rpc::v1::FeeLevels& levels = *reply.mutable_levels();
+        org::xrpl::rpc::v1::FeeLevels& levels = *reply.mutable_levels();
         BEAST_EXPECT(levels.median_level() == metrics.medFeeLevel);
         BEAST_EXPECT(levels.minimum_level() == metrics.minProcessingFeeLevel);
         BEAST_EXPECT(levels.open_ledger_level() == metrics.openLedgerFeeLevel);
         BEAST_EXPECT(levels.reference_level() == metrics.referenceFeeLevel);
 
         // fee data
-        rpc::v1::Fee& drops = *reply.mutable_drops();
+        org::xrpl::rpc::v1::Fee& drops = *reply.mutable_drops();
         auto const baseFee = view->fees().base;
         BEAST_EXPECT(
             drops.base_fee().drops() ==

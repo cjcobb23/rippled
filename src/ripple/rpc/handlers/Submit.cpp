@@ -183,11 +183,11 @@ Json::Value doSubmit (RPC::JsonContext& context)
     }
 }
 
-std::pair<rpc::v1::SubmitTransactionResponse, grpc::Status>
-doSubmitGrpc(RPC::GRPCContext<rpc::v1::SubmitTransactionRequest>& context)
+std::pair<org::xrpl::rpc::v1::SubmitTransactionResponse, grpc::Status>
+doSubmitGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::SubmitTransactionRequest>& context)
 {
     // return values
-    rpc::v1::SubmitTransactionResponse result;
+    org::xrpl::rpc::v1::SubmitTransactionResponse result;
     grpc::Status status = grpc::Status::OK;
 
     // input

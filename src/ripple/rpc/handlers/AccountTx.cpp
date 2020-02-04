@@ -82,7 +82,7 @@ struct AccountTxResult
 
 // parses args into a ledger specifier, or returns a grpc status object on error
 std::variant<std::optional<LedgerSpecifier>, grpc::Status>
-parseLedgerArgs(rpc::v1::GetAccountTransactionHistoryRequest const& params)
+parseLedgerArgs(org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest const& params)
 {
     LedgerSpecifier ledger;
     grpc::Status status;
@@ -102,12 +102,12 @@ parseLedgerArgs(rpc::v1::GetAccountTransactionHistoryRequest const& params)
     else if (params.has_ledger_specifier())
     {
         auto& specifier = params.ledger_specifier();
-        using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
+        using LedgerCase = org::xrpl::rpc::v1::LedgerSpecifier::LedgerCase;
         LedgerCase ledgerCase = specifier.ledger_case();
 
         if (ledgerCase == LedgerCase::kShortcut)
         {
-            using LedgerSpecifier = rpc::v1::LedgerSpecifier;
+            using LedgerSpecifier = org::xrpl::rpc::v1::LedgerSpecifier;
             if (specifier.shortcut() == LedgerSpecifier::SHORTCUT_VALIDATED)
             {
                 ledger = LedgerShortcut::VALIDATED;
@@ -220,7 +220,7 @@ populateTransactionData(
     RPC::Context& context,
     std::shared_ptr<Transaction> const& txn,
     TxMeta::pointer const& txnMeta,
-    rpc::v1::GetTransactionResponse* txnProto)
+    org::xrpl::rpc::v1::GetTransactionResponse* txnProto)
 {
     assert(txnProto);
     if (txn)
@@ -258,7 +258,7 @@ void
 populateTransactionDataBinary(
     RPC::Context& context,
     std::tuple<Blob, Blob, std::uint32_t> const& binaryData,
-    rpc::v1::GetTransactionResponse* txnProto)
+    org::xrpl::rpc::v1::GetTransactionResponse* txnProto)
 {
     assert(txnProto);
     Blob const& txnBlob = std::get<0>(binaryData);
@@ -583,12 +583,12 @@ doAccountTxJson(RPC::JsonContext& context)
     return response;
 }
 
-std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
 doAccountTxGrpc(
-    RPC::GRPCContext<rpc::v1::GetAccountTransactionHistoryRequest>& context)
+    RPC::GRPCContext<org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest>& context)
 {
     // return values
-    rpc::v1::GetAccountTransactionHistoryResponse response;
+    org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse response;
     grpc::Status status = grpc::Status::OK;
     AccountTxArgs args;
 

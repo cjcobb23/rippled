@@ -558,8 +558,8 @@ class AccountTx_test : public beast::unit_test::suite
 //    class GrpcAccountTxClient : public GRPCTestClientBase
 //    {
 //    public:
-//        rpc::v1::GetAccountTransactionHistoryRequest request;
-//        rpc::v1::GetAccountTransactionHistoryResponse reply;
+//        org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest request;
+//        org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse reply;
 //
 //        explicit GrpcTxClient(std::string const& port)
 //            : GRPCTestClientBase(port)
@@ -589,7 +589,7 @@ class AccountTx_test : public beast::unit_test::suite
 //            client.request.set_hash(&hash, sizeof(hash));
 //            client.request.set_binary(binary);
 //            client.Tx();
-//            return std::pair<bool, rpc::v1::GetTransactionResponse>(
+//            return std::pair<bool, org::xrpl::rpc::v1::GetTransactionResponse>(
 //                client.status.ok(), client.reply);
 //        };
 //    }
