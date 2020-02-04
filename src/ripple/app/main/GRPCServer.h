@@ -54,10 +54,6 @@ public:
     virtual void
     process() = 0;
 
-    // abort processing this request. called when server shutsdown
-    virtual void
-    abort() = 0;
-
     // create a new instance of this CallData object, with the same type
     //(same template parameters) as original. This is called when a CallData
     // object starts processing a request. Creating a new instance allows the
@@ -88,6 +84,8 @@ private:
     Application& app_;
 
     std::string serverAddress_;
+
+    beast::Journal journal_;
 
     // typedef for function to bind a listener
     // This is always of the form:
@@ -153,15 +151,12 @@ private:
         grpc::ServerContext ctx_;
 
         // true if finished processing request
-        bool finished_;
+        std::atomic_bool finished_;
 
         Application& app_;
 
         // mutex for signaling abort
         std::mutex mut_;
-
-        // whether the call should be aborted, due to server shutdown
-        bool aborted_;
 
         // What we get from the client.
         Request request_;
@@ -209,9 +204,6 @@ private:
 
         virtual bool
         isFinished() override;
-
-        virtual void
-        abort() override;
 
         std::shared_ptr<Processor>
         clone() override;
