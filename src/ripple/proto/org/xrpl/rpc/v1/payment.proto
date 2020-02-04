@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package org.xrpl.rpc.v1;
+
+import "org/xrpl/rpc/v1/amount.proto";
+import "org/xrpl/rpc/v1/fields.proto";
+
+message Payment {
+    // The amount of currency to pay, in either issued currency or XRP.
+    Amount amount = 1;
+
+    Destination destination = 2;
+
+    DestinationTag destination_tag = 3;
+
+    InvoiceID invoice_id = 4;
+
+    repeated Path paths = 5;
+
+    SendMax send_max = 6;
+
+    DeliverMin deliver_min = 7;
+}
+
+message Path {
+
+    repeated PathElement elements = 1;
+}
+
+message PathElement {
+
+//TODO change this to a oneof. If account is set, only account can be set
+    AccountAddress account = 1;
+
+    Currency currency = 2;
+
+    AccountAddress issuer = 3;
+}
