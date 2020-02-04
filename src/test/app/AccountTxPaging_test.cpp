@@ -268,8 +268,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
     class GrpcAccountTxClient : public test::GRPCTestClientBase
     {
     public:
-        rpc::v1::GetAccountTransactionHistoryRequest request;
-        rpc::v1::GetAccountTransactionHistoryResponse reply;
+        org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest request;
+        org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse reply;
 
         explicit GrpcAccountTxClient(std::string const& port)
             : GRPCTestClientBase(port)
@@ -290,7 +290,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
 
     bool
     checkTransaction(
-        rpc::v1::GetTransactionResponse const& tx,
+        org::xrpl::rpc::v1::GetTransactionResponse const& tx,
         int sequence,
         int ledger)
     {
@@ -299,7 +299,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             tx.ledger_index() == ledger);
     }
 
-    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     nextBinary(
         std::string grpcPort,
         test::jtx::Env& env,
@@ -308,7 +308,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         int ledger_max = -1,
         int limit = -1,
         bool forward = false,
-        rpc::v1::Marker* marker = nullptr)
+        org::xrpl::rpc::v1::Marker* marker = nullptr)
     {
         GrpcAccountTxClient client{grpcPort};
         auto& request = client.request;
@@ -331,7 +331,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         return {client.reply, client.status};
     }
 
-    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     next(
         std::string grpcPort,
         test::jtx::Env& env,
@@ -340,7 +340,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         int ledger_max = -1,
         int limit = -1,
         bool forward = false,
-        rpc::v1::Marker* marker = nullptr)
+        org::xrpl::rpc::v1::Marker* marker = nullptr)
     {
         GrpcAccountTxClient client{grpcPort};
         auto& request = client.request;
@@ -362,7 +362,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         return {client.reply, client.status};
     }
 
-    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     nextWithSeq(
         std::string grpcPort,
         test::jtx::Env& env,
@@ -370,7 +370,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         int ledger_seq = -1,
         int limit = -1,
         bool forward = false,
-        rpc::v1::Marker* marker = nullptr)
+        org::xrpl::rpc::v1::Marker* marker = nullptr)
     {
         GrpcAccountTxClient client{grpcPort};
         auto& request = client.request;
@@ -390,7 +390,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         return {client.reply, client.status};
     }
 
-    std::pair<rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+    std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
     nextWithHash(
         std::string grpcPort,
         test::jtx::Env& env,
@@ -398,7 +398,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
         uint256 const& hash = beast::zero,
         int limit = -1,
         bool forward = false,
-        rpc::v1::Marker* marker = nullptr)
+        org::xrpl::rpc::v1::Marker* marker = nullptr)
     {
         GrpcAccountTxClient client{grpcPort};
         auto& request = client.request;
@@ -538,12 +538,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
         uint32_t sequence;
         uint32_t ledgerIndex;
         std::string hash;
-        std::function<bool(rpc::v1::Transaction const& res)> checkTxn;
+        std::function<bool(org::xrpl::rpc::v1::Transaction const& res)> checkTxn;
     };
 
 	struct MetaCheck {
 
-        std::function<bool(rpc::v1::Meta const& res)> checkMeta = [](auto& dummy) { return true;};
+        std::function<bool(org::xrpl::rpc::v1::Meta const& res)> checkMeta = [](auto& dummy) { return true;};
 	};
 
     void
@@ -1258,7 +1258,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1266,15 +1266,15 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1282,22 +1282,22 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1305,22 +1305,22 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1328,22 +1328,22 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1351,22 +1351,22 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1374,23 +1374,23 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1398,11 +1398,11 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1410,23 +1410,23 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1434,15 +1434,15 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ESCROW) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1450,30 +1450,30 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 2) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ESCROW) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1481,30 +1481,30 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_SIGNER_LIST) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             }},
             {[this](auto meta) {
@@ -1512,61 +1512,61 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(2).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(3).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(4).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_RIPPLE_STATE);
             }},
             {[this](auto meta) {
@@ -1574,7 +1574,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1582,11 +1582,11 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1594,7 +1594,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1602,7 +1602,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }},
             {[this](auto meta) {
@@ -1610,11 +1610,11 @@ class AccountTxPaging_test : public beast::unit_test::suite
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(0).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
                     BEAST_EXPECT(
                            meta.affected_nodes(1).ledger_entry_type() ==
-                           rpc::v1::LedgerEntryType::
+                           org::xrpl::rpc::v1::LedgerEntryType::
                                LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             }}};
 

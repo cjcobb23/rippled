@@ -324,8 +324,8 @@ public:
     class GetAccountInfoClient : public GRPCTestClientBase
     {
     public:
-        rpc::v1::GetAccountInfoRequest request;
-        rpc::v1::GetAccountInfoResponse reply;
+        org::xrpl::rpc::v1::GetAccountInfoRequest request;
+        org::xrpl::rpc::v1::GetAccountInfoResponse reply;
 
         explicit GetAccountInfoClient(std::string const& port)
             : GRPCTestClientBase(port)

@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 package org.xrpl.rpc.v1;
+option java_package = "org.xrpl.rpc.v1";
+option java_multiple_files = true;
 
 import "org/xrpl/rpc/v1/amount.proto";
 
@@ -291,12 +293,12 @@ message Index
 
 message IndexNext
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message IndexPrevious
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message TakerPaysCurrency
@@ -323,7 +325,7 @@ message TakerGetsCurreny
 
 message OwnerNode
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message SignerListID
@@ -349,12 +351,12 @@ message HighLimit
 
 message LowNode
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message HighNode
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message LowQualityIn
@@ -385,7 +387,7 @@ message BookDirectory
 
 message BookNode
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message Amendment
@@ -402,13 +404,13 @@ message CloseTime
 
 message DestinationNode
 {
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message BaseFee
 {
     // in drops
-    uint64 value = 1;
+    uint64 value = 1 [jstype=JS_STRING];
 }
 
 message ReferenceFeeUnits

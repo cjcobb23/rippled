@@ -29,9 +29,9 @@
 #include <ripple/rpc/Status.h>
 #include <ripple/app/misc/NetworkOPs.h>
 #include <ripple/app/misc/TxQ.h>
-#include <rpc/v1/xrp_ledger.pb.h>
+#include <org/xrpl/rpc/v1/xrp_ledger.pb.h>
 #include <boost/optional.hpp>
-#include <rpc/v1/xrp_ledger.pb.h>
+#include <org/xrpl/rpc/v1/xrp_ledger.pb.h>
 
 namespace Json {
 class Value;
@@ -135,7 +135,7 @@ template <class T>
 Status
 ledgerFromRequest(
     T& ledger,
-    GRPCContext<rpc::v1::GetAccountInfoRequest>& context);
+    GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>& context);
 
 bool
 isValidated(LedgerMaster& ledgerMaster, ReadView const& ledger,
@@ -242,38 +242,38 @@ unsigned int getAPIVersionNumber(const Json::Value & value);
  * serialized object
  */
 void
-populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj);
+populateAccountRoot(org::xrpl::rpc::v1::AccountRoot& proto, STObject const& obj);
 
 void
-populateRippleState(rpc::v1::RippleState& proto, STObject const& obj);
+populateRippleState(org::xrpl::rpc::v1::RippleState& proto, STObject const& obj);
 
 void
-populateOffer(rpc::v1::Offer& proto, STObject const& obj);
+populateOffer(org::xrpl::rpc::v1::Offer& proto, STObject const& obj);
 
 void
-populateSignerList(rpc::v1::SignerList& proto, STObject const& obj);
+populateSignerList(org::xrpl::rpc::v1::SignerList& proto, STObject const& obj);
 
 void
 populateQueueData(
-    rpc::v1::QueueData& proto,
+    org::xrpl::rpc::v1::QueueData& proto,
     std::map<TxSeq, TxQ::AccountTxDetails const> const& txs);
 
 void
-populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj);
+populateDirectoryNode(org::xrpl::rpc::v1::DirectoryNode& proto, STObject const& obj);
 
 void
-populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
+populateMeta(org::xrpl::rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta);
 
 void
 populateTransaction(
-    rpc::v1::Transaction& proto,
+    org::xrpl::rpc::v1::Transaction& proto,
     std::shared_ptr<STTx const> txnSt);
 
 void
-populateAmount(rpc::v1::CurrencyAmount& proto, STAmount const& amount);
+populateAmount(org::xrpl::rpc::v1::CurrencyAmount& proto, STAmount const& amount);
 
 void
-populateTransactionResultType(rpc::v1::TransactionResult& proto, TER result);
+populateTransactionResultType(org::xrpl::rpc::v1::TransactionResult& proto, TER result);
 
 } // RPC
 } // ripple

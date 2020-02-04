@@ -174,7 +174,7 @@ populateProtoAmount(STAmount const& amount, T& proto)
     {
         Issue const& issue = amount.issue();
 
-        rpc::v1::IssuedCurrencyAmount* issued =
+        org::xrpl::rpc::v1::IssuedCurrencyAmount* issued =
            proto.mutable_value()->mutable_issued_currency_amount();
 
         issued->mutable_currency()->set_name(to_string(issue.currency));
@@ -663,7 +663,7 @@ populateMemos(STObject const& obj, T& proto)
         {
             if (it->isFieldPresent(sfMemo))
             {
-                rpc::v1::Memo* elt = proto.add_memos();
+                org::xrpl::rpc::v1::Memo* elt = proto.add_memos();
                 auto memo = it->getField(sfMemo).downcast<STObject>();
 
                 populateMemoData(memo, *elt);
@@ -686,7 +686,7 @@ populateSigners(STObject const& obj, T& proto)
         {
             if (it->isFieldPresent(sfSigner))
             {
-                rpc::v1::Signer* elt = proto.add_signers();
+                org::xrpl::rpc::v1::Signer* elt = proto.add_signers();
                 auto signer = it->getField(sfSigner).downcast<STObject>();
 
                 populateAccount(signer, *elt);
@@ -900,7 +900,7 @@ void populateSignerEntries(STObject const& obj, T& proto)
 
         for (auto it = signerEntries.begin(); it != signerEntries.end(); ++it)
         {
-            rpc::v1::SignerEntry& signerEntryProto =
+            org::xrpl::rpc::v1::SignerEntry& signerEntryProto =
                 *proto.add_signer_entries();
 
             populateAccount(*it, signerEntryProto);

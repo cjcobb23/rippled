@@ -32,7 +32,7 @@
 #include <ripple/rpc/impl/RPCHelpers.h>
 #include <ripple/rpc/impl/Tuning.h>
 
-#include "rpc/v1/xrp_ledger.grpc.pb.h"
+#include "org/xrpl/rpc/v1/xrp_ledger.grpc.pb.h"
 #include <grpcpp/grpcpp.h>
 
 namespace ripple {
@@ -77,7 +77,7 @@ private:
     std::vector<std::shared_ptr<Processor>> requests_;
 
     // The gRPC service defined by the .proto files
-    rpc::v1::XRPLedgerAPIService::AsyncService service_;
+    org::xrpl::rpc::v1::XRPLedgerAPIService::AsyncService service_;
 
     std::unique_ptr<grpc::Server> server_;
 
@@ -89,10 +89,10 @@ private:
 
     // typedef for function to bind a listener
     // This is always of the form:
-    // rpc::v1::XRPLedgerAPIService::AsyncService::Request[RPC NAME]
+    // org::xrpl::rpc::v1::XRPLedgerAPIService::AsyncService::Request[RPC NAME]
     template <class Request, class Response>
     using BindListener = std::function<void(
-        rpc::v1::XRPLedgerAPIService::AsyncService&,
+        org::xrpl::rpc::v1::XRPLedgerAPIService::AsyncService&,
         grpc::ServerContext*,
         Request*,
         grpc::ServerAsyncResponseWriter<Response>*,
@@ -140,7 +140,7 @@ private:
     private:
         // The means of communication with the gRPC runtime for an asynchronous
         // server.
-        rpc::v1::XRPLedgerAPIService::AsyncService& service_;
+        org::xrpl::rpc::v1::XRPLedgerAPIService::AsyncService& service_;
 
         // The producer-consumer queue for asynchronous server notifications.
         grpc::ServerCompletionQueue& cq_;
@@ -186,7 +186,7 @@ private:
         // asynchronous server) and the completion queue "cq" used for
         // asynchronous communication with the gRPC runtime.
         explicit CallData(
-            rpc::v1::XRPLedgerAPIService::AsyncService& service,
+            org::xrpl::rpc::v1::XRPLedgerAPIService::AsyncService& service,
             grpc::ServerCompletionQueue& cq,
             Application& app,
             BindListener<Request, Response> bindListener,

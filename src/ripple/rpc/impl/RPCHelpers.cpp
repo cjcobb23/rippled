@@ -306,16 +306,16 @@ template <class T>
 Status
 ledgerFromRequest(
     T& ledger,
-    GRPCContext<rpc::v1::GetAccountInfoRequest>& context)
+    GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>& context)
 {
     static auto const minSequenceGap = 10;
 
     ledger.reset();
 
-    rpc::v1::GetAccountInfoRequest& request = context.params;
+    org::xrpl::rpc::v1::GetAccountInfoRequest& request = context.params;
     auto& ledgerMaster = context.ledgerMaster;
 
-    using LedgerCase = rpc::v1::LedgerSpecifier::LedgerCase;
+    using LedgerCase = org::xrpl::rpc::v1::LedgerSpecifier::LedgerCase;
     LedgerCase ledgerCase = request.ledger().ledger_case();
 
 
@@ -366,7 +366,7 @@ ledgerFromRequest(
             return {rpcNO_NETWORK, "InsufficientNetworkMode"};
 
         auto const shortcut = request.ledger().shortcut();
-        if (shortcut == rpc::v1::LedgerSpecifier::SHORTCUT_VALIDATED)
+        if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_VALIDATED)
         {
             ledger = ledgerMaster.getValidatedLedger();
             if (ledger == nullptr)
@@ -377,13 +377,13 @@ ledgerFromRequest(
         else
         {
             // note, if unspecified, defaults to current ledger
-            if (shortcut == rpc::v1::LedgerSpecifier::SHORTCUT_UNSPECIFIED ||
-                shortcut == rpc::v1::LedgerSpecifier::SHORTCUT_CURRENT)
+            if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_UNSPECIFIED ||
+                shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CURRENT)
             {
                 ledger = ledgerMaster.getCurrentLedger();
                 assert(ledger->open());
             }
-            else if (shortcut == rpc::v1::LedgerSpecifier::SHORTCUT_CLOSED)
+            else if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CLOSED)
             {
                 ledger = ledgerMaster.getClosedLedger();
                 assert(!ledger->open());
@@ -408,7 +408,7 @@ ledgerFromRequest(
 template Status
 ledgerFromRequest<>(
     std::shared_ptr<ReadView const>&,
-    GRPCContext<rpc::v1::GetAccountInfoRequest>&);
+    GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>&);
 
 template <class T>
 Status
@@ -933,7 +933,7 @@ chooseLedgerEntryType(Json::Value const& params)
 }
 
 void
-populateAccountSet(rpc::v1::AccountSet& proto, STObject const& obj)
+populateAccountSet(org::xrpl::rpc::v1::AccountSet& proto, STObject const& obj)
 {
     populateClearFlag(obj, proto);
 
@@ -951,7 +951,7 @@ populateAccountSet(rpc::v1::AccountSet& proto, STObject const& obj)
 }
 
 void
-populateOfferCreate(rpc::v1::OfferCreate& proto, STObject const& obj)
+populateOfferCreate(org::xrpl::rpc::v1::OfferCreate& proto, STObject const& obj)
 {
     populateExpiration(obj, proto);
 
@@ -963,25 +963,25 @@ populateOfferCreate(rpc::v1::OfferCreate& proto, STObject const& obj)
 }
 
 void
-populateOfferCancel(rpc::v1::OfferCancel& proto, STObject const& obj)
+populateOfferCancel(org::xrpl::rpc::v1::OfferCancel& proto, STObject const& obj)
 {
     populateOfferSequence(obj, proto);
 }
 
 void
-populateAccountDelete(rpc::v1::AccountDelete& proto, STObject const& obj)
+populateAccountDelete(org::xrpl::rpc::v1::AccountDelete& proto, STObject const& obj)
 {
     populateDestination(obj, proto);
 }
 
 void
-populateCheckCancel(rpc::v1::CheckCancel& proto, STObject const& obj)
+populateCheckCancel(org::xrpl::rpc::v1::CheckCancel& proto, STObject const& obj)
 {
     populateCheckID(obj, proto);
 }
 
 void
-populateCheckCash(rpc::v1::CheckCash& proto, STObject const& obj)
+populateCheckCash(org::xrpl::rpc::v1::CheckCash& proto, STObject const& obj)
 {
     populateCheckID(obj, proto);
 
@@ -991,7 +991,7 @@ populateCheckCash(rpc::v1::CheckCash& proto, STObject const& obj)
 }
 
 void
-populateCheckCreate(rpc::v1::CheckCreate& proto, STObject const& obj)
+populateCheckCreate(org::xrpl::rpc::v1::CheckCreate& proto, STObject const& obj)
 {
     populateDestination(obj, proto);
 
@@ -1005,7 +1005,7 @@ populateCheckCreate(rpc::v1::CheckCreate& proto, STObject const& obj)
 }
 
 void
-populateDepositPreauth(rpc::v1::DepositPreauth& proto, STObject const& obj)
+populateDepositPreauth(org::xrpl::rpc::v1::DepositPreauth& proto, STObject const& obj)
 {
     populateAuthorize(obj, proto);
 
@@ -1013,7 +1013,7 @@ populateDepositPreauth(rpc::v1::DepositPreauth& proto, STObject const& obj)
 }
 
 void
-populateEscrowCancel(rpc::v1::EscrowCancel& proto, STObject const& obj)
+populateEscrowCancel(org::xrpl::rpc::v1::EscrowCancel& proto, STObject const& obj)
 {
     populateOwner(obj, proto);
 
@@ -1021,7 +1021,7 @@ populateEscrowCancel(rpc::v1::EscrowCancel& proto, STObject const& obj)
 }
 
 void
-populateEscrowCreate(rpc::v1::EscrowCreate& proto, STObject const& obj)
+populateEscrowCreate(org::xrpl::rpc::v1::EscrowCreate& proto, STObject const& obj)
 {
     populateAmount(obj, proto);
 
@@ -1037,7 +1037,7 @@ populateEscrowCreate(rpc::v1::EscrowCreate& proto, STObject const& obj)
 }
 
 void
-populateEscrowFinish(rpc::v1::EscrowFinish& proto, STObject const& obj)
+populateEscrowFinish(org::xrpl::rpc::v1::EscrowFinish& proto, STObject const& obj)
 {
     populateOwner(obj, proto);
 
@@ -1050,7 +1050,7 @@ populateEscrowFinish(rpc::v1::EscrowFinish& proto, STObject const& obj)
 
 void
 populatePaymentChannelClaim(
-    rpc::v1::PaymentChannelClaim& proto,
+    org::xrpl::rpc::v1::PaymentChannelClaim& proto,
     STObject const& obj)
 {
     populateChannel(obj, proto);
@@ -1066,7 +1066,7 @@ populatePaymentChannelClaim(
 
 void
 populatePaymentChannelCreate(
-    rpc::v1::PaymentChannelCreate& proto,
+    org::xrpl::rpc::v1::PaymentChannelCreate& proto,
     STObject const& obj)
 {
 
@@ -1085,7 +1085,7 @@ populatePaymentChannelCreate(
 
 void
 populatePaymentChannelFund(
-    rpc::v1::PaymentChannelFund& proto,
+    org::xrpl::rpc::v1::PaymentChannelFund& proto,
     STObject const& obj)
 {
 
@@ -1097,13 +1097,13 @@ populatePaymentChannelFund(
 }
 
 void
-populateSetRegularKey(rpc::v1::SetRegularKey& proto, STObject const& obj)
+populateSetRegularKey(org::xrpl::rpc::v1::SetRegularKey& proto, STObject const& obj)
 {
     populateRegularKey(obj, proto);
 }
 
 void
-populateSignerListSet(rpc::v1::SignerListSet& proto, STObject const& obj)
+populateSignerListSet(org::xrpl::rpc::v1::SignerListSet& proto, STObject const& obj)
 {
     populateSignerQuorum(obj, proto);
 
@@ -1111,7 +1111,7 @@ populateSignerListSet(rpc::v1::SignerListSet& proto, STObject const& obj)
 }
 
 void
-populateTrustSet(rpc::v1::TrustSet& proto, STObject const& obj)
+populateTrustSet(org::xrpl::rpc::v1::TrustSet& proto, STObject const& obj)
 {
     populateLimitAmount(obj, proto);
 
@@ -1121,7 +1121,7 @@ populateTrustSet(rpc::v1::TrustSet& proto, STObject const& obj)
 }
 
 void
-populatePayment(rpc::v1::Payment& proto, STObject const& obj)
+populatePayment(org::xrpl::rpc::v1::Payment& proto, STObject const& obj)
 {
     populateAmount(obj, proto);
 
@@ -1144,11 +1144,11 @@ populatePayment(rpc::v1::Payment& proto, STObject const& obj)
         {
             STPath const& path = *it;
 
-            rpc::v1::Path* protoPath = proto.add_paths();
+            org::xrpl::rpc::v1::Path* protoPath = proto.add_paths();
 
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                rpc::v1::PathElement* protoElement = protoPath->add_elements();
+                org::xrpl::rpc::v1::PathElement* protoElement = protoPath->add_elements();
                 STPathElement const& elt = *it2;
 
                 if (elt.isOffer())
@@ -1178,7 +1178,7 @@ populatePayment(rpc::v1::Payment& proto, STObject const& obj)
 }
 
 void
-populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
+populateAccountRoot(org::xrpl::rpc::v1::AccountRoot& proto, STObject const& obj)
 {
 
     populateAccount(obj, proto);
@@ -1211,7 +1211,7 @@ populateAccountRoot(rpc::v1::AccountRoot& proto, STObject const& obj)
 }
 
 void
-populateAmendments(rpc::v1::Amendments& proto, STObject const& obj)
+populateAmendments(org::xrpl::rpc::v1::Amendments& proto, STObject const& obj)
 {
 
     populateAmendments(obj, proto);
@@ -1219,7 +1219,7 @@ populateAmendments(rpc::v1::Amendments& proto, STObject const& obj)
     populateMajorities(obj, proto);
 }
 
-void populateCheck(rpc::v1::Check& proto, STObject const& obj)
+void populateCheck(org::xrpl::rpc::v1::Check& proto, STObject const& obj)
 {
    populateAccount(obj, proto);
 
@@ -1248,7 +1248,7 @@ void populateCheck(rpc::v1::Check& proto, STObject const& obj)
     populateSourceTag(obj, proto);
 }
 
-void populateDepositPreauth(rpc::v1::DepositPreauthObject& proto, STObject const& obj)
+void populateDepositPreauth(org::xrpl::rpc::v1::DepositPreauthObject& proto, STObject const& obj)
 {
     populateAccount(obj, proto);
 
@@ -1263,7 +1263,7 @@ void populateDepositPreauth(rpc::v1::DepositPreauthObject& proto, STObject const
     populatePreviousTransactionLedgerSequence(obj, proto);
 }
 
-void populateFeeSettings(rpc::v1::FeeSettings& proto, STObject const& obj)
+void populateFeeSettings(org::xrpl::rpc::v1::FeeSettings& proto, STObject const& obj)
 {
    populateBaseFee(obj, proto);
 
@@ -1277,7 +1277,7 @@ void populateFeeSettings(rpc::v1::FeeSettings& proto, STObject const& obj)
 }
 
 
-void populateEscrow(rpc::v1::Escrow& proto, STObject const& obj)
+void populateEscrow(org::xrpl::rpc::v1::Escrow& proto, STObject const& obj)
 {
     populateAccount(obj, proto);
 
@@ -1308,7 +1308,7 @@ void populateEscrow(rpc::v1::Escrow& proto, STObject const& obj)
 }
 
 void
-populateLedgerHashes(rpc::v1::LedgerHashes& proto, STObject const& obj)
+populateLedgerHashes(org::xrpl::rpc::v1::LedgerHashes& proto, STObject const& obj)
 {
     populateLastLedgerSequence(obj, proto);
 
@@ -1318,7 +1318,7 @@ populateLedgerHashes(rpc::v1::LedgerHashes& proto, STObject const& obj)
 }
 
 void
-populatePayChannel(rpc::v1::PayChannel& proto, STObject const& obj)
+populatePayChannel(org::xrpl::rpc::v1::PayChannel& proto, STObject const& obj)
 {
     populateAccount(obj, proto);
 
@@ -1348,7 +1348,7 @@ populatePayChannel(rpc::v1::PayChannel& proto, STObject const& obj)
 }
 
 void
-populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
+populateDirectoryNode(org::xrpl::rpc::v1::DirectoryNode& proto, STObject const& obj)
 {
 
     populateFlags(obj, proto);
@@ -1371,7 +1371,7 @@ populateDirectoryNode(rpc::v1::DirectoryNode& proto, STObject const& obj)
 }
 
 void
-populateOffer(rpc::v1::Offer& proto, STObject const& obj)
+populateOffer(org::xrpl::rpc::v1::Offer& proto, STObject const& obj)
 {
 
     populateAccount(obj, proto);
@@ -1390,7 +1390,7 @@ populateOffer(rpc::v1::Offer& proto, STObject const& obj)
 }
 
 void
-populateRippleState(rpc::v1::RippleState& proto, STObject const& obj)
+populateRippleState(org::xrpl::rpc::v1::RippleState& proto, STObject const& obj)
 {
 
     populateBalance(obj, proto);
@@ -1415,7 +1415,7 @@ populateRippleState(rpc::v1::RippleState& proto, STObject const& obj)
 }
 
 void
-populateSignerList(rpc::v1::SignerList& proto, STObject const& obj)
+populateSignerList(org::xrpl::rpc::v1::SignerList& proto, STObject const& obj)
 {
 
     populateFlags(obj, proto);
@@ -1437,51 +1437,51 @@ populateSignerList(rpc::v1::SignerList& proto, STObject const& obj)
 
 
 void
-populateLedgerEntryType(rpc::v1::AffectedNode& proto, std::uint16_t lgrType)
+populateLedgerEntryType(org::xrpl::rpc::v1::AffectedNode& proto, std::uint16_t lgrType)
 {
     switch (lgrType)
     {
         case ltACCOUNT_ROOT:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
             break;
         case ltDIR_NODE:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
             break;
         case ltRIPPLE_STATE:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_RIPPLE_STATE);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_RIPPLE_STATE);
             break;
         case ltSIGNER_LIST:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_SIGNER_LIST);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_SIGNER_LIST);
             break;
         case ltOFFER:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_OFFER);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_OFFER);
             break;
         case ltLEDGER_HASHES:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_LEDGER_HASHES);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_LEDGER_HASHES);
             break;
         case ltAMENDMENTS:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_AMENDMENTS);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_AMENDMENTS);
             break;
         case ltFEE_SETTINGS:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_FEE_SETTINGS);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_FEE_SETTINGS);
             break;
         case ltESCROW:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_ESCROW);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_ESCROW);
             break;
         case ltPAYCHAN:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_PAY_CHANNEL);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_PAY_CHANNEL);
             break;
         case ltCHECK:
-            proto.set_ledger_entry_type(rpc::v1::LEDGER_ENTRY_TYPE_CHECK);
+            proto.set_ledger_entry_type(org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_CHECK);
             break;
         case ltDEPOSIT_PREAUTH:
             proto.set_ledger_entry_type(
-                rpc::v1::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH);
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH);
             break;
     }
 }
@@ -1568,7 +1568,7 @@ void populateNewFields(STObject & obj, uint16_t lgrType, T const& getProto)
 }
 
 void
-populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
+populateMeta(org::xrpl::rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 {
 
     proto.set_transaction_index(txMeta->getIndex());
@@ -1582,7 +1582,7 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     for (auto it = nodes.begin(); it != nodes.end(); ++it)
     {
         STObject& obj = *it;
-        rpc::v1::AffectedNode* node = proto.add_affected_nodes();
+        org::xrpl::rpc::v1::AffectedNode* node = proto.add_affected_nodes();
 
         // ledger index
         uint256 ledgerIndex = obj.getFieldH256(sfLedgerIndex);
@@ -1627,7 +1627,7 @@ populateMeta(rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
 
 void
 populateQueueData(
-    rpc::v1::QueueData& proto,
+    org::xrpl::rpc::v1::QueueData& proto,
     std::map<TxSeq, TxQ::AccountTxDetails const> const& txs)
 {
     if (!txs.empty())
@@ -1641,7 +1641,7 @@ populateQueueData(
 
         for (auto const& [txSeq, txDetails] : txs)
         {
-            rpc::v1::QueuedTransaction& qt = *proto.add_transactions();
+            org::xrpl::rpc::v1::QueuedTransaction& qt = *proto.add_transactions();
 
             qt.set_sequence(txSeq);
             qt.set_fee_level(txDetails.feeLevel.fee());
@@ -1681,7 +1681,7 @@ populateQueueData(
 
 void
 populateTransaction(
-    rpc::v1::Transaction& proto,
+    org::xrpl::rpc::v1::Transaction& proto,
     std::shared_ptr<STTx const> txnSt)
 {
     STObject const& obj = *txnSt;
@@ -1775,31 +1775,31 @@ populateTransaction(
 }
 
 void
-populateTransactionResultType(rpc::v1::TransactionResult& proto, TER result)
+populateTransactionResultType(org::xrpl::rpc::v1::TransactionResult& proto, TER result)
 {
     if (isTecClaim(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TEC);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEC);
     }
     if (isTefFailure(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TEF);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEF);
     }
     if (isTelLocal(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TEL);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEL);
     }
     if (isTemMalformed(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TEM);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEM);
     }
     if (isTerRetry(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TER);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TER);
     }
     if (isTesSuccess(result))
     {
-        proto.set_result_type(rpc::v1::TransactionResult::RESULT_TYPE_TES);
+        proto.set_result_type(org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES);
     }
 }
 

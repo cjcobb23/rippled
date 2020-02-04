@@ -46,7 +46,7 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpAmount(const rpc::v1::CurrencyAmount& proto_amount, STAmount amount)
+    cmpAmount(const org::xrpl::rpc::v1::CurrencyAmount& proto_amount, STAmount amount)
     {
         if (amount.native())
         {
@@ -60,7 +60,7 @@ class Tx_test : public beast::unit_test::suite
             if(!BEAST_EXPECT(proto_amount.has_issued_currency_amount()))
                 return;
 
-            rpc::v1::IssuedCurrencyAmount issuedCurrency =
+            org::xrpl::rpc::v1::IssuedCurrencyAmount issuedCurrency =
                 proto_amount.issued_currency_amount();
             Issue const& issue = amount.issue();
             Currency currency = issue.currency;
@@ -75,7 +75,7 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpPaymentTx(const rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
+    cmpPaymentTx(const org::xrpl::rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
     {
         if (!BEAST_EXPECT(proto.has_payment()))
             return;
@@ -241,14 +241,14 @@ class Tx_test : public beast::unit_test::suite
         {
             STPath const& path = *it;
 
-            const rpc::v1::Path& protoPath = proto.payment().paths(ind++);
+            const org::xrpl::rpc::v1::Path& protoPath = proto.payment().paths(ind++);
             if (!BEAST_EXPECT(protoPath.elements_size() == path.size()))
                 continue;
 
             int ind2 = 0;
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                const rpc::v1::PathElement& protoElement =
+                const org::xrpl::rpc::v1::PathElement& protoElement =
                     protoPath.elements(ind2++);
                 STPathElement const& elt = *it2;
 
@@ -427,14 +427,14 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpMeta(const rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
+    cmpMeta(const org::xrpl::rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
     {
         BEAST_EXPECT(proto.transaction_index() == txMeta->getIndex());
         BEAST_EXPECT(
             proto.transaction_result().result() ==
             transToken(txMeta->getResultTER()));
 
-        rpc::v1::TransactionResult r;
+        org::xrpl::rpc::v1::TransactionResult r;
 
         RPC::populateTransactionResultType(r, txMeta->getResultTER());
 
@@ -459,8 +459,8 @@ class Tx_test : public beast::unit_test::suite
     class GrpcTxClient : public GRPCTestClientBase
     {
     public:
-        rpc::v1::GetTransactionRequest request;
-        rpc::v1::GetTransactionResponse reply;
+        org::xrpl::rpc::v1::GetTransactionRequest request;
+        org::xrpl::rpc::v1::GetTransactionResponse reply;
 
         explicit GrpcTxClient(std::string const& port)
             : GRPCTestClientBase(port)
@@ -489,7 +489,7 @@ class Tx_test : public beast::unit_test::suite
             client.request.set_hash(&hash, sizeof(hash));
             client.request.set_binary(binary);
             client.Tx();
-            return std::pair<bool, rpc::v1::GetTransactionResponse>(
+            return std::pair<bool, org::xrpl::rpc::v1::GetTransactionResponse>(
                 client.status.ok(), client.reply);
         };
 

@@ -184,15 +184,15 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
     return result;
 }
 
-std::pair<rpc::v1::GetAccountInfoResponse, grpc::Status>
-doAccountInfoGrpc(RPC::GRPCContext<rpc::v1::GetAccountInfoRequest>& context)
+std::pair<org::xrpl::rpc::v1::GetAccountInfoResponse, grpc::Status>
+doAccountInfoGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>& context)
 {
     // Return values
-    rpc::v1::GetAccountInfoResponse result;
+    org::xrpl::rpc::v1::GetAccountInfoResponse result;
     grpc::Status status = grpc::Status::OK;
 
     // input
-    rpc::v1::GetAccountInfoRequest& params = context.params;
+    org::xrpl::rpc::v1::GetAccountInfoRequest& params = context.params;
 
     std::cout << params.ledger().DebugString() << std::endl;
 
@@ -246,7 +246,7 @@ doAccountInfoGrpc(RPC::GRPCContext<rpc::v1::GetAccountInfoRequest>& context)
             auto const sleSigners = ledger->read(keylet::signers(accountID));
             if (sleSigners)
             {
-                rpc::v1::SignerList& signerListProto =
+                org::xrpl::rpc::v1::SignerList& signerListProto =
                     *result.mutable_signer_list();
                 RPC::populateSignerList(signerListProto, *sleSigners);
             }
@@ -264,7 +264,7 @@ doAccountInfoGrpc(RPC::GRPCContext<rpc::v1::GetAccountInfoRequest>& context)
             }
             auto const txs =
                 context.app.getTxQ().getAccountTxs(accountID, *ledger);
-            rpc::v1::QueueData& queueData = *result.mutable_queue_data();
+            org::xrpl::rpc::v1::QueueData& queueData = *result.mutable_queue_data();
             RPC::populateQueueData(queueData, txs);
         }
     }
