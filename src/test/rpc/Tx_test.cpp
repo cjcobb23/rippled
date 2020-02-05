@@ -496,7 +496,6 @@ class Tx_test : public beast::unit_test::suite
         Account A1{"A1"};
         Account A2{"A2"};
         Account A3{"A3"};
-        Account A4{"A4"};
         env.fund(XRP(10000), A1);
         env.fund(XRP(10000), A2);
         env.close();
@@ -514,7 +513,6 @@ class Tx_test : public beast::unit_test::suite
         uint256 prevHash;
         for (int i = 0; i < 14; ++i)
         {
-
             auto const baseFee = env.current()->fees().base;
             auto txfee = fee(i + (2 * baseFee));
             auto lls = last_ledger_seq(i + startLegSeq + 20);
@@ -524,7 +522,7 @@ class Tx_test : public beast::unit_test::suite
             auto dm = delivermin(A2["USD"](50));
             auto txf = txflags(131072);  // partial payment flag
             auto txnid = account_txn_id(prevHash);
-            auto inv = invoice_id2(prevHash);
+            auto inv = invoice_id(prevHash);
             auto mem1 = memo("foo", "bar", "baz");
             auto mem2 = memo("dragons", "elves", "goblins");
 
@@ -680,6 +678,22 @@ class Tx_test : public beast::unit_test::suite
 
             BEAST_EXPECT(result.first == false);
         }
+        //non final transaction
+        env(pay(A2, A1, A2["XRP"](200)));
+        auto res = grpcTx(env.tx()->getTransactionID(),false);
+        BEAST_EXPECT(res.first);
+        BEAST_EXPECT(res.second.has_transaction());
+        if(!BEAST_EXPECT(res.second.has_meta()))
+            return;
+        if(!BEAST_EXPECT(res.second.meta().has_transaction_result()))
+            return;
+
+        BEAST_EXPECT(
+            res.second.meta().transaction_result().result() == "tesSUCCESS");
+        BEAST_EXPECT(
+            res.second.meta().transaction_result().result_type() ==
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES);
+        BEAST_EXPECT(!res.second.validated());
     }
 
 public:

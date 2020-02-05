@@ -848,6 +848,7 @@ else ()
     src/test/jtx/Env_test.cpp
     src/test/jtx/WSClient_test.cpp
     src/test/jtx/impl/Account.cpp
+    src/test/jtx/impl/account_txn_id.cpp
     src/test/jtx/impl/Env.cpp
     src/test/jtx/impl/JSONRPCClient.cpp
     src/test/jtx/impl/ManualTimeKeeper.cpp
@@ -861,7 +862,9 @@ else ()
     src/test/jtx/impl/envconfig.cpp
     src/test/jtx/impl/fee.cpp
     src/test/jtx/impl/flags.cpp
+    src/test/jtx/impl/invoice_id.cpp
     src/test/jtx/impl/jtx_json.cpp
+    src/test/jtx/impl/last_ledger_sequence.cpp
     src/test/jtx/impl/memo.cpp
     src/test/jtx/impl/multisign.cpp
     src/test/jtx/impl/offer.cpp

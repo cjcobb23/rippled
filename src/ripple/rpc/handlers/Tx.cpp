@@ -414,6 +414,12 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
                 response.mutable_date()->set_value(
                     ct->time_since_epoch().count());
         }
+
+        RPC::populateTransactionResultType(
+            *response.mutable_meta()->mutable_transaction_result(),
+            res.first.txn->getResult());
+        response.mutable_meta()->mutable_transaction_result()->set_result(
+            transToken(res.first.txn->getResult()));
     };
 
     auto fillMeta = [&args, &res, &response, &status](auto& meta) {

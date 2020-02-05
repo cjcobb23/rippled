@@ -17,21 +17,17 @@
 */
 //==============================================================================
 
-#include <test/jtx/seq.h>
-#include <ripple/protocol/jss.h>
+#include <test/jtx/account_txn_id.h>
 
 namespace ripple {
 namespace test {
 namespace jtx {
 
 void
-seq::operator()(Env&, JTx& jt) const
+account_txn_id::operator()(Env&, JTx& jt) const
 {
-    if (! manual_)
-        return;
-    jt.fill_seq = false;
-    if (num_)
-        jt[jss::Sequence] = *num_;
+    if (!hash_.isZero())
+        jt["AccountTxnID"] = strHex(hash_);
 }
 
 } // jtx

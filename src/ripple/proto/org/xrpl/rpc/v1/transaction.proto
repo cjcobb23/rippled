@@ -24,9 +24,7 @@ message GetTransactionRequest {
     // if true, return data in binary format
     bool binary = 2;
 
-    // min_ledger and max_ledger specify a ledger range to search
-    // both must be provided
-
+    // optional
     LedgerRange ledger_range = 3;
 }
 

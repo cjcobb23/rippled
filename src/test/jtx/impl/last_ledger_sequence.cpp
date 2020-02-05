@@ -17,23 +17,21 @@
 */
 //==============================================================================
 
-#include <test/jtx/seq.h>
+#include <test/jtx/last_ledger_sequence.h>
 #include <ripple/protocol/jss.h>
 
 namespace ripple {
 namespace test {
 namespace jtx {
 
+
 void
-seq::operator()(Env&, JTx& jt) const
+last_ledger_seq::operator()(Env&, JTx& jt) const
 {
-    if (! manual_)
-        return;
-    jt.fill_seq = false;
-    if (num_)
-        jt[jss::Sequence] = *num_;
+    jt["LastLedgerSequence"] = num_;
 }
 
 } // jtx
 } // test
 } // ripple
+
