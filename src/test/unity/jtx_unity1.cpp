@@ -23,6 +23,7 @@
 
 #include <test/jtx/impl/Account.cpp>
 #include <test/jtx/impl/acctdelete.cpp>
+#include <test/jtx/impl/account_txn_id.cpp>
 #include <test/jtx/impl/amount.cpp>
 #include <test/jtx/impl/balance.cpp>
 #include <test/jtx/impl/check.cpp>
@@ -32,8 +33,10 @@
 #include <test/jtx/impl/envconfig.cpp>
 #include <test/jtx/impl/fee.cpp>
 #include <test/jtx/impl/flags.cpp>
+#include <test/jtx/impl/invoice_id.cpp>
 #include <test/jtx/impl/JSONRPCClient.cpp>
 #include <test/jtx/impl/jtx_json.cpp>
+#include <test/jtx/impl/last_ledger_sequence.cpp>
 #include <test/jtx/impl/ManualTimeKeeper.cpp>
 #include <test/jtx/impl/memo.cpp>
 #include <test/jtx/impl/multisign.cpp>

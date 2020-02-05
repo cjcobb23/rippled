@@ -57,43 +57,6 @@ public:
     operator()(Env&, JTx& jt) const;
 };
 
-//TODO move these to their own file
-struct last_ledger_seq
-{
-    private:
-        std::uint32_t num_;
-public:
-    explicit last_ledger_seq(std::uint32_t num) : num_(num) {}
-
-void
-operator()(Env&, JTx& jt) const;
-};
-
-struct account_txn_id
-{
-    private:
-      uint256 hash_;
-public:
-    explicit account_txn_id(uint256 const& hash) : hash_(hash) {}
-
-void
-operator()(Env&, JTx& jt) const;
-};
-
-
-//TODO use struct defined in CheckTest
-
-struct invoice_id2
-{
-    private:
-      uint256 hash_;
-public:
-    explicit invoice_id2(uint256 const& hash) : hash_(hash) {}
-
-void
-operator()(Env&, JTx& jt) const;
-};
-
 } // jtx
 } // test
 } // ripple

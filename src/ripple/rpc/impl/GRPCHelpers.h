@@ -1035,6 +1035,43 @@ void populateReserveIncrement(STObject const& obj, T& proto)
     });
 }
 
+void
+populateTransactionResultType(
+    org::xrpl::rpc::v1::TransactionResult& proto,
+    TER result)
+{
+    if (isTecClaim(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEC);
+    }
+    if (isTefFailure(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEF);
+    }
+    if (isTelLocal(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEL);
+    }
+    if (isTemMalformed(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TEM);
+    }
+    if (isTerRetry(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TER);
+    }
+    if (isTesSuccess(result))
+    {
+        proto.set_result_type(
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES);
+    }
+}
+
 /*
 template <class T>
 void populate*(STObject const& obj, T& proto)
