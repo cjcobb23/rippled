@@ -241,6 +241,8 @@ unsigned int getAPIVersionNumber(const Json::Value & value);
  * output parameter, and is populated with the data stored in the
  * serialized object
  */
+
+/*
 void
 populateAccountRoot(org::xrpl::rpc::v1::AccountRoot& proto, STObject const& obj);
 
@@ -274,7 +276,7 @@ populateAmount(org::xrpl::rpc::v1::CurrencyAmount& proto, STAmount const& amount
 
 void
 populateTransactionResultType(org::xrpl::rpc::v1::TransactionResult& proto, TER result);
-
+*/
 } // RPC
 } // ripple
 

@@ -32,6 +32,10 @@
 #include <ripple/rpc/DeliveredAmount.h>
 #include <ripple/rpc/Role.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
+#include <ripple/rpc/impl/GRPCHelpers.h>
+
+
+#include <grpcpp/grpcpp.h>
 
 namespace ripple {
 

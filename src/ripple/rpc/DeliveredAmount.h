@@ -20,8 +20,11 @@
 #ifndef RIPPLE_RPC_DELIVEREDAMOUNT_H_INCLUDED
 #define RIPPLE_RPC_DELIVEREDAMOUNT_H_INCLUDED
 
+#include <functional>
 #include <memory>
 #include <org/xrpl/rpc/v1/amount.pb.h>
+#include <ripple/protocol/STAmount.h>
+#include <ripple/protocol/Protocol.h>
 
 namespace Json {
 class Value;

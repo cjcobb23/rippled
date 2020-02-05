@@ -8,7 +8,6 @@ import "org/xrpl/rpc/v1/amount.proto";
 import "org/xrpl/rpc/v1/ledger_objects.proto";
 import "org/xrpl/rpc/v1/fields.proto";
 
-//TODO change to follow new format?
 message Meta {
     // index in ledger
     uint64 transaction_index = 1 [jstype=JS_STRING];
@@ -48,7 +47,6 @@ message TransactionResult {
 
 message AffectedNode {
 
-    //TODO this is not necessary
     LedgerEntryType ledger_entry_type = 1;
 
     // 32 bytes
