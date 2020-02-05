@@ -30,6 +30,7 @@
 
 #include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
+#include <ripple/rpc/impl/GRPCHelpers.h>
 #include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {

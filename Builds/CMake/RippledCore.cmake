@@ -694,6 +694,7 @@ else ()
     src/ripple/rpc/impl/LegacyPathFind.cpp
     src/ripple/rpc/impl/RPCHandler.cpp
     src/ripple/rpc/impl/RPCHelpers.cpp
+    src/ripple/rpc/impl/GRPCHelpers.cpp
     src/ripple/rpc/impl/Role.cpp
     src/ripple/rpc/impl/ServerHandlerImp.cpp
     src/ripple/rpc/impl/ShardArchiveHandler.cpp

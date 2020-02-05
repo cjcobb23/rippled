@@ -31,7 +31,6 @@ message Path {
 
 message PathElement {
 
-//TODO change this to a oneof. If account is set, only account can be set
     AccountAddress account = 1;
 
     Currency currency = 2;

@@ -28,6 +28,7 @@
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
+#include <ripple/rpc/impl/GRPCHelpers.h>
 #include <grpc/status.h>
 
 namespace ripple {
