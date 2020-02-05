@@ -421,23 +421,24 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
     return {result, rpcSUCCESS};
 }
 
-// All of the auto params are callables
 void
 populateResponse(
     std::pair<AccountTxResult, RPC::Status> const& res,
     AccountTxArgs const& args,
     auto const& handleErr,
+    auto const& fillTopLevelResultData,
     auto const& fillTxnData,
     auto const& fillBinaryTxnData,
-    auto const& fillMarker,
-    auto const& fillOutParams)
+    auto const& fillMarker)
 {
     if (res.second.toErrorCode() != rpcSUCCESS)
     {
-        handleErr();
+        handleErr(res.second);
     }
     else
     {
+        fillTopLevelResultData(res.first);
+
         if (std::holds_alternative<TxnsData>(res.first.transactions))
         {
             assert(!args.binary);
@@ -460,10 +461,9 @@ populateResponse(
 
         if (res.first.marker)
         {
-            fillMarker();
+            fillMarker(*res.first.marker);
         }
 
-        fillOutParams();
     }
 }
 
@@ -474,7 +474,8 @@ populateResponse(
 //   binary: boolean,                // optional, defaults to false
 //   forward: boolean,               // optional, defaults to false
 //   limit: integer,                 // optional
-//   marker: opaque                  // optional, resume previous query
+//   marker: object {ledger: ledger_index, seq: txn_sequence} // optional,
+//   resume previous query
 // }
 Json::Value
 doAccountTxJson(RPC::JsonContext& context)
@@ -529,7 +530,15 @@ doAccountTxJson(RPC::JsonContext& context)
 
     Json::Value& jvTxns = (response[jss::transactions] = Json::arrayValue);
 
-    auto handleErr = [&res, &response]() { res.second.inject(response); };
+    auto handleErr = [&response](auto const& error) { const_cast<RPC::Status&>(error).inject(response); };
+
+    auto fillTopLevelResultData = [&response, &params](auto const& result) {
+        response[jss::validated] = true;
+        response[jss::limit] = result.limit;
+        response[jss::account] = std::move(params[jss::account].asString());
+        response[jss::ledger_index_min] = result.ledgerRange.min;
+        response[jss::ledger_index_max] = result.ledgerRange.max;
+    };
 
     auto fillTxnData = [&jvTxns, &context](
                            auto const& txn, auto const& txnMeta) {
@@ -557,28 +566,20 @@ doAccountTxJson(RPC::JsonContext& context)
         jvObj[jss::validated] = true;
     };
 
-    auto fillMarker = [&res, &response]() {
+    auto fillMarker = [&response](auto const& marker) {
         response[jss::marker] = Json::objectValue;
-        response[jss::marker][jss::ledger] = res.first.marker->ledgerSeq;
-        response[jss::marker][jss::seq] = res.first.marker->txnSeq;
-    };
-
-    auto fillOutParams = [&res, &response, &params]() {
-        response[jss::validated] = true;
-        response[jss::limit] = res.first.limit;
-        response[jss::account] = std::move(params[jss::account].asString());
-        response[jss::ledger_index_min] = res.first.ledgerRange.min;
-        response[jss::ledger_index_max] = res.first.ledgerRange.max;
+        response[jss::marker][jss::ledger] = marker.ledgerSeq;
+        response[jss::marker][jss::seq] = marker.txnSeq;
     };
 
     populateResponse(
         res,
         args,
         handleErr,
+        fillTopLevelResultData,
         fillTxnData,
         fillBinaryTxnData,
-        fillMarker,
-        fillOutParams);
+        fillMarker);
 
     return response;
 }
@@ -625,15 +626,25 @@ doAccountTxGrpc(
 
     auto res = doAccountTxHelp(context, args);
 
-    auto handleErr = [&res, &status]() {
-        if (res.second.toErrorCode() == rpcLGR_NOT_FOUND)
+    auto handleErr = [&status](auto const& error) {
+        if (error.toErrorCode() == rpcLGR_NOT_FOUND)
         {
-            status = {grpc::StatusCode::NOT_FOUND, res.second.message()};
+            status = {grpc::StatusCode::NOT_FOUND, error.message()};
         }
         else
         {
-            status = {grpc::StatusCode::INVALID_ARGUMENT, res.second.message()};
+            status = {grpc::StatusCode::INVALID_ARGUMENT, error.message()};
         }
+    };
+
+    auto fillTopLevelResultData = [&response, &request](auto const& result) {
+        // account_tx always returns validated data
+        response.set_validated(true);
+        response.set_limit(result.limit);
+        response.mutable_account()->set_address(
+            std::move(request.account().address()));
+        response.set_ledger_index_min(result.ledgerRange.min);
+        response.set_ledger_index_max(result.ledgerRange.max);
     };
 
     auto fillTxnData = [&context, &response](
@@ -647,31 +658,21 @@ doAccountTxGrpc(
         populateTransactionDataBinary(context, txn, txnProto);
     };
 
-    auto fillMarker = [&response, &res]() {
+    auto fillMarker = [&response](auto const& marker) {
         response.mutable_marker()->set_ledger_index(
-            res.first.marker->ledgerSeq);
+            marker.ledgerSeq);
         response.mutable_marker()->set_account_sequence(
-            res.first.marker->txnSeq);
-    };
-
-    auto fillOutParams = [&response, &request, &res]() {
-        // account_tx always returns validated data
-        response.set_validated(true);
-        response.set_limit(res.first.limit);
-        response.mutable_account()->set_address(
-            std::move(request.account().address()));
-        response.set_ledger_index_min(res.first.ledgerRange.min);
-        response.set_ledger_index_max(res.first.ledgerRange.max);
+            marker.txnSeq);
     };
 
     populateResponse(
         res,
         args,
         handleErr,
+        fillTopLevelResultData,
         fillTxnData,
         fillBinaryTxnData,
-        fillMarker,
-        fillOutParams);
+        fillMarker);
 
     return {response, status};
 }
