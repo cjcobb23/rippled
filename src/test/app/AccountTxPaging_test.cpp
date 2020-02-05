@@ -541,10 +541,12 @@ class AccountTxPaging_test : public beast::unit_test::suite
         std::function<bool(org::xrpl::rpc::v1::Transaction const& res)> checkTxn;
     };
 
+    /*
 	struct MetaCheck {
 
-        std::function<bool(org::xrpl::rpc::v1::Meta const& res)> checkMeta = [](auto& dummy) { return true;};
+        std::function<bool(org::xrpl::rpc::v1::Meta const& res)> checkMeta;
 	};
+*/
 
     void
     testAccountTxContentsGrpc()
@@ -1249,373 +1251,580 @@ class AccountTxPaging_test : public beast::unit_test::suite
              }},
         };
 
-        //TODO these tests depend on ledger objects being present in
-        //a specific order. Maybe change to order agnostic, as we are not
-        //testing the order here, and I am not sure if the order is stable
+
+        using MetaCheck = std::function<bool(org::xrpl::rpc::v1::Meta const& res)>;
         static const MetaCheck txMetaCheck[]{
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](org::xrpl::rpc::v1::AffectedNode const&
+                                      entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_CHECK;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_CHECK;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_CHECK;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_CHECK) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_CHECK;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_PAY_CHANNEL;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
+
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_PAY_CHANNEL;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
+
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_PAY_CHANNEL) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_PAY_CHANNEL;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ESCROW) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ESCROW;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ESCROW;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 2) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ESCROW) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ESCROW;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
+
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ESCROW;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_ESCROW);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 3) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_SIGNER_LIST) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_SIGNER_LIST;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_OFFER;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 4) &&
+
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::LEDGER_ENTRY_TYPE_OFFER);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_OFFER;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 5) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_DIRECTORY_NODE;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(2).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(3).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_DIRECTORY_NODE) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(4).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_RIPPLE_STATE);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_RIPPLE_STATE;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 2) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 1) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 2) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 1) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 1);
             }},
             {[this](auto meta) {
                 return BEAST_EXPECT(meta.transaction_index() == 0) &&
                     BEAST_EXPECT(meta.affected_nodes_size() == 2) &&
                     BEAST_EXPECT(
-                           meta.affected_nodes(0).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT) &&
-                    BEAST_EXPECT(
-                           meta.affected_nodes(1).ledger_entry_type() ==
-                           org::xrpl::rpc::v1::LedgerEntryType::
-                               LEDGER_ENTRY_TYPE_ACCOUNT_ROOT);
+                           std::count_if(
+                               meta.affected_nodes().begin(),
+                               meta.affected_nodes().end(),
+                               [](auto entry) {
+                                   return entry.ledger_entry_type() ==
+                                       org::xrpl::rpc::v1::LedgerEntryType::
+                                           LEDGER_ENTRY_TYPE_ACCOUNT_ROOT;
+                               }) == 2);
             }}};
 
         auto doCheck  = [this](auto txn, auto txCheck)
@@ -1628,29 +1837,30 @@ class AccountTxPaging_test : public beast::unit_test::suite
                 txCheck.checkTxn(txn.transaction());
         };
 
-		auto doMetaCheck = [](auto txn, auto txMetaCheck)
+		auto doMetaCheck = [this](auto txn, auto txMetaCheck)
         {
-
-            return txn.has_meta() && txn.meta().has_transaction_result() &&
-                txn.meta().transaction_result().result() == "tesSUCCESS" &&
-                txMetaCheck.checkMeta(txn.meta());
+            return BEAST_EXPECT(txn.has_meta()) && BEAST_EXPECT(txn.meta().has_transaction_result())
+                &&
+                BEAST_EXPECT(txn.meta().transaction_result().result_type() ==
+                       org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES)
+                &&
+                BEAST_EXPECT(txn.meta().transaction_result().result() == "tesSUCCESS")
+                &&
+                txMetaCheck(txn.meta());
         };
 
         auto [res, status] = next(grpcPort,env,alice.human());
 
         if(!BEAST_EXPECT(status.error_code() == 0))
-
             return;
 
-        BEAST_EXPECT(
-            res.transactions().size() == std::extent<decltype(txCheck)>::value);
+        if(!BEAST_EXPECT(
+            res.transactions().size() == std::extent<decltype(txCheck)>::value))
+            return;
         for(int i = 0; i < res.transactions().size(); ++i)
         {
-            if(!BEAST_EXPECT(doCheck(res.transactions()[i],txCheck[i])))
-                return;
-            if(!BEAST_EXPECT(doMetaCheck(res.transactions()[i],txMetaCheck[i])))
-                return;
-
+            BEAST_EXPECT(doCheck(res.transactions()[i],txCheck[i]));
+            BEAST_EXPECT(doMetaCheck(res.transactions()[i],txMetaCheck[i]));
         }
 
         std::tie(res, status) = nextBinary(grpcPort, env, alice.human());
@@ -1671,9 +1881,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             auto tx = txns[i];
             Serializer s = tx->getSerializer();
             std::string bin = toByteString(s);
-            if(!BEAST_EXPECT(res.transactions(i).transaction_binary() == bin))
-                std::cout << i << std::endl;
-
+            BEAST_EXPECT(res.transactions(i).transaction_binary() == bin);
         }
     }
 
