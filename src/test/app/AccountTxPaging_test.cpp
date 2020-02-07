@@ -747,13 +747,17 @@ class AccountTxPaging_test : public beast::unit_test::suite
         env.close();
 
         txns.emplace_back(env.tx());
+        if (!BEAST_EXPECT(txns.size() == 20))
+            return;
         // Setup is done.  Look at the transactions returned by account_tx.
 
         static const TxCheck txCheck[]{
             {21,
              15,
-             "7B71E7F4B6B8D11794E90C05E1A339E4DDA59F0415A040F84BC5D81C26BB71D7",
-             [this](auto res) {
+             strHex(txns[txns.size() - 1]->getTransactionID()),
+             [this, &txns](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 1]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_account_set()) &&
                      BEAST_EXPECT(res.has_fee()) &&
                      BEAST_EXPECT(res.fee().drops() == 20) &&
@@ -771,55 +775,54 @@ class AccountTxPaging_test : public beast::unit_test::suite
                      BEAST_EXPECT(res.signers(0).has_account()) &&
                      BEAST_EXPECT(
                             res.signers(0).account().value().address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                            txnJson["Signers"][0u]["Signer"]["Account"]) &&
                      BEAST_EXPECT(res.signers(0).has_transaction_signature()) &&
                      BEAST_EXPECT(
                             strHex(res.signers(0)
                                        .transaction_signature()
                                        .value()) ==
-                            "3044022018CAA75EC1D9C5993075BA2CE1817C5378E6A365B7"
-                            "A0B00B7720266D55DA18740220578A5F9693AC6CBE9E128E52"
-                            "89C38197D0410958FC949FA2DAFB176BB3A3964D") &&
+                            txnJson["Signers"][0u]["Signer"]["TxnSignature"]) &&
                      BEAST_EXPECT(res.signers(0).has_signing_public_key()) &&
                      BEAST_EXPECT(
                             strHex(
                                 res.signers(0).signing_public_key().value()) ==
-                            "038FDA65CFAADC4571D1C5AA5ADF0F881FCDBFD57B70714714"
-                            "EB38BEE2553CA33A"); /*TODO memos and signers*/
+                            txnJson["Signers"][0u]["Signer"]["SigningPubKey"]);
              }},
             {20,
              14,
-             "8D063704F3B3E3F9EF97804371AEF4BBBE615F3A0A3E7C22704C5841998A0D3D",
-             [this](auto res) {
+             strHex(txns[txns.size() - 2]->getTransactionID()),
+             [&txns, this](auto res) {
                  return BEAST_EXPECT(res.has_deposit_preauth()) &&
                      BEAST_EXPECT(
                             res.deposit_preauth()
                                 .authorize()
                                 .value()
                                 .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
+                            // TODO do them all like this
+                            txns[txns.size() - 2]->getJson(
+                                JsonOptions::none)["Authorize"]);
              }},
             {19,
              13,
-             "69951DF2ABB18CA830206811BEB95D87B019209B1281C3C2E1F63D3CDC888B4F",
-             [this](auto res) {
+             strHex(txns[txns.size() - 3]->getTransactionID()),
+             [&txns, this](auto res) {
                  return BEAST_EXPECT(res.has_check_cancel()) &&
                      BEAST_EXPECT(
                             strHex(res.check_cancel().check_id().value()) ==
-                            "0047B03EBBB0E4A2F93290DAFD8969F65655F6AA913351469B"
-                            "1516D88"
-                            "E5C9AE9");
+
+                            txns[txns.size() - 3]->getJson(
+                                JsonOptions::none)["CheckID"]);
              }},
             {18,
              13,
-             "D97D44D2AA611A40D902B017907261C298152FB3E6E95376E9C997C2DFD0A108",
-             [this](auto res) {
+             strHex(txns[txns.size() - 4]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 4]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_check_cash()) &&
                      BEAST_EXPECT(
                             strHex(res.check_cash().check_id().value()) ==
-                            "359E11CA7A773F9BB0A670D2607DA36937B66583CF1A061189"
-                            "62A831B"
-                            "4654363") &&
+                            txnJson["CheckID"]) &&
                      BEAST_EXPECT(res.check_cash()
                                       .amount()
                                       .value()
@@ -829,19 +832,20 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 200000000);
+                                .drops() == txnJson["Amount"].asUInt());
              }},
             {17,
              12,
-             "8404599D719703DAB563107DBF0B41FCEA65D84072B20C5F392B665794DC64F6",
-             [this](auto res) {
+             strHex(txns[txns.size() - 5]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 5]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_check_create()) &&
                      BEAST_EXPECT(
                             res.check_create()
                                 .destination()
                                 .value()
-                                .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                                .address() == txnJson["Destination"]) &&
                      BEAST_EXPECT(res.check_create()
                                       .send_max()
                                       .value()
@@ -851,19 +855,20 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .send_max()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 300000000);
+                                .drops() == txnJson["SendMax"].asUInt());
              }},
             {5,
              12,
-             "5AD812CB1C71DD10BDC854FE791633BC389A6FB08F6CC154EE8E29276D0F1DD8",
-             [this](auto res) {
+             strHex(txns[txns.size() - 6]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 6]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_check_create()) &&
                      BEAST_EXPECT(
                             res.check_create()
                                 .destination()
                                 .value()
-                                .address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                                .address() == txnJson["Destination"]) &&
                      BEAST_EXPECT(res.check_create()
                                       .send_max()
                                       .value()
@@ -873,39 +878,37 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .send_max()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 200000000);
+                                .drops() ==
+
+                            txnJson["SendMax"].asUInt());
              }},
             {4,
              11,
-             "766A206FF6FAD41F533EBA4C7F5146BB450DCA7C106559D9C7075F3F9AD04BEA",
-             [this](auto res) {
+             strHex(txns[txns.size() - 7]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 7]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_payment_channel_claim()) &&
                      BEAST_EXPECT(
                             strHex(res.payment_channel_claim()
                                        .channel()
-                                       .value()) ==
-                            "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56F"
-                            "E8E67C1"
-                            "689E2FB") &&
+                                       .value()) == txnJson["Channel"]) &&
                      BEAST_EXPECT(
                             strHex(res.payment_channel_claim()
                                        .public_key()
-                                       .value()) ==
-                            "0388935426E0D08083314842EDFBB2D517BD47699F9A452731"
-                            "8A8E104"
-                            "68C97C052");
+                                       .value()) == txnJson["PublicKey"]);
              }},
             {16,
              10,
-             "CE97C5D8BED19043668FF7682BBB5568A19891CA9EE70797C8EB079B65B5234B",
-             [this](auto res) {
+             strHex(txns[txns.size() - 8]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 8]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_payment_channel_fund()) &&
                      BEAST_EXPECT(
                             strHex(
                                 res.payment_channel_fund().channel().value()) ==
-                            "1C3B03E7B8CC3369BBBBF780DD08E9F4A024687350B420F56F"
-                            "E8E67C1"
-                            "689E2FB") &&
+                            txnJson["Channel"]) &&
                      BEAST_EXPECT(res.payment_channel_fund()
                                       .amount()
                                       .value()
@@ -915,12 +918,14 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 200000000);
+                                .drops() == txnJson["Amount"].asUInt());
              }},
             {15,
              9,
-             "50B9472E2BA855BD7C7EABFA653081E12075357559D3E1D4875ECEC52ADD441A",
-             [this](auto res) {
+             strHex(txns[txns.size() - 9]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 9]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_payment_channel_create()) &&
                      BEAST_EXPECT(res.payment_channel_create()
                                       .amount()
@@ -931,55 +936,59 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 500000000) &&
+                                .drops() == txnJson["Amount"].asUInt()) &&
                      BEAST_EXPECT(
                             res.payment_channel_create()
                                 .destination()
                                 .value()
-                                .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                                .address() == txnJson["Destination"]) &&
                      BEAST_EXPECT(
                             res.payment_channel_create()
                                 .settle_delay()
-                                .value() == 100) &&
+                                .value() == txnJson["SettleDelay"].asUInt()) &&
                      BEAST_EXPECT(
                             strHex(res.payment_channel_create()
                                        .public_key()
-                                       .value()) ==
-                            "0388935426E0D08083314842EDFBB2D517BD47699F9A452731"
-                            "8A8E104"
-                            "68C97C052");
+                                       .value()) == txnJson["PublicKey"]);
              }},
             {14,
              8,
-             "94E30771C8F0227F37BAADB4D1C4772E7191608E781B7D27BE9318D57B16847D",
-             [this](auto res) {
+             strHex(txns[txns.size() - 10]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 10]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_escrow_cancel()) &&
                      BEAST_EXPECT(
                             res.escrow_cancel().owner().value().address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                            txnJson["Owner"]) &&
                      BEAST_EXPECT(
-                            res.escrow_cancel().offer_sequence().value() == 12
+                            res.escrow_cancel().offer_sequence().value() ==
+                            txnJson["OfferSequence"].asUInt()
 
                      );
              }},
             {13,
              8,
-             "643431B1A3FC92878555C511659ED5017B571ACBE2DF0F8FDF4A7AF56B279FF5",
-             [this](auto res) {
+             strHex(txns[txns.size() - 11]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 11]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_escrow_finish()) &&
                      BEAST_EXPECT(
                             res.escrow_finish().owner().value().address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                            txnJson["Owner"]) &&
                      BEAST_EXPECT(
-                            res.escrow_finish().offer_sequence().value() == 11
+                            res.escrow_finish().offer_sequence().value() ==
+                            txnJson["OfferSequence"].asUInt()
 
                      );
              }},
             {12,
              7,
-             "B8D01F3CEDBC00493CFF311A281D61DB36C7832700C066D0F7495FAE1D5157C1",
-             [this](auto res) {
+             strHex(txns[txns.size() - 12]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 12]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_escrow_create()) &&
                      BEAST_EXPECT(res.escrow_create()
                                       .amount()
@@ -990,24 +999,25 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 500000000) &&
+                                .drops() == txnJson["Amount"].asUInt()) &&
                      BEAST_EXPECT(
                             res.escrow_create()
                                 .destination()
                                 .value()
-                                .address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                                .address() == txnJson["Destination"]) &&
                      BEAST_EXPECT(
                             res.escrow_create().cancel_after().value() ==
-                            446000133) &&
+                            txnJson["CancelAfter"].asUInt()) &&
                      BEAST_EXPECT(
                             res.escrow_create().finish_after().value() ==
-                            446000132);
+                            txnJson["FinishAfter"].asUInt());
              }},
             {11,
              7,
-             "9C3B730E82298B74CEA8A2A8E9903946A8D4D2C41029B829CFC22F401746DBD4",
-             [this](auto res) {
+             strHex(txns[txns.size() - 13]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 13]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_escrow_create()) &&
                      BEAST_EXPECT(res.escrow_create()
                                       .amount()
@@ -1018,25 +1028,26 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 500000000) &&
+                                .drops() == txnJson["Amount"].asUInt()) &&
                      BEAST_EXPECT(
                             res.escrow_create()
                                 .destination()
                                 .value()
-                                .address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                                .address() == txnJson["Destination"]) &&
                      BEAST_EXPECT(
                             res.escrow_create().finish_after().value() ==
-                            446000132);
+                            txnJson["FinishAfter"].asUInt());
              }},
             {10,
              7,
-             "3E5C670AFC56E478A715B722BA6406283AAD11C32E1813DDBAEA52E2C2822BB1",
-             [this](auto res) {
+             strHex(txns[txns.size() - 14]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 14]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_signer_list_set()) &&
                      BEAST_EXPECT(
                             res.signer_list_set().signer_quorum().value() ==
-                            1) &&
+                            txnJson["SignerQuorum"].asUInt()) &&
                      BEAST_EXPECT(
                             res.signer_list_set().signer_entries().size() ==
                             3) &&
@@ -1046,51 +1057,66 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .account()
                                 .value()
                                 .address() ==
-                            "rXZVaSDvesEDh9bstf6Vw36XKGi7B35kw") &&
+                            txnJson["SignerEntries"][0u]["SignerEntry"]
+                                   ["Account"]) &&
                      BEAST_EXPECT(
                             res.signer_list_set()
                                 .signer_entries()[0]
                                 .signer_weight()
-                                .value() == 1) &&
+                                .value() ==
+                            txnJson["SignerEntries"][0u]["SignerEntry"]
+                                   ["SignerWeight"]
+                                       .asUInt()) &&
                      BEAST_EXPECT(
                             res.signer_list_set()
                                 .signer_entries()[1]
                                 .account()
                                 .value()
                                 .address() ==
-                            "rharXKno1ZNYDDeNmsYva3e79J956edxrZ") &&
+                            txnJson["SignerEntries"][1u]["SignerEntry"]
+                                   ["Account"]) &&
                      BEAST_EXPECT(
                             res.signer_list_set()
                                 .signer_entries()[1]
                                 .signer_weight()
-                                .value() == 1) &&
+                                .value() ==
+                            txnJson["SignerEntries"][1u]["SignerEntry"]
+                                   ["SignerWeight"]
+                                       .asUInt()) &&
                      BEAST_EXPECT(
                             res.signer_list_set()
                                 .signer_entries()[2]
                                 .account()
                                 .value()
                                 .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                            txnJson["SignerEntries"][2u]["SignerEntry"]
+                                   ["Account"]) &&
                      BEAST_EXPECT(
                             res.signer_list_set()
                                 .signer_entries()[2]
                                 .signer_weight()
-                                .value() == 1
-
-                     );
+                                .value() ==
+                            txnJson["SignerEntries"][2u]["SignerEntry"]
+                                   ["SignerWeight"]
+                                       .asUInt());
              }},
             {9,
              6,
-             "6244B46A29C902C23C2826C9ED9E6D4744F852E304F17039A2F9C7482BA21DBC",
-             [this](auto res) {
+             strHex(txns[txns.size() - 15]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 15]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_offer_cancel()) &&
                      BEAST_EXPECT(
-                            res.offer_cancel().offer_sequence().value() == 8);
+                            res.offer_cancel().offer_sequence().value() ==
+                            txnJson["OfferSequence"].asUInt());
              }},
             {8,
              5,
-             "770C01548178D79D286B8BEC0D061934DB0D8396798B6BC2F9719FF9BFB112AD",
-             [this](auto res) {
+             strHex(txns[txns.size() - 16]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 16]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_offer_create()) &&
                      BEAST_EXPECT(res.offer_create()
                                       .taker_gets()
@@ -1101,7 +1127,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .taker_gets()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 150000000) &&
+                                .drops() == txnJson["TakerGets"].asUInt()) &&
                      BEAST_EXPECT(res.offer_create()
                                       .taker_pays()
                                       .value()
@@ -1112,26 +1138,27 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .value()
                                 .issued_currency_amount()
                                 .currency()
-                                .name() == "USD") &&
+                                .name() == txnJson["TakerPays"]["currency"]) &&
                      BEAST_EXPECT(
                             res.offer_create()
                                 .taker_pays()
                                 .value()
                                 .issued_currency_amount()
-                                .value() == "50") &&
+                                .value() == txnJson["TakerPays"]["value"]) &&
                      BEAST_EXPECT(
                             res.offer_create()
                                 .taker_pays()
                                 .value()
                                 .issued_currency_amount()
                                 .issuer()
-                                .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
+                                .address() == txnJson["TakerPays"]["issuer"]);
              }},
             {7,
              5,
-             "F55F557D78BB867BD34EBA10CF4C58C1CC18EE9CE1E0DB32B4881E9DB7A7F3A5",
-             [this](auto res) {
+             strHex(txns[txns.size() - 17]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 17]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_trust_set()) &&
                      BEAST_EXPECT(res.trust_set()
                                       .limit_amount()
@@ -1143,38 +1170,41 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .value()
                                 .issued_currency_amount()
                                 .currency()
-                                .name() == "USD") &&
+                                .name() ==
+                            txnJson["LimitAmount"]["currency"]) &&
                      BEAST_EXPECT(
                             res.trust_set()
                                 .limit_amount()
                                 .value()
                                 .issued_currency_amount()
-                                .value() == "200") &&
+                                .value() == txnJson["LimitAmount"]["value"]) &&
                      BEAST_EXPECT(
                             res.trust_set()
                                 .limit_amount()
                                 .value()
                                 .issued_currency_amount()
                                 .issuer()
-                                .address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3");
+                                .address() == txnJson["LimitAmount"]["issuer"]);
              }},
             {6,
              4,
-             "2C6290DA2B6D3696752D2F8A2F684971FCC1F88F557CA8D44AC4D63759BFFB17",
-             [this](auto res) {
+             strHex(txns[txns.size() - 18]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 18]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_set_regular_key()) &&
                      BEAST_EXPECT(
                             res.set_regular_key()
                                 .regular_key()
                                 .value()
-                                .address() ==
-                            "r91N98XHbq8RqAXQa5mQcfwrFTMa2fnkxV");
+                                .address() == txnJson["RegularKey"]);
              }},
             {5,
              4,
-             "A9FE93A51361ED922E039F8C77E15E672465AD41DADACB101DF59E48145D005F",
-             [this](auto res) {
+             strHex(txns[txns.size() - 19]->getTransactionID()),
+             [&txns, this](auto res) {
+                 auto txnJson =
+                     txns[txns.size() - 19]->getJson(JsonOptions::none);
                  return BEAST_EXPECT(res.has_payment()) &&
                      BEAST_EXPECT(
                             res.payment().amount().value().has_xrp_amount()) &&
@@ -1183,40 +1213,46 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .amount()
                                 .value()
                                 .xrp_amount()
-                                .drops() == 100000000) &&
+                                .drops() == txnJson["Amount"].asUInt()) &&
                      BEAST_EXPECT(
                             res.payment().destination().value().address() ==
-                            "rExKpRKXNz25UAjbckCRtQsJFcSfjL9Er3") &&
+                            txnJson["Destination"]) &&
                      BEAST_EXPECT(res.has_source_tag()) &&
-                     BEAST_EXPECT(res.source_tag().value() == 42) &&
+                     BEAST_EXPECT(
+                            res.source_tag().value() ==
+                            txnJson["SourceTag"].asUInt()) &&
                      BEAST_EXPECT(res.payment().has_destination_tag()) &&
                      BEAST_EXPECT(
-                            res.payment().destination_tag().value() == 24) &&
+                            res.payment().destination_tag().value() ==
+                            txnJson["DestinationTag"].asUInt()) &&
                      BEAST_EXPECT(res.has_last_ledger_sequence()) &&
-                     BEAST_EXPECT(res.last_ledger_sequence().value() == 20) &&
+                     BEAST_EXPECT(
+                            res.last_ledger_sequence().value() ==
+                            txnJson["LastLedgerSequence"].asUInt()) &&
                      BEAST_EXPECT(res.has_transaction_signature()) &&
                      BEAST_EXPECT(res.has_account()) &&
                      BEAST_EXPECT(
                             res.account().value().address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
+                            txnJson["Account"]) &&
                      BEAST_EXPECT(res.has_flags()) &&
-                     BEAST_EXPECT(res.flags().value() == 2147483648);
+                     BEAST_EXPECT(
+                            res.flags().value() == txnJson["Flags"].asUInt());
              }},
             {4,
              4,
-             "782A3A3D00C05A10C3193E2EE161CCCF76E95FCF7B3FBA7427CDF69F7D22D59E",
-             [this](auto res) { return res.has_account_set(); }},
+             strHex(txns[txns.size() - 20]->getTransactionID()),
+             [&txns, this](auto res) { return res.has_account_set(); }},
             {3,
              3,
              "9CE54C3B934E473A995B477E92EC229F99CED5B62BF4D2ACE4DC42719103AE2F",
-             [this](auto res) {
+             [&txns, this](auto res) {
                  return BEAST_EXPECT(res.has_account_set()) &&
                      BEAST_EXPECT(res.account_set().set_flag().value() == 8);
              }},
             {1,
              3,
              "2B5054734FA43C6C7B54F61944FAD6178ACD5D0272B39BA7FCD32A5D3932FBFF",
-             [this](auto res) {
+             [&alice, &txns, this](auto res) {
                  return BEAST_EXPECT(res.has_payment()) &&
                      BEAST_EXPECT(
                             res.payment().amount().value().has_xrp_amount()) &&
@@ -1228,21 +1264,8 @@ class AccountTxPaging_test : public beast::unit_test::suite
                                 .drops() == 1000000000010) &&
                      BEAST_EXPECT(
                             res.payment().destination().value().address() ==
-                            "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn") &&
-                     BEAST_EXPECT(res.has_transaction_signature()) &&
-                     BEAST_EXPECT(
-                            strHex(res.transaction_signature().value()) ==
-
-                            "30440220474CC4207C1AF5B54092876C1A62E3314CE92455F7"
-                            "C43F723CD0BE8F0CD0158002201D87D6F4292F27325FF2E40C"
-                            "77977BD3DD97A782FECA6558BC83D282921B3AB6") &&
-                     BEAST_EXPECT(res.has_signing_public_key()) &&
-                     BEAST_EXPECT(
-                            strHex(res.signing_public_key().value()) ==
-                            "0330E7FC9D56BB25D6893BA3F317AE5BCF33B3291BD63DB326"
-                            "54A313222F7FD020");
-             }},
-        };
+                            alice.human());
+             }}};
 
         using MetaCheck =
             std::function<bool(org::xrpl::rpc::v1::Meta const& res)>;
@@ -1859,6 +1882,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             BEAST_EXPECT(doMetaCheck(res.transactions()[i], txMetaCheck[i]));
         }
 
+        // test binary representation
         std::tie(res, status) = nextBinary(grpcPort, env, alice.human());
 
         // txns vector does not contain the first two transactions returned by
@@ -1877,6 +1901,7 @@ class AccountTxPaging_test : public beast::unit_test::suite
             auto tx = txns[i];
             Serializer s = tx->getSerializer();
             std::string bin = toByteString(s);
+
             BEAST_EXPECT(res.transactions(i).transaction_binary() == bin);
         }
     }
@@ -2153,4 +2178,5 @@ public:
 BEAST_DEFINE_TESTSUITE(AccountTxPaging,app,ripple);
 
 }
+
 
