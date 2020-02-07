@@ -102,10 +102,7 @@ struct TxArgs
 
     bool binary = false;
 
-    // TODO: change to pair? or named struct?
-    std::optional<uint32_t> minLedger;
-
-    std::optional<uint32_t> maxLedger;
+    std::optional<std::pair<uint32_t,uint32_t>> ledgerRange;
 };
 
 std::pair<TxResult, RPC::Status>
@@ -115,25 +112,24 @@ doTxHelp(TxArgs& args, RPC::Context& context)
 
     ClosedInterval<uint32_t> range;
 
-    auto rangeProvided = args.minLedger && args.maxLedger;
-
-    if (rangeProvided)
+    if (args.ledgerRange)
     {
         constexpr uint16_t MAX_RANGE = 1000;
 
-        if (*args.maxLedger < *args.minLedger)
+        if (args.ledgerRange->second < args.ledgerRange->first)
             return {result, rpcINVALID_LGR_RANGE};
 
-        if (*args.maxLedger - *args.minLedger > MAX_RANGE)
+        if (args.ledgerRange->second - args.ledgerRange->first > MAX_RANGE)
             return {result, rpcEXCESSIVE_LGR_RANGE};
 
-        range = ClosedInterval<uint32_t>(*args.minLedger, *args.maxLedger);
+        range = ClosedInterval<uint32_t>(
+            args.ledgerRange->first, args.ledgerRange->second);
     }
 
     std::shared_ptr<Transaction> txn;
     auto ec{rpcSUCCESS};
 
-    if (rangeProvided)
+    if (args.ledgerRange)
     {
         boost::variant<std::shared_ptr<Transaction>, bool> v =
             context.app.getMasterTransaction().fetch(args.hash, range, ec);
@@ -280,8 +276,9 @@ doTxJson(RPC::JsonContext& context)
     {
         try
         {
-            args.minLedger = context.params[jss::min_ledger].asUInt();
-            args.maxLedger = context.params[jss::max_ledger].asUInt();
+            args.ledgerRange = std::make_pair(
+                context.params[jss::min_ledger].asUInt(),
+                context.params[jss::max_ledger].asUInt());
         }
         catch (...)
         {
@@ -362,8 +359,9 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
     if (request.ledger_range().ledger_index_min() != 0 &&
         request.ledger_range().ledger_index_max() != 0)
     {
-        args.minLedger = request.ledger_range().ledger_index_min();
-        args.maxLedger = request.ledger_range().ledger_index_max();
+        args.ledgerRange = std::make_pair(
+            request.ledger_range().ledger_index_min(),
+            request.ledger_range().ledger_index_max());
     }
 
     std::pair<TxResult, RPC::Status> res = doTxHelp(args, context);

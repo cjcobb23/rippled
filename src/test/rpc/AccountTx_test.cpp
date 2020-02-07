@@ -152,7 +152,6 @@ class AccountTx_test : public beast::unit_test::suite
             rpcACT_MALFORMED));
 
         jParms[jss::account] = A1.human();
-        std::cout << "account_tx good **********" << std::endl;
         BEAST_EXPECT(hasTxs(env.rpc("json", "account_tx", to_string(jParms))));
 
         // Ledger min/max index
@@ -212,7 +211,6 @@ class AccountTx_test : public beast::unit_test::suite
         {
             Json::Value p{jParms};
 
-            std::cout << "ledger index test" << std::endl;
             p[jss::ledger_index] = env.closed()->info().seq;
             BEAST_EXPECT(hasTxs(env.rpc("json", "account_tx", to_string(p))));
 
@@ -449,12 +447,9 @@ class AccountTx_test : public beast::unit_test::suite
         BEAST_EXPECT (std::extent<decltype (sanity)>::value ==
             result[jss::result][jss::transactions].size());
 
-        std::cout << "PRINTING ALL *****" << std::endl;
         for (unsigned int index {0};
             index < std::extent<decltype (sanity)>::value; ++index)
         {
-            std::cout << "printing txn" << std::endl;
-            std::cout << txs[index] << std::endl;
             checkSanity (txs[index], sanity[index]);
         }
     }
