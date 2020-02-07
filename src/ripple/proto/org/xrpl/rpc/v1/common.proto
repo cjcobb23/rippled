@@ -390,12 +390,6 @@ message BookNode
     uint64 value = 1 [jstype=JS_STRING];
 }
 
-message Amendment
-{
-    // 32 bytes
-    bytes value = 1;
-}
-
 message CloseTime
 {
     // time in seconds since Ripple epoch
@@ -445,6 +439,13 @@ message Date
 message DeliveredAmount
 {
     CurrencyAmount value = 1;
+}
+
+message SignerEntry {
+
+    Account account = 1;
+
+    SignerWeight signer_weight = 2;
 }
 
 

@@ -23,13 +23,13 @@
 #include <ripple/core/DatabaseCon.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/jss.h>
+#include <ripple/rpc/GRPCHandlers.h>
 #include <ripple/rpc/impl/RPCHelpers.h>
+#include <test/rpc/GRPCTestClientBase.h>
 #include <test/jtx.h>
 #include <test/jtx/Env.h>
 #include <test/jtx/envconfig.h>
 
-#include <ripple/rpc/GRPCHandlers.h>
-#include <test/rpc/GRPCTestClientBase.h>
 
 namespace ripple {
 namespace test {
@@ -111,22 +111,22 @@ class Fee_test : public beast::unit_test::suite
         BEAST_EXPECT(levels.reference_level() == metrics.referenceFeeLevel);
 
         // fee data
-        org::xrpl::rpc::v1::Fee& drops = *reply.mutable_drops();
+        org::xrpl::rpc::v1::Fee& fee = *reply.mutable_fee();
         auto const baseFee = view->fees().base;
         BEAST_EXPECT(
-            drops.base_fee().drops() ==
+            fee.base_fee().drops() ==
             toDrops(metrics.referenceFeeLevel, baseFee).second);
         BEAST_EXPECT(
-            drops.minimum_fee().drops() ==
+            fee.minimum_fee().drops() ==
             toDrops(metrics.minProcessingFeeLevel, baseFee).second);
         BEAST_EXPECT(
-            drops.median_fee().drops() ==
+            fee.median_fee().drops() ==
             toDrops(metrics.medFeeLevel, baseFee).second);
         auto openLedgerFee =
             toDrops(metrics.openLedgerFeeLevel - FeeLevel64{1}, baseFee)
                 .second +
             1;
-        BEAST_EXPECT(drops.open_ledger_fee().drops() == openLedgerFee.drops());
+        BEAST_EXPECT(fee.open_ledger_fee().drops() == openLedgerFee.drops());
     }
 
 public:

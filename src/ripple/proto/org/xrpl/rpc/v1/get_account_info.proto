@@ -7,6 +7,7 @@ option java_multiple_files = true;
 import "org/xrpl/rpc/v1/ledger_objects.proto";
 import "org/xrpl/rpc/v1/amount.proto";
 import "org/xrpl/rpc/v1/ledger.proto";
+import "org/xrpl/rpc/v1/common.proto";
 
 //TODO change to follow new format?
 // A request to get info about an account.
@@ -63,7 +64,7 @@ message QueuedTransaction {
 
     XRPDropsAmount max_spend_drops = 4;
 
-    uint32 sequence = 5;
+    Sequence sequence = 5;
 
-    uint32 last_ledger_sequence = 6;
+    LastLedgerSequence last_ledger_sequence = 6;
 }

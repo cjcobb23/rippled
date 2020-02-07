@@ -18,16 +18,17 @@
 //==============================================================================
 
 #include <ripple/rpc/impl/GRPCHelpers.h>
+
 namespace ripple {
 namespace RPC {
 
 // In the below populateProto* functions, getProto is a function that returns
 // a reference to the mutable protobuf message to be populated. The reason this
-// is a function, as opposed to just a reference to the object, is that getting
-// a reference to the proto object (via something like
-// proto.mutable_clear_flag()), default initializes the proto object. However,
+// is a function, as opposed to just a pointer or reference to the object,
+// is that there is no way to get a non-const reference, and getting a pointer
+// to the proto object causes default initialization of the object. However,
 // if the corresponding field is not present in the STObject, we don't want to
-// initialize the proto object, To get around this, getProto is a function that
+// initialize the proto object. To get around this, getProto is a function that
 // is called only if the field is present in the STObject
 template <class T>
 void
@@ -71,32 +72,6 @@ populateProtoU64(STObject const& obj, SF_U64 const& field, T const& getProto)
 
 template <class T>
 void
-populateProtoVL(STObject const& obj, SF_Blob const& field, T const& getProto)
-{
-    if (obj.isFieldPresent(field))
-    {
-        auto data = obj.getFieldVL(field);
-        getProto()->set_value(data.data(), data.size());
-    }
-}
-
-template <class T>
-void
-populateProtoVLasString(
-    STObject const& obj,
-    SF_Blob const& field,
-    T const& getProto)
-{
-    if (obj.isFieldPresent(field))
-    {
-        auto data = obj.getFieldVL(field);
-        getProto()->set_value(
-            reinterpret_cast<const char*>(data.data()), data.size());
-    }
-}
-
-template <class T>
-void
 populateProtoH128(STObject const& obj, SF_U128 const& field, T const& getProto)
 {
     if (obj.isFieldPresent(field))
@@ -122,6 +97,32 @@ populateProtoH256(STObject const& obj, SF_U256 const& field, T const& getProto)
     if (obj.isFieldPresent(field))
     {
         getProto()->set_value(obj.getFieldH256(field).data(), uint256::size());
+    }
+}
+
+template <class T>
+void
+populateProtoVL(STObject const& obj, SF_Blob const& field, T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto data = obj.getFieldVL(field);
+        getProto()->set_value(data.data(), data.size());
+    }
+}
+
+template <class T>
+void
+populateProtoVLasString(
+    STObject const& obj,
+    SF_Blob const& field,
+    T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto data = obj.getFieldVL(field);
+        getProto()->set_value(
+            reinterpret_cast<const char*>(data.data()), data.size());
     }
 }
 
@@ -168,6 +169,42 @@ populateProtoAmount(
     {
         auto amount = obj.getFieldAmount(field);
         populateProtoAmount(amount, *getProto());
+    }
+}
+
+template <class T>
+void
+populateProtoCurrency(
+    STObject const& obj,
+    SF_U160 const& field,
+    T const& getProto)
+{
+    if (obj.isFieldPresent(field))
+    {
+        auto cur = obj.getFieldH160(field);
+        auto proto = getProto()->mutable_value();
+        proto->set_code(cur.data(), cur.size());
+        proto->set_name(to_string(cur));
+    }
+}
+
+template <class T, class R>
+void
+populateProtoArray(
+    STObject const& obj,
+    SField const& outerField,
+    SField const& innerField,
+    T const& getProto,
+    R const& populateProto)
+{
+    if (obj.isFieldPresent(outerField) &&
+        obj.peekAtField(outerField).getSType() == SerializedTypeID::STI_ARRAY)
+    {
+        auto arr = obj.getFieldArray(outerField);
+        for (auto it = arr.begin(); it != arr.end(); ++it)
+        {
+            populateProto(*it, *getProto());
+        }
     }
 }
 
@@ -568,24 +605,20 @@ populateSequence(STObject const& obj, T& proto)
         obj, sfSequence, [&proto]() { return proto.mutable_sequence(); });
 }
 
-template <class T, class R>
+template <class T>
 void
-populateProtoArray(
-    STObject const& obj,
-    SField const& outerField,
-    SField const& innerField,
-    T const& getProto,
-    R const& populateProto)
+populateAmendment(STObject const& obj, T& proto)
 {
-    if (obj.isFieldPresent(outerField) &&
-        obj.peekAtField(outerField).getSType() == SerializedTypeID::STI_ARRAY)
-    {
-        auto arr = obj.getFieldArray(outerField);
-        for (auto it = arr.begin(); it != arr.end(); ++it)
-        {
-            populateProto(*it, *getProto());
-        }
-    }
+    populateProtoH256(
+        obj, sfAmendment, [&proto]() { return proto.mutable_amendment(); });
+}
+
+template <class T>
+void
+populateCloseTime(STObject const& obj, T& proto)
+{
+    populateProtoU32(
+        obj, sfCloseTime, [&proto]() { return proto.mutable_close_time(); });
 }
 
 template <class T>
@@ -597,53 +630,14 @@ populateSignerWeight(STObject const& obj, T& proto)
     });
 }
 
-template <class T>
-void
-populateSignerEntries(STObject const& obj, T& proto)
-{
-    populateProtoArray(
-        obj,
-        sfSignerEntries,
-        sfSignerEntry,
-        [&proto]() { return proto.add_signer_entries(); },
-        [](auto& innerObj, auto& innerProto) {
-            populateAccount(innerObj, innerProto);
-            populateSignerWeight(innerObj, innerProto);
-        });
-}
 
 template <class T>
 void
-populateMemos(STObject const& obj, T& proto)
+populateAmendments(STObject const& obj, T& proto)
 {
-    populateProtoArray(
-        obj,
-        sfMemos,
-        sfMemo,
-        [&proto]() { return proto.add_memos(); },
-        [](auto& innerObj, auto& innerProto) {
-            populateMemoData(innerObj, innerProto);
-            populateMemoType(innerObj, innerProto);
-            populateMemoFormat(innerObj, innerProto);
-        });
+    populateProtoVec256(
+        obj, sfAmendments, [&proto]() { return proto.add_amendments(); });
 }
-
-template <class T>
-void
-populateSigners(STObject const& obj, T& proto)
-{
-    populateProtoArray(
-        obj,
-        sfSigners,
-        sfSigner,
-        [&proto]() { return proto.add_signers(); },
-        [](auto& innerObj, auto& innerProto) {
-            populateAccount(innerObj, innerProto);
-            populateTransactionSignature(innerObj, innerProto);
-            populateSigningPublicKey(innerObj, innerProto);
-        });
-}
-
 
 template <class T>
 void
@@ -773,44 +767,7 @@ populateSignerListID(STObject const& obj, T& proto)
     });
 }
 
-template <class T>
-void
-populateAmendment(STObject const& obj, T& proto)
-{
-    populateProtoH256(
-        obj, sfAmendment, [&proto]() { return proto.mutable_amendment(); });
-}
 
-template <class T>
-void
-populateCloseTime(STObject const& obj, T& proto)
-{
-    populateProtoU32(
-        obj, sfCloseTime, [&proto]() { return proto.mutable_close_time(); });
-}
-
-template <class T>
-void
-populateMajorities(STObject const& obj, T& proto)
-{
-    populateProtoArray(
-        obj,
-        sfMajorities,
-        sfMajority,
-        [&proto]() { return proto.add_majorities(); },
-        [](auto innerObj, auto innerProto) {
-            populateAmendment(innerObj, innerProto);
-            populateCloseTime(innerObj, innerProto);
-        });
-}
-
-template <class T>
-void
-populateAmendments(STObject const& obj, T& proto)
-{
-    populateProtoVec256(
-        obj, sfAmendments, [&proto]() { return proto.add_amendments(); });
-}
 
 template <class T>
 void
@@ -853,21 +810,7 @@ populateIndexPrevious(STObject const& obj, T& proto)
     });
 }
 
-template <class T>
-void
-populateProtoCurrency(
-    STObject const& obj,
-    SF_U160 const& field,
-    T const& getProto)
-{
-    if (obj.isFieldPresent(field))
-    {
-        auto cur = obj.getFieldH160(field);
-        auto proto = getProto()->mutable_value();
-        proto->set_code(cur.data(), cur.size());
-        proto->set_name(to_string(cur));
-    }
-}
+
 
 template <class T>
 void
@@ -947,6 +890,68 @@ populateReserveIncrement(STObject const& obj, T& proto)
     populateProtoU32(obj, sfReserveIncrement, [&proto]() {
         return proto.mutable_reserve_increment();
     });
+}
+
+template <class T>
+void
+populateSignerEntries(STObject const& obj, T& proto)
+{
+    populateProtoArray(
+        obj,
+        sfSignerEntries,
+        sfSignerEntry,
+        [&proto]() { return proto.add_signer_entries(); },
+        [](auto& innerObj, auto& innerProto) {
+            populateAccount(innerObj, innerProto);
+            populateSignerWeight(innerObj, innerProto);
+        });
+}
+
+template <class T>
+void
+populateMemos(STObject const& obj, T& proto)
+{
+    populateProtoArray(
+        obj,
+        sfMemos,
+        sfMemo,
+        [&proto]() { return proto.add_memos(); },
+        [](auto& innerObj, auto& innerProto) {
+            populateMemoData(innerObj, innerProto);
+            populateMemoType(innerObj, innerProto);
+            populateMemoFormat(innerObj, innerProto);
+        });
+}
+
+template <class T>
+void
+populateSigners(STObject const& obj, T& proto)
+{
+    populateProtoArray(
+        obj,
+        sfSigners,
+        sfSigner,
+        [&proto]() { return proto.add_signers(); },
+        [](auto& innerObj, auto& innerProto) {
+            populateAccount(innerObj, innerProto);
+            populateTransactionSignature(innerObj, innerProto);
+            populateSigningPublicKey(innerObj, innerProto);
+        });
+}
+
+template <class T>
+void
+populateMajorities(STObject const& obj, T& proto)
+{
+    populateProtoArray(
+        obj,
+        sfMajorities,
+        sfMajority,
+        [&proto]() { return proto.add_majorities(); },
+        [](auto innerObj, auto innerProto) {
+            populateAmendment(innerObj, innerProto);
+            populateCloseTime(innerObj, innerProto);
+        });
 }
 
 void
@@ -1209,11 +1214,11 @@ populatePayment(org::xrpl::rpc::v1::Payment& proto, STObject const& obj)
         {
             STPath const& path = *it;
 
-            org::xrpl::rpc::v1::Path* protoPath = proto.add_paths();
+            org::xrpl::rpc::v1::Payment_Path* protoPath = proto.add_paths();
 
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                org::xrpl::rpc::v1::PathElement* protoElement =
+                org::xrpl::rpc::v1::Payment_PathElement* protoElement =
                     protoPath->add_elements();
                 STPathElement const& elt = *it2;
 
@@ -1718,10 +1723,11 @@ populateQueueData(
             org::xrpl::rpc::v1::QueuedTransaction& qt =
                 *proto.add_transactions();
 
-            qt.set_sequence(txSeq);
-            qt.set_fee_level(txDetails.feeLevel);
+            qt.mutable_sequence()->set_value(txSeq);
+            qt.set_fee_level(txDetails.feeLevel.fee());
             if (txDetails.lastValid)
-                qt.set_last_ledger_sequence(*txDetails.lastValid);
+                qt.mutable_last_ledger_sequence()->set_value(
+                    *txDetails.lastValid);
 
             if (txDetails.consequences)
             {

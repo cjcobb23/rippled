@@ -29,9 +29,11 @@
 #include <test/jtx/envconfig.h>
 
 #include <ripple/rpc/GRPCHandlers.h>
-#include <ripple/rpc/impl/RPCHelpers.h>
 #include <ripple/rpc/impl/GRPCHelpers.h>
+#include <ripple/rpc/impl/RPCHelpers.h>
 #include <test/rpc/GRPCTestClientBase.h>
+
+#include <string>
 
 namespace ripple {
 namespace test {
@@ -47,18 +49,20 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpAmount(const org::xrpl::rpc::v1::CurrencyAmount& proto_amount, STAmount amount)
+    cmpAmount(
+        const org::xrpl::rpc::v1::CurrencyAmount& proto_amount,
+        STAmount amount)
     {
         if (amount.native())
         {
-            if(!BEAST_EXPECT(proto_amount.has_xrp_amount()))
+            if (!BEAST_EXPECT(proto_amount.has_xrp_amount()))
                 return;
             BEAST_EXPECT(
                 proto_amount.xrp_amount().drops() == amount.xrp().drops());
         }
         else
         {
-            if(!BEAST_EXPECT(proto_amount.has_issued_currency_amount()))
+            if (!BEAST_EXPECT(proto_amount.has_issued_currency_amount()))
                 return;
 
             org::xrpl::rpc::v1::IssuedCurrencyAmount issuedCurrency =
@@ -76,7 +80,9 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpPaymentTx(const org::xrpl::rpc::v1::Transaction& proto, std::shared_ptr<STTx const> txnSt)
+    cmpPaymentTx(
+        const org::xrpl::rpc::v1::Transaction& proto,
+        std::shared_ptr<STTx const> txnSt)
     {
         if (!BEAST_EXPECT(proto.has_payment()))
             return;
@@ -146,14 +152,14 @@ class Tx_test : public beast::unit_test::suite
             BEAST_EXPECT(!proto.has_last_ledger_sequence());
         }
 
-        if(txnSt->isFieldPresent(sfTxnSignature))
+        if (txnSt->isFieldPresent(sfTxnSignature))
         {
             if (!BEAST_EXPECT(proto.has_transaction_signature()))
                 return;
 
             Blob blob = txnSt->getFieldVL(sfTxnSignature);
             BEAST_EXPECT(
-                    proto.transaction_signature().value() == toByteString(blob));
+                proto.transaction_signature().value() == toByteString(blob));
         }
 
         if (txnSt->isFieldPresent(sfSendMax))
@@ -242,14 +248,15 @@ class Tx_test : public beast::unit_test::suite
         {
             STPath const& path = *it;
 
-            const org::xrpl::rpc::v1::Path& protoPath = proto.payment().paths(ind++);
+            const org::xrpl::rpc::v1::Payment_Path& protoPath =
+                proto.payment().paths(ind++);
             if (!BEAST_EXPECT(protoPath.elements_size() == path.size()))
                 continue;
 
             int ind2 = 0;
             for (auto it2 = path.begin(); it2 != path.end(); ++it2)
             {
-                const org::xrpl::rpc::v1::PathElement& protoElement =
+                const org::xrpl::rpc::v1::Payment_PathElement& protoElement =
                     protoPath.elements(ind2++);
                 STPathElement const& elt = *it2;
 
@@ -428,7 +435,9 @@ class Tx_test : public beast::unit_test::suite
     }
 
     void
-    cmpMeta(const org::xrpl::rpc::v1::Meta& proto, std::shared_ptr<TxMeta> txMeta)
+    cmpMeta(
+        const org::xrpl::rpc::v1::Meta& proto,
+        std::shared_ptr<TxMeta> txMeta)
     {
         BEAST_EXPECT(proto.transaction_index() == txMeta->getIndex());
         BEAST_EXPECT(
@@ -441,18 +450,41 @@ class Tx_test : public beast::unit_test::suite
 
         BEAST_EXPECT(
             proto.transaction_result().result_type() == r.result_type());
+    }
 
-
-
-        if (txMeta->hasDeliveredAmount())
+    void
+    cmpDeliveredAmount(
+        const org::xrpl::rpc::v1::Meta& meta,
+        const org::xrpl::rpc::v1::Transaction& txn,
+        const std::shared_ptr<TxMeta> expMeta,
+        const std::shared_ptr<STTx const> expTxn,
+        bool checkAmount = true)
+    {
+        if (expMeta->hasDeliveredAmount())
         {
-            if(!BEAST_EXPECT(proto.has_delivered_amount()))
+            std::cout << "has delivered amount" << std::endl;
+            if (!BEAST_EXPECT(meta.has_delivered_amount()))
                 return;
-            cmpAmount(proto.delivered_amount().value(), txMeta->getDeliveredAmount());
+            cmpAmount(
+                meta.delivered_amount().value(), expMeta->getDeliveredAmount());
         }
         else
         {
-            BEAST_EXPECT(!proto.has_delivered_amount());
+            if (expTxn->isFieldPresent(sfAmount))
+            {
+                using namespace std::chrono_literals;
+                if (checkAmount)
+                {
+                    cmpAmount(
+                        meta.delivered_amount().value(),
+                        expTxn->getFieldAmount(sfAmount));
+                }
+            }
+            else
+            {
+                std::cout << "no delivered amount" << std::endl;
+                BEAST_EXPECT(!meta.has_delivered_amount());
+            }
         }
     }
 
@@ -484,6 +516,10 @@ class Tx_test : public beast::unit_test::suite
         std::unique_ptr<Config> config = envconfig(addGrpcConfig);
         std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
         Env env(*this, std::move(config));
+
+        using namespace std::chrono_literals;
+        // Set time to this value (or greater) to get delivered_amount in meta
+        env.timeKeeper().set(NetClock::time_point{446000001s});
 
         auto grpcTx = [&grpcPort](auto hash, auto binary) {
             GrpcTxClient client(grpcPort);
@@ -649,6 +685,11 @@ class Tx_test : public beast::unit_test::suite
                             id, ledger->seq(), *rawMeta);
 
                         cmpMeta(result.second.meta(), txMeta);
+                        cmpDeliveredAmount(
+                            result.second.meta(),
+                            result.second.transaction(),
+                            txMeta,
+                            tx);
                     }
                 }
             }
@@ -679,14 +720,15 @@ class Tx_test : public beast::unit_test::suite
 
             BEAST_EXPECT(result.first == false);
         }
-        //non final transaction
+
+        // non final transaction
         env(pay(A2, A1, A2["XRP"](200)));
-        auto res = grpcTx(env.tx()->getTransactionID(),false);
+        auto res = grpcTx(env.tx()->getTransactionID(), false);
         BEAST_EXPECT(res.first);
         BEAST_EXPECT(res.second.has_transaction());
-        if(!BEAST_EXPECT(res.second.has_meta()))
+        if (!BEAST_EXPECT(res.second.has_meta()))
             return;
-        if(!BEAST_EXPECT(res.second.meta().has_transaction_result()))
+        if (!BEAST_EXPECT(res.second.meta().has_transaction_result()))
             return;
 
         BEAST_EXPECT(
@@ -695,6 +737,24 @@ class Tx_test : public beast::unit_test::suite
             res.second.meta().transaction_result().result_type() ==
             org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES);
         BEAST_EXPECT(!res.second.validated());
+        BEAST_EXPECT(!res.second.meta().has_delivered_amount());
+        env.close();
+
+        res = grpcTx(env.tx()->getTransactionID(), false);
+        BEAST_EXPECT(res.first);
+        BEAST_EXPECT(res.second.has_transaction());
+        if (!BEAST_EXPECT(res.second.has_meta()))
+            return;
+        if (!BEAST_EXPECT(res.second.meta().has_transaction_result()))
+            return;
+
+        BEAST_EXPECT(
+            res.second.meta().transaction_result().result() == "tesSUCCESS");
+        BEAST_EXPECT(
+            res.second.meta().transaction_result().result_type() ==
+            org::xrpl::rpc::v1::TransactionResult::RESULT_TYPE_TES);
+        BEAST_EXPECT(res.second.validated());
+        BEAST_EXPECT(res.second.meta().has_delivered_amount());
     }
 
 public:

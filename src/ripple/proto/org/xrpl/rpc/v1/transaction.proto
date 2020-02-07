@@ -4,130 +4,58 @@ package org.xrpl.rpc.v1;
 option java_package = "org.xrpl.rpc.v1";
 option java_multiple_files = true;
 
+import "org/xrpl/rpc/v1/common.proto";
 import "org/xrpl/rpc/v1/amount.proto";
-import "org/xrpl/rpc/v1/payment.proto";
-import "org/xrpl/rpc/v1/meta.proto";
-import "org/xrpl/rpc/v1/ledger.proto";
-import "org/xrpl/rpc/v1/transactiontypes.proto";
-import "org/xrpl/rpc/v1/fields.proto";
 
-//TODO change to follow new format?
-message GetTransactionRequest {
-    // hash of the transaction. 32 bytes
-    // ATTN: this is in binary, not hex. The JSON API accepts a hex string for
-    // a transaction hash, but here we need that hex string converted into its
-    // binary form. Each pair of hex characters should be converted into its
-    // corresponding byte. For example, the 4 character hex string "00FF"
-    // should be converted to a 2 byte array: [0, 255]
-    bytes hash = 1;
-
-    // if true, return data in binary format
-    bool binary = 2;
-
-    // optional
-    LedgerRange ledger_range = 3;
-}
-
-message GetTransactionResponse {
-
-    // The actual transaction
-    oneof serialized_transaction {
-        Transaction transaction = 1;
-        // Variable length
-        bytes transaction_binary = 2;
-    };
-    // Sequence number of ledger that contains this transaction
-    uint32 ledger_index = 3;
-
-    // 32 bytes
-    bytes hash = 4;
-
-    // whether the ledger has been validated
-    bool validated = 5;
-
-    // metadata about the transaction
-    oneof serialized_meta {
-        Meta meta = 6;
-        // Variable length
-        bytes meta_binary = 7;
-    }
-
-    Date date = 9;
-}
-
-// A message encompassing all transactions.
+// A message encompassing all transaction types
 message Transaction {
-    // The account originating the transaction.
     Account account = 1;
 
-    // The fee attached to the transaction.
-    // TODO should this have it's own message type? I think it is good to be
-    // explicit here about fees being specified in drops
     XRPDropsAmount fee = 2;
 
-    // The sequence number for the transaction.
     Sequence sequence = 3;
 
-    // Data specific to a the type of transaction being submitted.
+    // Data specific to the type of transaction
     oneof transaction_data {
-        Payment payment = 4;
 
+        Payment payment = 4;
 
         AccountSet account_set = 13;
 
-
         AccountDelete account_delete = 14;
-
 
         CheckCancel check_cancel = 15;
 
-
         CheckCash check_cash = 16;
-
 
         CheckCreate check_create = 17;
 
-
         DepositPreauth deposit_preauth = 18;
-
 
         EscrowCancel escrow_cancel = 19;
 
-
         EscrowCreate escrow_create = 20;
-
 
         EscrowFinish escrow_finish = 21;
 
-
         OfferCancel offer_cancel = 22;
-
 
         OfferCreate offer_create = 23;
 
-
         PaymentChannelClaim payment_channel_claim = 24;
-
 
         PaymentChannelCreate payment_channel_create= 25;
 
-
         PaymentChannelFund payment_channel_fund = 26;
-
 
         SetRegularKey set_regular_key = 27;
 
-
         SignerListSet signer_list_set = 28;
-
 
         TrustSet trust_set = 29;
 
-        //TODO psuedo transactions?
-
     }
 
-    // Public key of the account which signed the transaction
     SigningPublicKey signing_public_key = 5;
 
     TransactionSignature transaction_signature = 6;
@@ -163,4 +91,205 @@ message Signer  {
     SigningPublicKey signing_public_key = 3;
 }
 
+message AccountSet
+{
+    ClearFlag clear_flag = 1;
 
+    Domain domain = 2;
+
+    EmailHash email_hash = 3;
+
+    MessageKey message_key = 4;
+
+    SetFlag set_flag = 5;
+
+    TransferRate transfer_rate = 6;
+
+    TickSize tick_size = 7;
+}
+
+message AccountDelete
+{
+   Destination destination = 1;
+
+   DestinationTag destination_tag = 2;
+}
+
+message CheckCancel
+{
+    CheckID check_id = 1;
+}
+
+message CheckCash
+{
+    CheckID check_id = 1;
+
+    oneof amount_oneof
+    {
+        Amount amount = 2;
+
+        DeliverMin deliver_min = 3;
+    }
+}
+
+message CheckCreate
+{
+    Destination destination = 1;
+
+    SendMax send_max = 2;
+
+    DestinationTag destination_tag = 3;
+
+    Expiration expiration = 4;
+
+    InvoiceID invoice_id = 5;
+}
+
+message DepositPreauth
+{
+    oneof authorization_oneof
+    {
+        Authorize authorize = 1;
+
+        Unauthorize unauthorize = 2;
+    }
+}
+
+message EscrowCancel
+{
+    Owner owner = 1;
+
+    OfferSequence offer_sequence = 2;
+}
+
+message EscrowCreate
+{
+    Amount amount = 1;
+
+    Destination destination = 2;
+
+    CancelAfter cancel_after = 3;
+
+    FinishAfter finish_after = 4;
+
+    Condition condition = 5;
+
+    DestinationTag destination_tag = 6;
+}
+
+message EscrowFinish
+{
+    Owner owner = 1;
+
+    OfferSequence offer_sequence = 2;
+
+    Condition condition = 3;
+
+    Fulfillment fulfillment = 4;
+}
+
+message OfferCancel
+{
+   OfferSequence offer_sequence = 1;
+}
+
+message OfferCreate
+{
+    Expiration expiration = 1;
+
+    OfferSequence offer_sequence = 2;
+
+    TakerGets taker_gets = 3;
+
+    TakerPays taker_pays = 4;
+}
+
+
+message Payment {
+
+    message PathElement {
+
+        AccountAddress account = 1;
+
+        Currency currency = 2;
+
+        AccountAddress issuer = 3;
+    }
+
+    message Path {
+
+        repeated PathElement elements = 1;
+    }
+
+    Amount amount = 1;
+
+    Destination destination = 2;
+
+    DestinationTag destination_tag = 3;
+
+    InvoiceID invoice_id = 4;
+
+    repeated Path paths = 5;
+
+    SendMax send_max = 6;
+
+    DeliverMin deliver_min = 7;
+}
+
+message PaymentChannelClaim
+{
+    Channel channel = 1;
+
+    Balance balance = 2;
+
+    Amount amount = 3;
+
+    Signature signature = 4;
+
+    PublicKey public_key = 5;
+}
+
+message PaymentChannelCreate
+{
+    Amount amount = 1;
+
+    Destination destination = 2;
+
+    SettleDelay settle_delay = 3;
+
+    PublicKey public_key = 4;
+
+    CancelAfter cancel_after = 5;
+
+    DestinationTag destination_tag = 6;
+}
+
+message PaymentChannelFund
+{
+    Channel channel = 1;
+
+    Amount amount = 2;
+
+    Expiration expiration = 3;
+}
+
+message SetRegularKey
+{
+    RegularKey regular_key = 1;
+}
+
+message SignerListSet
+{
+   SignerQuorum signer_quorum = 1;
+
+   repeated SignerEntry signer_entries = 2;
+}
+
+message TrustSet
+{
+    LimitAmount limit_amount = 1;
+
+    QualityIn quality_in = 2;
+
+    QualityOut quality_out = 3;
+}

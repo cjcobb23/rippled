@@ -69,16 +69,16 @@ doFeeGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetFeeRequest>& context)
     levels.set_reference_level(metrics.referenceFeeLevel.fee());
 
     // fee data
-    org::xrpl::rpc::v1::Fee& drops = *reply.mutable_drops();
+    org::xrpl::rpc::v1::Fee& fee = *reply.mutable_fee();
     auto const baseFee = view->fees().base;
-    drops.mutable_base_fee()->set_drops(
+    fee.mutable_base_fee()->set_drops(
         toDrops(metrics.referenceFeeLevel, baseFee).second.drops());
-    drops.mutable_minimum_fee()->set_drops(
+    fee.mutable_minimum_fee()->set_drops(
         toDrops(metrics.minProcessingFeeLevel, baseFee).second.drops());
-    drops.mutable_median_fee()->set_drops(
+    fee.mutable_median_fee()->set_drops(
         toDrops(metrics.medFeeLevel, baseFee).second.drops());
 
-    drops.mutable_open_ledger_fee()->set_drops(
+    fee.mutable_open_ledger_fee()->set_drops(
         (toDrops(metrics.openLedgerFeeLevel - FeeLevel64{1}, baseFee).second +
          1)
             .drops());

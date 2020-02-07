@@ -4,8 +4,7 @@ package org.xrpl.rpc.v1;
 option java_package = "org.xrpl.rpc.v1";
 option java_multiple_files = true;
 
-import "org/xrpl/rpc/v1/amount.proto";
-import "org/xrpl/rpc/v1/fields.proto";
+import "org/xrpl/rpc/v1/common.proto";
 
 message LedgerObject {
 
@@ -41,53 +40,6 @@ enum LedgerEntryType {
     LEDGER_ENTRY_TYPE_SIGNER_LIST     = 12;
 }
 
-message DirectoryNode {
-
-    Flags flags = 1;
-
-    RootIndex root_index = 2;
-
-    repeated Index indexes = 3;
-
-    IndexNext index_next = 4;
-
-    IndexPrevious index_previous = 5;
-
-    Owner owner = 6;
-
-    TakerPaysCurrency taker_pays_currency = 7;
-
-    TakerPaysIssuer taker_pays_issuer = 8;
-
-    TakerGetsCurreny taker_gets_currency = 9;
-
-    TakerGetsIssuer taker_gets_issuer = 10;
-}
-
-message SignerList {
-
-    Flags flags = 1;
-
-    PreviousTransactionID previous_transaction_id = 2;
-
-    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 3;
-
-    OwnerNode owner_node = 4;
-
-    repeated SignerEntry signer_entries = 5;
-
-    SignerListID signer_list_id = 6;
-
-    SignerQuorum signer_quorum = 7;
-}
-
-message SignerEntry {
-
-    Account account = 1;
-
-    SignerWeight signer_weight = 2;
-}
-
 message AccountRoot {
 
     Account account = 1;
@@ -119,73 +71,26 @@ message AccountRoot {
     TransferRate transfer_rate = 14;
 }
 
-message RippleState {
-
-    Balance balance = 1;
-
-    Flags flags = 2;
-
-    LowLimit low_limit = 3;
-
-    HighLimit high_limit = 4;
-
-    LowNode low_node = 5;
-
-    HighNode high_node = 6;
-
-    LowQualityIn low_quality_in = 7;
-
-    LowQualityOut low_quality_out = 8;
-
-    HighQualityIn high_quality_in = 9;
-
-    HighQualityOut high_quality_out = 10;
-
-    PreviousTransactionID previous_transaction_id = 11;
-
-    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 12;
-}
-
-message Offer {
-
-    Account account = 1;
-
-    Sequence sequence = 2;
-
-    Flags flags = 3;
-
-    TakerPays taker_pays = 4;
-
-    TakerGets taker_gets = 5;
-
-    BookDirectory book_directory = 6;
-
-    BookNode book_node = 7;
-
-    OwnerNode owner_node = 8;
-
-    Expiration expiration = 9;
-
-    PreviousTransactionID previous_transaction_id = 10;
-
-    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 11;
-}
-
 message Amendments
 {
+    message Amendment
+    {
+        // 32 bytes
+        bytes value = 1;
+    }
+
+    message Majority
+    {
+        Amendment amendment = 1;
+
+        CloseTime close_time = 2;
+    }
+
     repeated Amendment amendments = 1;
 
     repeated Majority majorities = 2;
 
     Flags flags = 3;
-}
-
-
-message Majority
-{
-    Amendment amendment = 1;
-
-    CloseTime close_time = 2;
 }
 
 message Check
@@ -232,6 +137,29 @@ message DepositPreauthObject
     PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 6;
 }
 
+message DirectoryNode {
+
+    Flags flags = 1;
+
+    RootIndex root_index = 2;
+
+    repeated Index indexes = 3;
+
+    IndexNext index_next = 4;
+
+    IndexPrevious index_previous = 5;
+
+    Owner owner = 6;
+
+    TakerPaysCurrency taker_pays_currency = 7;
+
+    TakerPaysIssuer taker_pays_issuer = 8;
+
+    TakerGetsCurreny taker_gets_currency = 9;
+
+    TakerGetsIssuer taker_gets_issuer = 10;
+}
+
 message Escrow
 {
     Account account = 1;
@@ -274,7 +202,6 @@ message FeeSettings
     Flags flags = 5;
 }
 
-
 message LedgerHashes
 {
     LastLedgerSequence last_ledger_sequence = 1;
@@ -282,6 +209,31 @@ message LedgerHashes
     repeated Hash hashes = 2;
 
     Flags flags = 3;
+}
+
+message Offer {
+
+    Account account = 1;
+
+    Sequence sequence = 2;
+
+    Flags flags = 3;
+
+    TakerPays taker_pays = 4;
+
+    TakerGets taker_gets = 5;
+
+    BookDirectory book_directory = 6;
+
+    BookNode book_node = 7;
+
+    OwnerNode owner_node = 8;
+
+    Expiration expiration = 9;
+
+    PreviousTransactionID previous_transaction_id = 10;
+
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 11;
 }
 
 message PayChannel
@@ -316,65 +268,46 @@ message PayChannel
 
 }
 
+message RippleState {
 
+    Balance balance = 1;
 
+    Flags flags = 2;
 
+    LowLimit low_limit = 3;
 
+    HighLimit high_limit = 4;
 
+    LowNode low_node = 5;
 
+    HighNode high_node = 6;
 
+    LowQualityIn low_quality_in = 7;
 
+    LowQualityOut low_quality_out = 8;
 
+    HighQualityIn high_quality_in = 9;
 
+    HighQualityOut high_quality_out = 10;
 
+    PreviousTransactionID previous_transaction_id = 11;
 
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 12;
+}
 
+message SignerList {
 
+    Flags flags = 1;
 
+    PreviousTransactionID previous_transaction_id = 2;
 
+    PreviousTransactionLedgerSequence previous_transaction_ledger_sequence = 3;
 
+    OwnerNode owner_node = 4;
 
+    repeated SignerEntry signer_entries = 5;
 
+    SignerListID signer_list_id = 6;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    SignerQuorum signer_quorum = 7;
+}

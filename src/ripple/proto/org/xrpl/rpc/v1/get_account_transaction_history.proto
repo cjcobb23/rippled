@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "org/xrpl/rpc/v1/get_transaction.proto";
 import "org/xrpl/rpc/v1/transaction.proto";
 import "org/xrpl/rpc/v1/amount.proto";
 import "org/xrpl/rpc/v1/ledger.proto";
