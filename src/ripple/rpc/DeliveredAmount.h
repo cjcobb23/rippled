@@ -66,13 +66,6 @@ insertDeliveredAmount(
     std::shared_ptr<Transaction>,
     TxMeta const&);
 
-void
-insertDeliveredAmount(
-    org::xrpl::rpc::v1::CurrencyAmount& proto,
-    Context&,
-    std::shared_ptr<Transaction>,
-    TxMeta const&);
-
 std::optional<STAmount>
 getDeliveredAmount(
     RPC::Context& context,

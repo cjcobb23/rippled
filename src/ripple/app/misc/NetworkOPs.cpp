@@ -413,11 +413,6 @@ public:
         std::int32_t minLedger, std::int32_t maxLedger, bool descending,
         std::uint32_t offset, int limit, bool bUnlimited) override;
 
-    AccountTxs getTxsAccount (
-        AccountID const& account, std::int32_t minLedger,
-        std::int32_t maxLedger, bool forward, Json::Value& token, int limit,
-        bool bUnlimited) override;
-
     AccountTxs
     getTxsAccount(
         AccountID const& account,
@@ -437,11 +432,6 @@ public:
         std::int32_t maxLedger,  bool descending, std::uint32_t offset,
         int limit, bool bUnlimited) override;
 
-    MetaTxsList
-    getTxsAccountB (
-        AccountID const& account, std::int32_t minLedger,
-        std::int32_t maxLedger,  bool forward, Json::Value& token,
-        int limit, bool bUnlimited) override;
 
     MetaTxsList
     getTxsAccountB(
@@ -2137,36 +2127,6 @@ std::vector<NetworkOPsImp::txnMetaLedgerType> NetworkOPsImp::getAccountTxsB (
 }
 
 NetworkOPsImp::AccountTxs
-NetworkOPsImp::getTxsAccount (
-    AccountID const& account, std::int32_t minLedger,
-    std::int32_t maxLedger, bool forward, Json::Value& token,
-    int limit, bool bUnlimited)
-{
-    static std::uint32_t const page_length (200);
-
-    Application& app = app_;
-    NetworkOPsImp::AccountTxs ret;
-
-    auto bound = [&ret, &app](
-        std::uint32_t ledger_index,
-        std::string const& status,
-        Blob const& rawTxn,
-        Blob const& rawMeta)
-    {
-        convertBlobsToTxResult (
-            ret, ledger_index, status, rawTxn, rawMeta, app);
-    };
-
-    accountTxPage(app_.getTxnDB (), app_.accountIDCache(),
-        std::bind(saveLedgerAsync, std::ref(app_),
-            std::placeholders::_1), bound, account, minLedger,
-                maxLedger, forward, token, limit, bUnlimited,
-                    page_length);
-
-    return ret;
-}
-
-NetworkOPsImp::AccountTxs
 NetworkOPsImp::getTxsAccount(
     AccountID const& account,
     std::int32_t minLedger,
@@ -2203,33 +2163,6 @@ NetworkOPsImp::getTxsAccount(
         bUnlimited,
         page_length);
 
-    return ret;
-}
-
-NetworkOPsImp::MetaTxsList
-NetworkOPsImp::getTxsAccountB (
-    AccountID const& account, std::int32_t minLedger,
-    std::int32_t maxLedger,  bool forward, Json::Value& token,
-    int limit, bool bUnlimited)
-{
-    static const std::uint32_t page_length (500);
-
-    MetaTxsList ret;
-
-    auto bound = [&ret](
-        std::uint32_t ledgerIndex,
-        std::string const& status,
-        Blob const& rawTxn,
-        Blob const& rawMeta)
-    {
-        ret.emplace_back (std::move(rawTxn), std::move(rawMeta), ledgerIndex);
-    };
-
-    accountTxPage(app_.getTxnDB (), app_.accountIDCache(),
-        std::bind(saveLedgerAsync, std::ref(app_),
-            std::placeholders::_1), bound, account, minLedger,
-                maxLedger, forward, token, limit, bUnlimited,
-                    page_length);
     return ret;
 }
 

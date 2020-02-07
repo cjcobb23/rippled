@@ -830,10 +830,7 @@ Value&
 Value::resolveReference ( const char* key,
                           bool isStatic )
 {
-    if(type_ != nullValue && type_ != objectValue)
-    {
-        JSON_ASSERT(false);
-    }
+    JSON_ASSERT ( type_ == nullValue  ||  type_ == objectValue );
 
     if ( type_ == nullValue )
         *this = Value ( objectValue );
@@ -872,10 +869,7 @@ Value::isValidIndex ( UInt index ) const
 const Value&
 Value::operator[] ( const char* key ) const
 {
-    if(type_ != nullValue && type_ != objectValue)
-    {
-        JSON_ASSERT(false);
-    }
+    JSON_ASSERT ( type_ == nullValue  ||  type_ == objectValue );
 
     if ( type_ == nullValue )
         return null;

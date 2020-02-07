@@ -224,12 +224,6 @@ public:
         std::int32_t minLedger, std::int32_t maxLedger,  bool descending,
         std::uint32_t offset, int limit, bool bUnlimited) = 0;
 
-    virtual AccountTxs getTxsAccount (
-        AccountID const& account,
-        std::int32_t minLedger, std::int32_t maxLedger, bool forward,
-        Json::Value& token, int limit, bool bUnlimited) = 0;
-
-
     virtual AccountTxs
     getTxsAccount(
         AccountID const& account,
@@ -246,10 +240,6 @@ public:
     virtual MetaTxsList getAccountTxsB (AccountID const& account,
         std::int32_t minLedger, std::int32_t maxLedger,  bool descending,
             std::uint32_t offset, int limit, bool bUnlimited) = 0;
-
-    virtual MetaTxsList getTxsAccountB (AccountID const& account,
-        std::int32_t minLedger, std::int32_t maxLedger,  bool forward,
-        Json::Value& token, int limit, bool bUnlimited) = 0;
 
     virtual MetaTxsList
     getTxsAccountB(
