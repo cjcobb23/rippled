@@ -218,7 +218,6 @@ populateResponse(
     auto& fillTxn,
     auto& fillMeta,
     auto& fillMetaBinary,
-    auto& fillDeliveredAmount,
     auto& fillValidated)
 {
     // handle errors
@@ -235,7 +234,7 @@ populateResponse(
         }
     }
     // no errors
-    else
+    else if(res.first.txn)
     {
         fillTxn(res.first.txn);
 
@@ -251,8 +250,7 @@ populateResponse(
             // check that meta is not nullptr
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
             {
-                fillMeta(meta);
-                fillDeliveredAmount(res.first.txn, meta);
+                fillMeta(res.first.txn,meta);
             }
         }
         fillValidated(res.first.validated);
@@ -300,31 +298,28 @@ doTxJson(RPC::JsonContext& context)
         ret = txn->getJson(JsonOptions::include_date, args.binary);
     };
 
-    auto handleErr = [&args, &ret](auto const& error) {
+    auto handleErr = [&ret](auto const& error) {
         const_cast<RPC::Status&>(error).inject(ret);
     };
 
-    auto handleErrSearchedAll = [&args, &ret](
+    auto handleErrSearchedAll = [&ret](
                              auto const& error, auto const& searchedAll) {
         ret = Json::Value(Json::objectValue);
         ret[jss::searched_all] = searchedAll;
         const_cast<RPC::Status&>(error).inject(ret);
     };
 
-    auto fillMetaBinary = [&args, &ret](auto const& metaBlob) {
+    auto fillMetaBinary = [&ret](auto const& metaBlob) {
         ret[jss::meta] = strHex(makeSlice(metaBlob));
     };
 
-    auto fillMeta = [&args, &ret](auto const& meta) {
+    auto fillMeta = [&ret, &context](auto const& txn, auto const& meta) {
         ret[jss::meta] = meta->getJson(JsonOptions::none);
-    };
-
-    auto fillDeliveredAmount = [&args, &ret, &context](
-                             auto const& txn, auto const& meta) {
         insertDeliveredAmount(ret[jss::meta], context, txn, *meta);
     };
 
-    auto fillValidated = [&args, &ret](auto const& validated) {
+
+    auto fillValidated = [&ret](auto const& validated) {
         ret[jss::validated] = validated;
     };
 
@@ -336,7 +331,6 @@ doTxJson(RPC::JsonContext& context)
         fillTxn,
         fillMeta,
         fillMetaBinary,
-        fillDeliveredAmount,
         fillValidated);
 
     return ret;
@@ -374,15 +368,15 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
 
     std::pair<TxResult, RPC::Status> res = doTxHelp(args, context);
 
-    auto handleErr = [&args, &response, &status](auto const& error) {
+    auto handleErr = [&status](auto const& error) {
         if (error.toErrorCode() == rpcTXN_NOT_FOUND)
             status = {grpc::StatusCode::NOT_FOUND, "txn not found"};
         else
             status = {grpc::StatusCode::INTERNAL, error.message()};
     };
 
-    auto handleErrSearchedAll = [&args, &response, &status](
-                               auto const&, auto const& searchedAll) {
+    auto handleErrSearchedAll = [&status](
+                                    auto const&, auto const& searchedAll) {
         status = {grpc::StatusCode::NOT_FOUND,
                   "txn not found. searched_all = " + searchedAll};
     };
@@ -399,10 +393,10 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
             RPC::populateTransaction(*response.mutable_transaction(), stTxn);
         }
 
-        auto ledgerIndex = txn->getLedger();
-
-        response.set_ledger_index(ledgerIndex);
         response.set_hash(std::move(request.hash()));
+
+        auto ledgerIndex = txn->getLedger();
+        response.set_ledger_index(ledgerIndex);
         if (ledgerIndex)
         {
             auto ct =
@@ -419,32 +413,25 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
             transToken(txn->getResult()));
     };
 
-    auto fillMeta = [&args, &res, &response, &status](auto const& meta) {
+    auto fillMeta = [&response, &context](auto const& txn, auto const& meta) {
         RPC::populateMeta(*response.mutable_meta(), meta);
+        auto amt = getDeliveredAmount(
+            context, txn->getSTransaction(), *meta, [&txn]() {
+                return txn->getLedger();
+            });
+        if (amt)
+        {
+            RPC::populateProtoAmount(
+                *amt, *response.mutable_meta()->mutable_delivered_amount());
+        }
     };
 
-    auto fillMetaBinary = [&args, &response, &status](auto const& metaBlob) {
+    auto fillMetaBinary = [&response](auto const& metaBlob) {
         Slice slice = makeSlice(metaBlob);
         response.set_meta_binary(slice.data(), slice.size());
     };
 
-    auto fillDeliveredAmount = [&args, &res, &response, &context, &status](
-                             auto const& txn, auto const& meta) {
-        if (txn)
-        {
-            auto amt = getDeliveredAmount(
-                context, txn->getSTransaction(), *meta, [&txn]() {
-                    return txn->getLedger();
-                });
-            if (amt)
-            {
-                RPC::populateProtoAmount(
-                    *amt, *response.mutable_meta()->mutable_delivered_amount());
-            }
-        }
-    };
-
-    auto fillValidated = [&args, &response, &status](auto const& validated) {
+    auto fillValidated = [&response](auto const& validated) {
         response.set_validated(validated);
     };
 
@@ -456,7 +443,6 @@ doTxGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetTransactionRequest>& context)
         fillTxn,
         fillMeta,
         fillMetaBinary,
-        fillDeliveredAmount,
         fillValidated);
 
     return {response, status};

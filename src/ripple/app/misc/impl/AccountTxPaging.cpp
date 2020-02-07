@@ -79,8 +79,6 @@ accountTxPage(
     bool bAdmin,
     std::uint32_t page_length)
 {
-    // TODO change marker to optional
-    // 0 could be a valid value for the marker
     bool lookingForMarker = marker.has_value();
 
     std::uint32_t numberOfResults;

@@ -86,9 +86,9 @@ struct AccountTxResult
 
 // parses args into a ledger specifier, or returns a grpc status object on error
 std::variant<std::optional<LedgerSpecifier>, grpc::Status>
-parseLedgerArgs(org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest const& params)
+parseLedgerArgs(
+    org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest const& params)
 {
-    LedgerSpecifier ledger;
     grpc::Status status;
     if (params.has_ledger_range())
     {
@@ -105,6 +105,8 @@ parseLedgerArgs(org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest const& p
     }
     else if (params.has_ledger_specifier())
     {
+        LedgerSpecifier ledger;
+
         auto& specifier = params.ledger_specifier();
         using LedgerCase = org::xrpl::rpc::v1::LedgerSpecifier::LedgerCase;
         LedgerCase ledgerCase = specifier.ledger_case();
@@ -112,22 +114,15 @@ parseLedgerArgs(org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest const& p
         if (ledgerCase == LedgerCase::kShortcut)
         {
             using LedgerSpecifier = org::xrpl::rpc::v1::LedgerSpecifier;
+
             if (specifier.shortcut() == LedgerSpecifier::SHORTCUT_VALIDATED)
-            {
                 ledger = LedgerShortcut::VALIDATED;
-            }
             else if (specifier.shortcut() == LedgerSpecifier::SHORTCUT_CLOSED)
-            {
                 ledger = LedgerShortcut::CLOSED;
-            }
             else if (specifier.shortcut() == LedgerSpecifier::SHORTCUT_CURRENT)
-            {
                 ledger = LedgerShortcut::CURRENT;
-            }
             else
-            {
                 return {};
-            }
         }
         else if (ledgerCase == LedgerCase::kSequence)
         {
@@ -194,18 +189,13 @@ parseLedgerArgs(Json::Value const& params)
         else
         {
             std::string ledgerStr = params[jss::ledger_index].asString();
+
             if (ledgerStr == "current" || ledgerStr.empty())
-            {
                 ledger = LedgerShortcut::CURRENT;
-            }
             else if (ledgerStr == "closed")
-            {
                 ledger = LedgerShortcut::CLOSED;
-            }
             else if (ledgerStr == "validated")
-            {
                 ledger = LedgerShortcut::VALIDATED;
-            }
             else
             {
                 RPC::Status status{rpcINVALID_PARAMS,
@@ -219,69 +209,6 @@ parseLedgerArgs(Json::Value const& params)
     return {};
 }
 
-void
-populateTransactionData(
-    RPC::Context& context,
-    std::shared_ptr<Transaction> const& txn,
-    TxMeta::pointer const& txnMeta,
-    org::xrpl::rpc::v1::GetTransactionResponse* txnProto)
-{
-    assert(txnProto);
-    if (txn)
-        RPC::populateTransaction(
-            *txnProto->mutable_transaction(), txn->getSTransaction());
-
-    if (txnMeta)
-        RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
-
-    if (txnMeta && !txnMeta->hasDeliveredAmount())
-    {
-        std::optional<STAmount> amount = getDeliveredAmount(
-            context, txn->getSTransaction(), *txnMeta, [&txn]() {
-                return txn->getLedger();
-            });
-        if (amount)
-        {
-            txnMeta->setDeliveredAmount(*amount);
-        }
-    }
-
-    // account_tx always returns validated data
-    txnProto->set_validated(true);
-    txnProto->set_ledger_index(txn->getLedger());
-    auto& hash = txn->getID();
-    txnProto->set_hash(hash.data(), hash.size());
-    auto closeTime =
-        context.app.getLedgerMaster().getCloseTimeBySeq(txn->getLedger());
-    if (closeTime)
-        txnProto->mutable_date()->set_value(
-            closeTime->time_since_epoch().count());
-}
-
-void
-populateTransactionDataBinary(
-    RPC::Context& context,
-    std::tuple<Blob, Blob, std::uint32_t> const& binaryData,
-    org::xrpl::rpc::v1::GetTransactionResponse* txnProto)
-{
-    assert(txnProto);
-    Blob const& txnBlob = std::get<0>(binaryData);
-    txnProto->set_transaction_binary(txnBlob.data(), txnBlob.size());
-
-    Blob const& metaBlob = std::get<1>(binaryData);
-    txnProto->set_meta_binary(metaBlob.data(), metaBlob.size());
-
-    txnProto->set_ledger_index(std::get<2>(binaryData));
-
-    // account_tx always returns validated data
-    txnProto->set_validated(true);
-
-    auto closeTime = context.app.getLedgerMaster().getCloseTimeBySeq(
-        std::get<2>(binaryData));
-    if (closeTime)
-        txnProto->mutable_date()->set_value(
-            closeTime->time_since_epoch().count());
-}
 
 std::variant<LedgerRange, RPC::Status>
 getLedgerRange(
@@ -372,17 +299,7 @@ std::pair<AccountTxResult, RPC::Status>
 doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
 {
     AccountTxResult result;
-
-    std::uint32_t uValidatedMin;
-    std::uint32_t uValidatedMax;
-    bool bValidated =
-        context.ledgerMaster.getValidatedRange(uValidatedMin, uValidatedMax);
-
-    if (!bValidated)
-    {
-        // Don't have a validated ledger range.
-        return {result, rpcLGR_IDXS_INVALID};
-    }
+    context.loadType = Resource::feeMediumBurdenRPC;
 
     auto lgrRange = getLedgerRange(context, args.ledger);
     if (std::holds_alternative<RPC::Status>(lgrRange))
@@ -393,7 +310,6 @@ doAccountTxHelp(RPC::Context& context, AccountTxArgs& args)
 
     result.ledgerRange = std::get<LedgerRange>(lgrRange);
 
-    context.loadType = Resource::feeMediumBurdenRPC;
 
     if (args.binary)
     {
@@ -432,6 +348,7 @@ populateResponse(
     auto const& handleErr,
     auto const& fillTopLevelResultData,
     auto const& fillTxnData,
+    auto const& fillMetaData,
     auto const& fillBinaryTxnData,
     auto const& fillMarker)
 {
@@ -449,7 +366,12 @@ populateResponse(
             for (auto const& [txn, txnMeta] :
                  std::get<TxnsData>(res.first.transactions))
             {
-                fillTxnData(txn, txnMeta);
+                if(txn)
+                {
+                    fillTxnData(txn);
+                    if(txnMeta)
+                        fillMetaData(txn, txnMeta);
+                }
             }
         }
         else
@@ -534,7 +456,9 @@ doAccountTxJson(RPC::JsonContext& context)
 
     Json::Value& jvTxns = (response[jss::transactions] = Json::arrayValue);
 
-    auto handleErr = [&response](auto const& error) { const_cast<RPC::Status&>(error).inject(response); };
+    auto handleErr = [&response](auto const& error) {
+        const_cast<RPC::Status&>(error).inject(response);
+    };
 
     auto fillTopLevelResultData = [&response, &params](auto const& result) {
         response[jss::validated] = true;
@@ -544,29 +468,26 @@ doAccountTxJson(RPC::JsonContext& context)
         response[jss::ledger_index_max] = result.ledgerRange.max;
     };
 
-    auto fillTxnData = [&jvTxns, &context](
-                           auto const& txn, auto const& txnMeta) {
+    auto fillTxnData = [&jvTxns, &context](auto const& txn) {
         Json::Value& jvObj = jvTxns.append(Json::objectValue);
-
-        if (txn)
-            jvObj[jss::tx] = txn->getJson(JsonOptions::include_date);
-
-        if (txnMeta)
-        {
-            auto metaJ = txnMeta->getJson(JsonOptions::include_date);
-            jvObj[jss::meta] = std::move(metaJ);
-            jvObj[jss::validated] = true;
-
-            insertDeliveredAmount(jvObj[jss::meta], context, txn, *txnMeta);
-        }
+        jvObj[jss::tx] = txn->getJson(JsonOptions::include_date);
     };
 
-    auto fillBinaryTxnData = [&jvTxns](auto const& txn) {
+    auto fillMetaData = [&jvTxns, &context](
+                            auto const& txn, auto const& txnMeta) {
+        assert(jvTxns.size());
+        auto& jvObj = jvTxns[jvTxns.size() - 1];
+        jvObj[jss::meta] = txnMeta->getJson(JsonOptions::include_date);
+        jvObj[jss::validated] = true;
+        insertDeliveredAmount(jvObj[jss::meta], context, txn, *txnMeta);
+    };
+
+    auto fillBinaryTxnData = [&jvTxns](auto const& binaryData) {
         Json::Value& jvObj = jvTxns.append(Json::objectValue);
 
-        jvObj[jss::tx_blob] = strHex(std::get<0>(txn));
-        jvObj[jss::meta] = strHex(std::get<1>(txn));
-        jvObj[jss::ledger_index] = std::get<2>(txn);
+        jvObj[jss::tx_blob] = strHex(std::get<0>(binaryData));
+        jvObj[jss::meta] = strHex(std::get<1>(binaryData));
+        jvObj[jss::ledger_index] = std::get<2>(binaryData);
         jvObj[jss::validated] = true;
     };
 
@@ -582,15 +503,19 @@ doAccountTxJson(RPC::JsonContext& context)
         handleErr,
         fillTopLevelResultData,
         fillTxnData,
+        fillMetaData,
         fillBinaryTxnData,
         fillMarker);
 
     return response;
 }
 
-std::pair<org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse, grpc::Status>
+std::pair<
+    org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse,
+    grpc::Status>
 doAccountTxGrpc(
-    RPC::GRPCContext<org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest>& context)
+    RPC::GRPCContext<org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest>&
+        context)
 {
     // return values
     org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse response;
@@ -651,22 +576,66 @@ doAccountTxGrpc(
         response.set_ledger_index_max(result.ledgerRange.max);
     };
 
-    auto fillTxnData = [&context, &response](
-                           auto const& txn, auto const& txnMeta) {
+    auto fillTxnData = [&context, &response](auto const& txn) {
         auto txnProto = response.add_transactions();
-        populateTransactionData(context, txn, txnMeta, txnProto);
+
+        RPC::populateTransaction(
+            *txnProto->mutable_transaction(), txn->getSTransaction());
+
+        // account_tx always returns validated data
+        txnProto->set_validated(true);
+        txnProto->set_ledger_index(txn->getLedger());
+        auto& hash = txn->getID();
+        txnProto->set_hash(hash.data(), hash.size());
+        auto closeTime =
+            context.app.getLedgerMaster().getCloseTimeBySeq(txn->getLedger());
+        if (closeTime)
+            txnProto->mutable_date()->set_value(
+                closeTime->time_since_epoch().count());
     };
 
-    auto fillBinaryTxnData = [&context, &response](auto const& txn) {
+    auto fillMetaData = [&context, &response](
+                            auto const& txn, auto const& txnMeta) {
+        assert(response.transactions_size());
+        auto txnProto =
+            response.mutable_transactions(response.transactions_size() - 1);
+        if (!txnMeta->hasDeliveredAmount())
+        {
+            std::optional<STAmount> amount = getDeliveredAmount(
+                context, txn->getSTransaction(), *txnMeta, [&txn]() {
+                    return txn->getLedger();
+                });
+            if (amount)
+            {
+                txnMeta->setDeliveredAmount(*amount);
+            }
+        }
+        RPC::populateMeta(*txnProto->mutable_meta(), txnMeta);
+    };
+
+    auto fillBinaryTxnData = [&context, &response](auto const& binaryData) {
         auto txnProto = response.add_transactions();
-        populateTransactionDataBinary(context, txn, txnProto);
+        Blob const& txnBlob = std::get<0>(binaryData);
+        txnProto->set_transaction_binary(txnBlob.data(), txnBlob.size());
+
+        Blob const& metaBlob = std::get<1>(binaryData);
+        txnProto->set_meta_binary(metaBlob.data(), metaBlob.size());
+
+        txnProto->set_ledger_index(std::get<2>(binaryData));
+
+        // account_tx always returns validated data
+        txnProto->set_validated(true);
+
+        auto closeTime = context.app.getLedgerMaster().getCloseTimeBySeq(
+            std::get<2>(binaryData));
+        if (closeTime)
+            txnProto->mutable_date()->set_value(
+                closeTime->time_since_epoch().count());
     };
 
     auto fillMarker = [&response](auto const& marker) {
-        response.mutable_marker()->set_ledger_index(
-            marker.ledgerSeq);
-        response.mutable_marker()->set_account_sequence(
-            marker.txnSeq);
+        response.mutable_marker()->set_ledger_index(marker.ledgerSeq);
+        response.mutable_marker()->set_account_sequence(marker.txnSeq);
     };
 
     populateResponse(
@@ -675,6 +644,7 @@ doAccountTxGrpc(
         handleErr,
         fillTopLevelResultData,
         fillTxnData,
+        fillMetaData,
         fillBinaryTxnData,
         fillMarker);
 
