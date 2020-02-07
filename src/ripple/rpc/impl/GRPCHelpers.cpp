@@ -630,7 +630,6 @@ populateSignerWeight(STObject const& obj, T& proto)
     });
 }
 
-
 template <class T>
 void
 populateAmendments(STObject const& obj, T& proto)
@@ -767,8 +766,6 @@ populateSignerListID(STObject const& obj, T& proto)
     });
 }
 
-
-
 template <class T>
 void
 populateHashes(STObject const& obj, T& proto)
@@ -809,8 +806,6 @@ populateIndexPrevious(STObject const& obj, T& proto)
         return proto.mutable_index_previous();
     });
 }
-
-
 
 template <class T>
 void
@@ -1854,16 +1849,6 @@ populateTransaction(
             break;
     }
 }
-
-/*
-template <class T>
-void populate*(STObject const& obj, T& proto)
-{
-    populateProto*(obj, *, [&proto]() {
-        return proto.*();
-    });
-}
-*/
 
 }  // namespace RPC
 }  // namespace ripple

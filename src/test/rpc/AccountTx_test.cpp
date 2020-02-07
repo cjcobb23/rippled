@@ -548,47 +548,6 @@ class AccountTx_test : public beast::unit_test::suite
         }
     }
 
-
-//    // gRPC stuff
-//    class GrpcAccountTxClient : public GRPCTestClientBase
-//    {
-//    public:
-//        org::xrpl::rpc::v1::GetAccountTransactionHistoryRequest request;
-//        org::xrpl::rpc::v1::GetAccountTransactionHistoryResponse reply;
-//
-//        explicit GrpcTxClient(std::string const& port)
-//            : GRPCTestClientBase(port)
-//        {
-//        }
-//
-//        void
-//        AccountTx()
-//        {
-//            status =
-//                stub_->GetAccountTransactionHistory(&context, request, &reply);
-//        }
-//    };
-//
-//    void testAccountTxGrpc()
-//    {
-//
-//        testcase("Test Account_tx Grpc");
-//
-//        using namespace test::jtx;
-//        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
-//        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
-//        Env env(*this, std::move(config));
-//
-//        auto grpcTx = [&grpcPort](auto hash, auto binary) {
-//            GrpcTxClient client(grpcPort);
-//            client.request.set_hash(&hash, sizeof(hash));
-//            client.request.set_binary(binary);
-//            client.Tx();
-//            return std::pair<bool, org::xrpl::rpc::v1::GetTransactionResponse>(
-//                client.status.ok(), client.reply);
-//        };
-//    }
-
 public:
     void
     run() override

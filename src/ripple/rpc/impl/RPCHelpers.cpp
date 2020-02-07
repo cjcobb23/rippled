@@ -201,12 +201,10 @@ template <class T>
 Status
 ledgerFromRequest(T& ledger, JsonContext& context)
 {
-    static auto const minSequenceGap = 10;
 
     ledger.reset();
 
     auto& params = context.params;
-    auto& ledgerMaster = context.ledgerMaster;
 
     auto indexValue = params[jss::ledger_index];
     auto hashValue = params[jss::ledger_hash];
@@ -227,73 +225,31 @@ ledgerFromRequest(T& ledger, JsonContext& context)
             return {rpcINVALID_PARAMS, "ledgerHashNotString"};
 
         uint256 ledgerHash;
-        if (! ledgerHash.SetHex (hashValue.asString ()))
+        if(!ledgerHash.SetHex (hashValue.asString ()))
             return {rpcINVALID_PARAMS, "ledgerHashMalformed"};
-
-        ledger = ledgerMaster.getLedgerByHash (ledgerHash);
-        if (ledger == nullptr)
-            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+        return getLedger(ledger, ledgerHash, context);
     }
     else if (indexValue.isNumeric())
     {
-        ledger = ledgerMaster.getLedgerBySeq (indexValue.asInt ());
-
-        if (ledger == nullptr)
-        {
-            auto cur = ledgerMaster.getCurrentLedger();
-            if (cur->info().seq == indexValue.asInt())
-                ledger = cur;
-        }
-
-        if (ledger == nullptr)
-            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
-
-        if (ledger->info().seq > ledgerMaster.getValidLedgerIndex() &&
-            isValidatedOld(ledgerMaster, context.app.config().standalone()))
-        {
-            ledger.reset();
-            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-        }
+        return getLedger(ledger, indexValue.asInt(),context);
     }
     else
     {
-        if (isValidatedOld (ledgerMaster, context.app.config().standalone()))
-            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
 
         auto const index = indexValue.asString ();
         if (index == "validated")
         {
-            ledger = ledgerMaster.getValidatedLedger ();
-            if (ledger == nullptr)
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-
-            assert (! ledger->open());
+            return getLedger(ledger, LedgerShortcut::VALIDATED, context);
         }
         else
         {
             if (index.empty () || index == "current")
-            {
-                ledger = ledgerMaster.getCurrentLedger ();
-                assert (ledger->open());
-            }
+                return getLedger(ledger, LedgerShortcut::CURRENT, context);
             else if (index == "closed")
-            {
-                ledger = ledgerMaster.getClosedLedger ();
-                assert (! ledger->open());
-            }
+                return getLedger(ledger, LedgerShortcut::CLOSED, context);
             else
             {
                 return {rpcINVALID_PARAMS, "ledgerIndexMalformed"};
-            }
-
-            if (ledger == nullptr)
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-
-            if (ledger->info().seq + minSequenceGap <
-                ledgerMaster.getValidLedgerIndex ())
-            {
-                ledger.reset ();
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
             }
         }
     }
@@ -308,95 +264,44 @@ ledgerFromRequest(
     T& ledger,
     GRPCContext<org::xrpl::rpc::v1::GetAccountInfoRequest>& context)
 {
-    static auto const minSequenceGap = 10;
-
     ledger.reset();
 
     org::xrpl::rpc::v1::GetAccountInfoRequest& request = context.params;
-    auto& ledgerMaster = context.ledgerMaster;
 
     using LedgerCase = org::xrpl::rpc::v1::LedgerSpecifier::LedgerCase;
     LedgerCase ledgerCase = request.ledger().ledger_case();
 
-
-
     if (ledgerCase == LedgerCase::kHash)
     {
         uint256 ledgerHash = uint256::fromVoid(request.ledger().hash().data());
-        if (ledgerHash.size() != request.ledger().hash().size())
-            return {rpcINVALID_PARAMS, "ledgerHashMalformed"};
-
-        ledger = ledgerMaster.getLedgerByHash(ledgerHash);
-        if (ledger == nullptr)
-            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
+        return getLedger(ledger, ledgerHash, context);
     }
     else if (ledgerCase == LedgerCase::kSequence)
     {
-
-        ledger = ledgerMaster.getLedgerBySeq(request.ledger().sequence());
-
-        if (ledger == nullptr)
-        {
-            auto cur = ledgerMaster.getCurrentLedger();
-            if (cur->info().seq == request.ledger().sequence())
-                ledger = cur;
-        }
-
-        if (ledger == nullptr)
-            return {rpcLGR_NOT_FOUND, "ledgerNotFound"};
-
-        if (ledger->info().seq > ledgerMaster.getValidLedgerIndex() &&
-            isValidatedOld(ledgerMaster, context.app.config().standalone()))
-        {
-            ledger.reset();
-            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-        }
+        return getLedger(ledger, request.ledger().sequence(), context);
     }
     else if (
         ledgerCase == LedgerCase::kShortcut ||
         ledgerCase == LedgerCase::LEDGER_NOT_SET)
     {
-        if(ledgerCase == LedgerCase::kShortcut)
-        {
-        }
-        else
-        {
-        }
-        if (isValidatedOld(ledgerMaster, context.app.config().standalone()))
-            return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-
         auto const shortcut = request.ledger().shortcut();
         if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_VALIDATED)
-        {
-            ledger = ledgerMaster.getValidatedLedger();
-            if (ledger == nullptr)
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-
-            assert(!ledger->open());
-        }
+            return getLedger(ledger, LedgerShortcut::VALIDATED, context);
         else
         {
             // note, if unspecified, defaults to current ledger
-            if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_UNSPECIFIED ||
-                shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CURRENT)
+            if (shortcut ==
+                    org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_UNSPECIFIED ||
+                shortcut ==
+                    org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CURRENT)
             {
-                ledger = ledgerMaster.getCurrentLedger();
-                assert(ledger->open());
+                return getLedger(ledger, LedgerShortcut::CURRENT, context);
             }
-            else if (shortcut == org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CLOSED)
+            else if (
+                shortcut ==
+                org::xrpl::rpc::v1::LedgerSpecifier::SHORTCUT_CLOSED)
             {
-                ledger = ledgerMaster.getClosedLedger();
-                assert(!ledger->open());
-            }
-
-            if (ledger == nullptr)
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
-
-            if (ledger->info().seq + minSequenceGap <
-                ledgerMaster.getValidLedgerIndex())
-            {
-                ledger.reset();
-                return {rpcNO_NETWORK, "InsufficientNetworkMode"};
+                return getLedger(ledger, LedgerShortcut::CLOSED, context);
             }
         }
     }
