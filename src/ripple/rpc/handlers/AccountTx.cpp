@@ -72,6 +72,7 @@ struct AccountTxArgs
 
 using TxnsData = NetworkOPs::AccountTxs;
 using TxnsDataBinary = NetworkOPs::MetaTxsList;
+using TxnDataBinary = NetworkOPs::txnMetaLedgerType;
 
 struct AccountTxResult
 {
@@ -345,12 +346,14 @@ void
 populateResponse(
     std::pair<AccountTxResult, RPC::Status> const& res,
     AccountTxArgs const& args,
-    auto const& handleErr,
-    auto const& fillTopLevelResultData,
-    auto const& fillTxnData,
-    auto const& fillMetaData,
-    auto const& fillBinaryTxnData,
-    auto const& fillMarker)
+    std::function<void(RPC::Status const&)> const& handleErr,
+    std::function<void(AccountTxResult const&)> const&
+        populateTopLevelResultData,
+    std::function<void(Transaction::pointer)> const& populateTxnData,
+    std::function<void(Transaction::pointer, std::shared_ptr<TxMeta>)> const&
+        populateMetaData,
+    std::function<void(TxnDataBinary const&)> const& populateBinaryTxnData,
+    std::function<void(AccountTxMarker const&)> const& populateMarker)
 {
     if (res.second.toErrorCode() != rpcSUCCESS)
     {
@@ -358,7 +361,7 @@ populateResponse(
     }
     else
     {
-        fillTopLevelResultData(res.first);
+        populateTopLevelResultData(res.first);
 
         if (std::holds_alternative<TxnsData>(res.first.transactions))
         {
@@ -366,11 +369,11 @@ populateResponse(
             for (auto const& [txn, txnMeta] :
                  std::get<TxnsData>(res.first.transactions))
             {
-                if(txn)
+                if (txn)
                 {
-                    fillTxnData(txn);
-                    if(txnMeta)
-                        fillMetaData(txn, txnMeta);
+                    populateTxnData(txn);
+                    if (txnMeta)
+                        populateMetaData(txn, txnMeta);
                 }
             }
         }
@@ -381,15 +384,14 @@ populateResponse(
             for (auto const& txn :
                  std::get<TxnsDataBinary>(res.first.transactions))
             {
-                fillBinaryTxnData(txn);
+                populateBinaryTxnData(txn);
             }
         }
 
         if (res.first.marker)
         {
-            fillMarker(*res.first.marker);
+            populateMarker(*res.first.marker);
         }
-
     }
 }
 

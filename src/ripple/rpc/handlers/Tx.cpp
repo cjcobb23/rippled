@@ -209,12 +209,13 @@ void
 populateResponse(
     std::pair<TxResult, RPC::Status>& res,
     TxArgs& args,
-    auto& handleErr,
-    auto& handleErrSearchedAll,
-    auto& fillTxn,
-    auto& fillMeta,
-    auto& fillMetaBinary,
-    auto& fillValidated)
+    std::function<void(RPC::Status&)> const& handleErr,
+    std::function<void(RPC::Status&, bool)> const& handleErrSearchedAll,
+    std::function<void(Transaction::pointer)> const& populateTxn,
+    std::function<void(Transaction::pointer, std::shared_ptr<TxMeta>)> const&
+        populateMeta,
+    std::function<void(Blob&)> const& populateMetaBinary,
+    std::function<void(bool)> const& populateValidated)
 {
     // handle errors
     if (res.second.toErrorCode() != rpcSUCCESS)
@@ -230,26 +231,26 @@ populateResponse(
         }
     }
     // no errors
-    else if(res.first.txn)
+    else if (res.first.txn)
     {
-        fillTxn(res.first.txn);
+        populateTxn(res.first.txn);
 
-        // fill binary metadata
+        // populate binary metadata
         if (args.binary && std::holds_alternative<Blob>(res.first.meta))
         {
-            fillMetaBinary(std::get<Blob>(res.first.meta));
+            populateMetaBinary(std::get<Blob>(res.first.meta));
         }
-        // fill meta data
+        // populate meta data
         else if (std::holds_alternative<std::shared_ptr<TxMeta>>(
                      res.first.meta))
         {
             // check that meta is not nullptr
             if (auto& meta = std::get<std::shared_ptr<TxMeta>>(res.first.meta))
             {
-                fillMeta(res.first.txn,meta);
+                populateMeta(res.first.txn, meta);
             }
         }
-        fillValidated(res.first.validated);
+        populateValidated(res.first.validated);
     }
 }
 
