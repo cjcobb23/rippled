@@ -1,9 +1,12 @@
 syntax = "proto3";
 
-package rpc.v1;
+package org.xrpl.rpc.v1;
+option java_package = "org.xrpl.rpc.v1";
+option java_multiple_files = true;
 
-import "rpc/v1/meta.proto";
+import "org/xrpl/rpc/v1/meta.proto";
 
+//TODO change to follow new format?
 // A request to submit the signed transaction to the ledger.
 message SubmitTransactionRequest {
     // The signed transaction to submit.
