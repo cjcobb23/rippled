@@ -1,0 +1,17 @@
+name: Buf lint
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: lint-proto
+      run: pwd && ls '/home/runner' && curl -sSL "https://github.com/bufbuild/buf/releases/download/v0.7.0/buf-Linux-x86_64" -o "/home/runner/buf" &&
+           chmod +x "/home/runner/buf" &&
+           ls '/home/runner' &&
+           /home/runner/buf check lint &&
+           /home/runner/buf check breaking --against-input '../../../.git#branch=develop'

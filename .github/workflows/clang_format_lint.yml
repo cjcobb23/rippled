@@ -1,0 +1,19 @@
+name: C/C++ Clang Format
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-clang-format
+      run: sudo apt-get install clang-format-9
+    - name: format
+      run: cd src/ripple && find . -type f \( -name '*.cpp' -o -name '*.h' \) -print0 | xargs -0 clang-format-9 -i
+    - name: format-test
+      run: cd src/test && find . -type f \( -name '*.cpp' -o -name '*.h' \) -print0 | xargs -0 clang-format-9 -i
+    - name: check
+      run: git status -uno | grep "nothing to commit"
