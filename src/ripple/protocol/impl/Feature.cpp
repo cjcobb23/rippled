@@ -93,7 +93,6 @@ detail::supportedAmendments ()
     static std::vector<std::string> const supported
     {
         "MultiSign",                   // Unconditionally supported.
-        "Tickets",       // Looks unused, but do not remove; Servers will be amendment blocked.
         "TrustSetAuth",                // Unconditionally supported.
         "FeeEscalation",               // Unconditionally supported.
 //        "OwnerPaysFee",
@@ -130,7 +129,7 @@ detail::supportedAmendments ()
         "DeletableAccounts",
         "fixQualityUpperBound",
         "RequireFullyCanonicalSig",
-        "TicketBatch",
+//        "TicketBatch",    // Commented out to prevent automatic enablement
     };
     return supported;
 }
@@ -154,7 +153,6 @@ uint256 bitsetIndexToFeature(size_t i)
 }
 
 
-uint256 const featureTickets = *getRegisteredFeature("Tickets");
 uint256 const featureOwnerPaysFee = *getRegisteredFeature("OwnerPaysFee");
 uint256 const featureCompareFlowV1V2 = *getRegisteredFeature("CompareFlowV1V2");
 uint256 const featurePayChan = *getRegisteredFeature("PayChan");

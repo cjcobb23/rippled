@@ -432,12 +432,9 @@ struct DepositPreauth_test : public beast::unit_test::suite
         {
             // Verify that an account can be preauthorized and unauthorized
             // using tickets.
-            Env env (*this);
+            Env env (*this, supported_amendments() | featureTicketBatch);
             env.fund (XRP (10000), alice, becky);
             env.close();
-
-            // If featureTicketBatch is not enabled expect massive failures.
-            BEAST_EXPECT (supported_amendments()[featureTicketBatch]);
 
             env (ticket::create (alice, 2));
             std::uint32_t const aliceSeq {env.seq (alice)};
@@ -727,8 +724,9 @@ struct DepositPreauth_test : public beast::unit_test::suite
     {
         testEnable();
         testInvalid();
-        testPayment (jtx::supported_amendments() - featureDepositPreauth);
-        testPayment (jtx::supported_amendments());
+        auto const supported {jtx::supported_amendments() | featureTicketBatch};
+        testPayment (supported - featureDepositPreauth);
+        testPayment (supported);
     }
 };
 

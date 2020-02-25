@@ -447,7 +447,7 @@ public:
     void testTicket()
     {
         using namespace test::jtx;
-        Env env (*this);
+        Env env (*this, supported_amendments() | featureTicketBatch);
         Account const alice ("alice");
 
         env.fund (XRP(10000), alice);

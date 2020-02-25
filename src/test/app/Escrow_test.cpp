@@ -1418,7 +1418,7 @@ struct Escrow_test : public beast::unit_test::suite
 
         {
             // Create escrow and finish using tickets.
-            Env env(*this);
+            Env env(*this, supported_amendments() | featureTicketBatch);
             env.fund(XRP(5000), alice, bob);
             env.close();
 
@@ -1473,7 +1473,7 @@ struct Escrow_test : public beast::unit_test::suite
 
         {
             // Create escrow and cancel using tickets.
-            Env env(*this);
+            Env env(*this, supported_amendments() | featureTicketBatch);
             env.fund(XRP(5000), alice, bob);
             env.close();
 

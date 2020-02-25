@@ -379,7 +379,8 @@ public:
         using namespace jtx;
 
         Env env(*this,
-            makeConfig({ {"minimum_txn_in_ledger_standalone", "3"} }));
+            makeConfig({ {"minimum_txn_in_ledger_standalone", "3"} }),
+            supported_amendments() | featureTicketBatch);
 
         auto alice = Account("alice");
 
@@ -1738,7 +1739,8 @@ public:
         auto queued = ter(terQUEUED);
 
         Env env(*this,
-            makeConfig({ { "minimum_txn_in_ledger_standalone", "3" } }));
+            makeConfig({ { "minimum_txn_in_ledger_standalone", "3" } }),
+            supported_amendments() | featureTicketBatch);
 
         BEAST_EXPECT(env.current()->fees().base == 10);
 
@@ -2238,7 +2240,7 @@ public:
     {
         using namespace jtx;
         using namespace std::chrono;
-        Env env(*this, supported_amendments().set(featureTicketBatch));
+        Env env(*this, supported_amendments() | featureTicketBatch);
         auto const alice = Account("alice");
         env.memoize(alice);
         env.memoize("bob");
@@ -3729,7 +3731,8 @@ public:
         using namespace jtx;
 
         Env env(*this,
-            makeConfig({ {"minimum_txn_in_ledger_standalone", "3"} }));
+            makeConfig({ {"minimum_txn_in_ledger_standalone", "3"} }),
+            supported_amendments() | featureTicketBatch);
 
         auto alice = Account("alice");
 

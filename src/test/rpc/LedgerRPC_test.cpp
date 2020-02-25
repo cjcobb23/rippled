@@ -1053,7 +1053,7 @@ class LedgerRPC_test : public beast::unit_test::suite
     {
         testcase ("ledger_entry Request Ticket");
         using namespace test::jtx;
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         env.close();
 
         // Create two tickets.
