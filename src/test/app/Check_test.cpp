@@ -1724,12 +1724,9 @@ class Check_test : public beast::unit_test::suite
         Account const bob {"bob"};
         IOU const USD {gw["USD"]};
 
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         env.fund (XRP (10000), gw, alice, bob);
         env.close();
-
-        // If featureTicketBatch is not enabled expect massive failures.
-        BEAST_EXPECT (supported_amendments()[featureTicketBatch]);
 
         // alice and bob grab enough tickets for all of the following
         // transactions.  Note that once the tickets are acquired alice's

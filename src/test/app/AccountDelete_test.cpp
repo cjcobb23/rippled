@@ -107,7 +107,7 @@ public:
 
         testcase("Basics");
 
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         Account const alice("alice");
         Account const becky("becky");
         Account const carol("carol");
@@ -785,12 +785,9 @@ public:
         Account const alice {"alice"};
         Account const bob {"bob"};
 
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         env.fund (XRP (100000), alice, bob);
         env.close();
-
-        // If featureTicketBatch is not enabled expect massive failures.
-        BEAST_EXPECT (supported_amendments()[featureTicketBatch]);
 
         // bobs grabs as many tickets as he is allowed to have.
         std::uint32_t const ticketSeq {env.seq (bob) + 1};

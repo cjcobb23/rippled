@@ -1832,14 +1832,11 @@ struct PayChan_test : public beast::unit_test::suite
         testcase ("using tickets");
         using namespace jtx;
         using namespace std::literals::chrono_literals;
-        Env env (*this);
+        Env env (*this, supported_amendments() | featureTicketBatch);
         auto const alice = Account ("alice");
         auto const bob = Account ("bob");
         auto USDA = alice["USD"];
         env.fund (XRP (10000), alice, bob);
-
-        // If featureTicketBatch is not enabled expect massive failures.
-        BEAST_EXPECT (supported_amendments()[featureTicketBatch]);
 
         // alice and bob grab enough tickets for all of the following
         // transactions.  Note that once the tickets are acquired alice's

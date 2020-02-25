@@ -1350,7 +1350,7 @@ public:
     void run() override
     {
         using namespace jtx;
-        auto const all = supported_amendments();
+        auto const all = supported_amendments() | featureTicketBatch;
 
         // The reserve required on a signer list changes based on.
         // featureMultiSignReserve.  Test both with and without.

@@ -456,7 +456,7 @@ public:
         ticket::create("alice", 1);
 
         {
-            Env env(*this);
+            Env env(*this, supported_amendments() | featureTicketBatch);
             env.fund(XRP(10000), "alice");
             env(noop("alice"),                  require(owners("alice", 0), tickets("alice", 0)));
             env(ticket::create("alice", 1),     require(owners("alice", 1), tickets("alice", 1)));

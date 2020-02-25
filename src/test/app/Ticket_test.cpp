@@ -415,7 +415,7 @@ class Ticket_test : public beast::unit_test::suite
         testcase ("Create Tickets that fail Preflight");
 
         using namespace test::jtx;
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
 
         Account const master {env.master};
 
@@ -464,7 +464,7 @@ class Ticket_test : public beast::unit_test::suite
         using namespace test::jtx;
         {
             // Create tickets on a non-existent account.
-            Env env {*this};
+            Env env {*this, supported_amendments() | featureTicketBatch};
             Account alice {"alice"};
             env.memoize (alice);
 
@@ -475,7 +475,7 @@ class Ticket_test : public beast::unit_test::suite
         {
             // Exceed the threshold where tickets can no longer be
             // added to an account.
-            Env env {*this};
+            Env env {*this, supported_amendments() | featureTicketBatch};
             Account alice {"alice"};
 
             env.fund (XRP (100000), alice);
@@ -513,7 +513,7 @@ class Ticket_test : public beast::unit_test::suite
         }
         {
             // Explore exceeding the ticket threshold from another angle.
-            Env env {*this};
+            Env env {*this, supported_amendments() | featureTicketBatch};
             Account alice {"alice"};
 
             env.fund (XRP (100000), alice);
@@ -551,7 +551,7 @@ class Ticket_test : public beast::unit_test::suite
         testcase ("Create Ticket Insufficient Reserve");
 
         using namespace test::jtx;
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         Account alice {"alice"};
 
         // Fund alice not quite enough to make the reserve for a Ticket.
@@ -604,7 +604,7 @@ class Ticket_test : public beast::unit_test::suite
         testcase ("Using Tickets");
 
         using namespace test::jtx;
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         Account alice {"alice"};
 
         env.fund (XRP(10000), alice);
@@ -685,7 +685,7 @@ class Ticket_test : public beast::unit_test::suite
         testcase ("Transaction Database With Tickets");
 
         using namespace test::jtx;
-        Env env {*this};
+        Env env {*this, supported_amendments() | featureTicketBatch};
         Account alice {"alice"};
 
         env.fund (XRP(10000), alice);

@@ -1234,7 +1234,7 @@ struct Flow_test : public beast::unit_test::suite
         testRIPD1449();
 
         using namespace jtx;
-        auto const sa = supported_amendments();
+        auto const sa = supported_amendments() | featureTicketBatch;
         testWithFeats(sa - fix1373 - featureFlowCross);
         testWithFeats(sa           - featureFlowCross);
         testWithFeats(sa);
@@ -1247,7 +1247,7 @@ struct Flow_manual_test : public Flow_test
     void run() override
     {
         using namespace jtx;
-        auto const all = supported_amendments();
+        auto const all = supported_amendments() | featureTicketBatch;
         FeatureBitset const f1373{fix1373};
         FeatureBitset const flowCross{featureFlowCross};
         FeatureBitset const f1513{fix1513};
