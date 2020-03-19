@@ -200,7 +200,7 @@ public:
         /// Full initialization
         TxDetails (
             FeeLevel64 feeLevel_,
-            boost::optional<LedgerIndex const> const& lastValid_,
+            boost::optional<LedgerIndex> const& lastValid_,
             TxConsequences const& consequences_,
             AccountID const& account_,
             SeqOrTicket const& seqOrT_,
@@ -520,7 +520,7 @@ private:
         AccountID const account;
         /// Expiration ledger for the transaction
         /// (`sfLastLedgerSequence` field).
-        boost::optional<LedgerIndex const> const lastValid;
+        boost::optional<LedgerIndex> const lastValid;
         /// Transaction SeqOrTicket number
         /// (`sfSequence` or `sfTicketSequence` field).
         SeqOrTicket const seqOrT;
@@ -658,6 +658,10 @@ private:
             return !getTxnCount();
         }
 
+        /// Find the entry in transactions that precedes seqOrT, if one does.
+        TxMap::const_iterator
+        getPrevTx (SeqOrTicket seqOrT) const;
+
         /// Add a transaction candidate to this account for queuing
         MaybeTx&
         add(MaybeTx&&);
@@ -730,16 +734,6 @@ private:
         AccountMap::iterator const&,
             boost::optional<TxQAccount::TxMap::iterator> const&);
 
-    // Helper function that returns an iterator to the transaction preceding
-    // the next place a sequence-based transaction could go in an account's
-    // queue.
-    //
-    // The lock is not used, but is passed to remind the caller that the TxMap
-    // must be locked during the call.
-    static TxQAccount::TxMap::const_iterator
-    preceedsNextOpenSeq (std::lock_guard<std::mutex> const&,
-        SeqOrTicket start, TxQAccount::TxMap const& queued);
-
     /// Erase and return the next entry in byFee_ (lower fee level)
     FeeMultiSet::iterator_type erase(FeeMultiSet::const_iterator_type);
     /** Erase and return the next entry for the account (if fee level
@@ -754,12 +748,8 @@ private:
 
     /**
         All-or-nothing attempt to try to apply the queued txs for
-        `accountIter` up to and including `tx`.  We stop at `tx` to avoid
-        complications when `tx` is replacing a queued transaction.
-
-        At any rate, if there are transactions in the queue that follow
-        `tx`, this method does not attempt to clear those trailing
-        transactions.
+        `accountIter` up to and including `tx`.  Transactions following
+        `tx` are not cleared.
     */
     std::pair<TER, bool>
     tryClearAccountQueueUpThruTx(Application& app, OpenView& view,
