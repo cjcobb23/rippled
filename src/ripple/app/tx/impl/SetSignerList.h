@@ -48,13 +48,15 @@ private:
     std::vector<SignerEntries::SignerEntry> signers_;
 
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Blocker};
+
     explicit SetSignerList (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     TER doApply () override;

@@ -90,6 +90,7 @@ protected:
     Transactor& operator= (Transactor const&) = delete;
 
 public:
+    enum ConsequencesFactoryType {Normal, Blocker, Custom};
     /** Process the transaction. */
     std::pair<TER, bool>
     operator()();

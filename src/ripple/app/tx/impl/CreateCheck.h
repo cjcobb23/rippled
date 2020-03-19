@@ -28,13 +28,15 @@ class CreateCheck
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
     explicit CreateCheck (ApplyContext& ctx)
         : Transactor (ctx)
     {
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static

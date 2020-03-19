@@ -28,14 +28,19 @@ class PayChanCreate
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     explicit
     PayChanCreate (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
+    static TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static
@@ -44,12 +49,6 @@ public:
 
     TER
     doApply() override;
-
-private:
-    // Support for TxConsequences.
-    static
-    XRPAmount
-    calculateMaxXRPSpend(STTx const& tx);
 };
 
 //------------------------------------------------------------------------------
@@ -58,24 +57,23 @@ class PayChanFund
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     explicit
     PayChanFund (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
+    static TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     TER
     doApply() override;
-
-private:
-    // Support for TxConsequences.
-    static
-    XRPAmount
-    calculateMaxXRPSpend(STTx const& tx);
 };
 
 //------------------------------------------------------------------------------
@@ -84,6 +82,8 @@ class PayChanClaim
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
     explicit
     PayChanClaim (ApplyContext& ctx)
         : Transactor(ctx)
@@ -91,7 +91,7 @@ public:
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     TER

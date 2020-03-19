@@ -28,13 +28,15 @@ class CancelCheck
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
     explicit CancelCheck (ApplyContext& ctx)
         : Transactor (ctx)
     {
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static

@@ -28,6 +28,8 @@ class EscrowCreate
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     explicit
     EscrowCreate (ApplyContext& ctx)
         : Transactor(ctx)
@@ -35,17 +37,15 @@ public:
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
+    static
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     TER
     doApply() override;
-
-private:
-    // Support for TxConsequences.
-    static
-    XRPAmount
-    calculateMaxXRPSpend(STTx const& tx);
 };
 
 //------------------------------------------------------------------------------
@@ -54,6 +54,8 @@ class EscrowFinish
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
     explicit
     EscrowFinish (ApplyContext& ctx)
         : Transactor(ctx)
@@ -61,7 +63,7 @@ public:
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static
@@ -80,6 +82,8 @@ class EscrowCancel
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
     explicit
     EscrowCancel (ApplyContext& ctx)
         : Transactor(ctx)
@@ -87,7 +91,7 @@ public:
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     TER

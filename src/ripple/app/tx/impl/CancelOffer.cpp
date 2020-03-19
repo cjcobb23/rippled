@@ -24,13 +24,12 @@
 
 namespace ripple {
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 CancelOffer::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     auto const uTxFlags = ctx.tx.getFlags();
 
@@ -38,7 +37,7 @@ CancelOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(ctx.j.trace()) << "Malformed transaction: " <<
             "Invalid flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     auto const seq = ctx.tx.getFieldU32 (sfOfferSequence);
@@ -46,10 +45,10 @@ CancelOffer::preflight (PreflightContext const& ctx)
     {
         JLOG(ctx.j.trace()) <<
             "CancelOffer::preflight: missing sequence";
-        return {temBAD_SEQUENCE, conseq};
+        return temBAD_SEQUENCE;
     }
 
-    return {preflight2(ctx), conseq};
+    return preflight2(ctx);
 }
 
 //------------------------------------------------------------------------------

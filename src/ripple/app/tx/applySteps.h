@@ -60,7 +60,7 @@ public:
 private:
     /// Describes how the transaction affects subsequent
     /// transactions
-    Category category_;
+    bool isBlocker_;
     /// Transaction fee
     XRPAmount fee_;
     /// Does NOT include the fee.
@@ -82,17 +82,6 @@ public:
 
     /// Constructor for an STTx that consumes more than the usual sequences.
     TxConsequences (STTx const& tx, std::uint32_t sequencesConsumed);
-
-    TxConsequences(Category const category,
-        XRPAmount const fee, XRPAmount const spend,
-        SeqOrTicket seqOrT, std::uint32_t sequencesConsumed)
-        : category_ {category}
-        , fee_ {fee}
-        , potentialSpend_ {spend}
-        , seqOrT_ {seqOrT}
-        , sequencesConsumed_ {sequencesConsumed}
-    {
-    }
 
     /// Copy constructor
     TxConsequences(TxConsequences const&) = default;
@@ -130,7 +119,7 @@ public:
     /// Returns true if the transaction is a blocker.
     bool isBlocker () const
     {
-        return category_ == blocker;
+        return isBlocker_;
     }
 
     // Could nextSeqOrT immediately follow this?

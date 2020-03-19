@@ -31,13 +31,15 @@ class SetRegularKey
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Blocker};
+
     explicit SetRegularKey (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static

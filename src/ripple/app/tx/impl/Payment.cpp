@@ -30,25 +30,29 @@ namespace ripple {
 
 // See https://ripple.com/wiki/Transaction_Format#Payment_.280.29
 
-XRPAmount
-Payment::calculateMaxXRPSpend(STTx const& tx)
+TxConsequences
+Payment::makeTxConsequences(PreflightContext const& ctx)
 {
-    STAmount const maxAmount =
-        tx.isFieldPresent(sfSendMax) ? tx[sfSendMax] : tx[sfAmount];
+    auto calculateMaxXRPSpend = [] (STTx const& tx) -> XRPAmount
+    {
+        STAmount const maxAmount =
+            tx.isFieldPresent(sfSendMax) ? tx[sfSendMax] : tx[sfAmount];
 
-    /* If there's no sfSendMax in XRP, and the sfAmount isn't
-    in XRP, then the transaction does not spend XRP. */
-    return maxAmount.native() && !maxAmount.negative() ?
-        maxAmount.xrp() : beast::zero;
+        // If there's no sfSendMax in XRP, and the sfAmount isn't
+        // in XRP, then the transaction does not spend XRP.
+        return maxAmount.native() && !maxAmount.negative() ?
+            maxAmount.xrp() : beast::zero;
+    };
+
+    return TxConsequences{ctx.tx, calculateMaxXRPSpend (ctx.tx)};
 }
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 Payment::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     auto& tx = ctx.tx;
     auto& j = ctx.j;
@@ -59,7 +63,7 @@ Payment::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Invalid flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     bool const partialPaymentAllowed = uTxFlags & tfPartialPayment;
@@ -90,7 +94,7 @@ Payment::preflight (PreflightContext const& ctx)
     bool const bXRPDirect = uSrcCurrency.isZero () && uDstCurrency.isZero ();
 
     if (!isLegalNet (saDstAmount) || !isLegalNet (maxSourceAmount))
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
     auto const uDstAccountID = tx.getAccountID (sfDestination);
 
@@ -98,25 +102,25 @@ Payment::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Payment destination account not specified.";
-        return {temDST_NEEDED, conseq};
+        return temDST_NEEDED;
     }
     if (bMax && maxSourceAmount <= beast::zero)
     {
         JLOG(j.trace()) << "Malformed transaction: " <<
             "bad max amount: " << maxSourceAmount.getFullText ();
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
     }
     if (saDstAmount <= beast::zero)
     {
         JLOG(j.trace()) << "Malformed transaction: "<<
             "bad dst amount: " << saDstAmount.getFullText ();
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
     }
     if (badCurrency() == uSrcCurrency || badCurrency() == uDstCurrency)
     {
         JLOG(j.trace()) <<"Malformed transaction: " <<
             "Bad currency.";
-        return {temBAD_CURRENCY, conseq};
+        return temBAD_CURRENCY;
     }
     if (account == uDstAccountID && uSrcCurrency == uDstCurrency && !bPaths)
     {
@@ -125,42 +129,42 @@ Payment::preflight (PreflightContext const& ctx)
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Redundant payment from " << to_string (account) <<
             " to self without path for " << to_string (uDstCurrency);
-        return {temREDUNDANT, conseq};
+        return temREDUNDANT;
     }
     if (bXRPDirect && bMax)
     {
         // Consistent but redundant transaction.
         JLOG(j.trace()) << "Malformed transaction: " <<
             "SendMax specified for XRP to XRP.";
-        return {temBAD_SEND_XRP_MAX, conseq};
+        return temBAD_SEND_XRP_MAX;
     }
     if (bXRPDirect && bPaths)
     {
         // XRP is sent without paths.
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Paths specified for XRP to XRP.";
-        return {temBAD_SEND_XRP_PATHS, conseq};
+        return temBAD_SEND_XRP_PATHS;
     }
     if (bXRPDirect && partialPaymentAllowed)
     {
         // Consistent but redundant transaction.
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Partial payment specified for XRP to XRP.";
-        return {temBAD_SEND_XRP_PARTIAL, conseq};
+        return temBAD_SEND_XRP_PARTIAL;
     }
     if (bXRPDirect && limitQuality)
     {
         // Consistent but redundant transaction.
         JLOG(j.trace()) << "Malformed transaction: " <<
             "Limit quality specified for XRP to XRP.";
-        return {temBAD_SEND_XRP_LIMIT, conseq};
+        return temBAD_SEND_XRP_LIMIT;
     }
     if (bXRPDirect && !defaultPathsAllowed)
     {
         // Consistent but redundant transaction.
         JLOG(j.trace()) << "Malformed transaction: " <<
             "No ripple direct specified for XRP to XRP.";
-        return {temBAD_SEND_XRP_NO_DIRECT, conseq};
+        return temBAD_SEND_XRP_NO_DIRECT;
     }
 
     auto const deliverMin = tx[~sfDeliverMin];
@@ -170,7 +174,7 @@ Payment::preflight (PreflightContext const& ctx)
         {
             JLOG(j.trace()) << "Malformed transaction: Partial payment not "
                 "specified for " << jss::DeliverMin.c_str() << ".";
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
         }
 
         auto const dMin = *deliverMin;
@@ -179,25 +183,25 @@ Payment::preflight (PreflightContext const& ctx)
             JLOG(j.trace()) << "Malformed transaction: Invalid " <<
                 jss::DeliverMin.c_str() << " amount. " <<
                     dMin.getFullText();
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
         }
         if (dMin.issue() != saDstAmount.issue())
         {
             JLOG(j.trace()) <<  "Malformed transaction: Dst issue differs "
                 "from " << jss::DeliverMin.c_str() << ". " <<
                     dMin.getFullText();
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
         }
         if (dMin > saDstAmount)
         {
             JLOG(j.trace()) << "Malformed transaction: Dst amount less than " <<
                 jss::DeliverMin.c_str() << ". " <<
                     dMin.getFullText();
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
         }
     }
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER

@@ -28,13 +28,14 @@ class DepositPreauth
     : public Transactor
 {
 public:
-    explicit DepositPreauth (ApplyContext& ctx)
-        : Transactor(ctx)
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Normal};
+
+    explicit DepositPreauth(ApplyContext& ctx) : Transactor(ctx)
     {
     }
 
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static

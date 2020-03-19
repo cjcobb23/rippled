@@ -39,13 +39,18 @@ class Payment
     static std::size_t const MaxPathLength = 8;
 
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     explicit Payment (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
+    static TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     static
@@ -53,12 +58,6 @@ public:
     preclaim(PreclaimContext const& ctx);
 
     TER doApply () override;
-
-private:
-    // Support for TxConsequences.
-    static
-    XRPAmount
-    calculateMaxXRPSpend(STTx const& tx);
 };
 
 } // ripple

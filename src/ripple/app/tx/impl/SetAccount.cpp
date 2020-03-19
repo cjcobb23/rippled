@@ -29,35 +29,43 @@
 
 namespace ripple {
 
-TxConsequences::Category
-SetAccount::getTxConsequencesCategory(STTx const& tx)
+TxConsequences
+SetAccount::makeTxConsequences(PreflightContext const& ctx)
 {
-    auto const uTxFlags = tx.getFlags();
-    if(uTxFlags & (tfRequireAuth | tfOptionalAuth))
-        return TxConsequences::blocker;
-
-    auto const uSetFlag = tx[~sfSetFlag];
-    if(uSetFlag && (*uSetFlag == asfRequireAuth ||
-        *uSetFlag == asfDisableMaster ||
-            *uSetFlag == asfAccountTxnID))
+    // The SetAccount may be a blocker, but only if it sets or clears
+    // specific account flags.
+    auto getTxConsequencesCategory = [] (STTx const& tx)
+    {
+        if (std::uint32_t const uTxFlags = {tx.getFlags()};
+            uTxFlags & (tfRequireAuth | tfOptionalAuth))
                 return TxConsequences::blocker;
 
-    auto const uClearFlag = tx[~sfClearFlag];
-    if(uClearFlag && (*uClearFlag == asfRequireAuth ||
-        *uClearFlag == asfDisableMaster ||
-            *uClearFlag == asfAccountTxnID))
-                return TxConsequences::blocker;
+        if (auto const uSetFlag = tx[~sfSetFlag];
+            uSetFlag &&
+                (*uSetFlag == asfRequireAuth ||
+                    *uSetFlag == asfDisableMaster ||
+                        *uSetFlag == asfAccountTxnID))
+                            return TxConsequences::blocker;
 
-    return TxConsequences::normal;
+        if (auto const uClearFlag = tx[~sfClearFlag];
+            uClearFlag &&
+                (*uClearFlag == asfRequireAuth ||
+                    *uClearFlag == asfDisableMaster ||
+                        *uClearFlag == asfAccountTxnID))
+                            return TxConsequences::blocker;
+
+        return TxConsequences::normal;
+    };
+
+    return TxConsequences{ctx.tx, getTxConsequencesCategory(ctx.tx)};
 }
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 SetAccount::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, getTxConsequencesCategory(ctx.tx)};
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     auto& tx = ctx.tx;
     auto& j = ctx.j;
@@ -67,7 +75,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (uTxFlags & tfAccountSetMask)
     {
         JLOG(j.trace()) << "Malformed transaction: Invalid flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     std::uint32_t const uSetFlag = tx.getFieldU32 (sfSetFlag);
@@ -76,7 +84,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if ((uSetFlag != 0) && (uSetFlag == uClearFlag))
     {
         JLOG(j.trace()) << "Malformed transaction: Set and clear same flag.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     //
@@ -88,7 +96,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (bSetRequireAuth && bClearRequireAuth)
     {
         JLOG(j.trace()) << "Malformed transaction: Contradictory flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     //
@@ -100,7 +108,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (bSetRequireDest && bClearRequireDest)
     {
         JLOG(j.trace()) << "Malformed transaction: Contradictory flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     //
@@ -112,7 +120,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (bSetDisallowXRP && bClearDisallowXRP)
     {
         JLOG(j.trace()) << "Malformed transaction: Contradictory flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     // TransferRate
@@ -123,13 +131,13 @@ SetAccount::preflight (PreflightContext const& ctx)
         if (uRate && (uRate < QUALITY_ONE))
         {
             JLOG(j.trace()) << "Malformed transaction: Transfer rate too small.";
-            return {temBAD_TRANSFER_RATE, conseq};
+            return temBAD_TRANSFER_RATE;
         }
 
         if (ctx.rules.enabled(fix1201) && (uRate > 2 * QUALITY_ONE))
         {
             JLOG(j.trace()) << "Malformed transaction: Transfer rate too large.";
-            return {temBAD_TRANSFER_RATE, conseq};
+            return temBAD_TRANSFER_RATE;
         }
     }
 
@@ -137,7 +145,7 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (tx.isFieldPresent (sfTickSize))
     {
         if (!ctx.rules.enabled(featureTickSize))
-            return {temDISABLED, conseq};
+            return temDISABLED;
 
         auto uTickSize = tx[sfTickSize];
         if (uTickSize &&
@@ -145,7 +153,7 @@ SetAccount::preflight (PreflightContext const& ctx)
             (uTickSize > Quality::maxTickSize)))
         {
             JLOG(j.trace()) << "Malformed transaction: Bad tick size.";
-            return {temBAD_TICK_SIZE, conseq};
+            return temBAD_TICK_SIZE;
         }
     }
 
@@ -154,7 +162,7 @@ SetAccount::preflight (PreflightContext const& ctx)
         if (mk->size() && ! publicKeyType ({mk->data(), mk->size()}))
         {
             JLOG(j.trace()) << "Invalid message key specified.";
-            return {telBAD_PUBLIC_KEY, conseq};
+            return telBAD_PUBLIC_KEY;
         }
     }
 
@@ -162,10 +170,10 @@ SetAccount::preflight (PreflightContext const& ctx)
     if (domain && domain->size() > DOMAIN_BYTES_MAX)
     {
         JLOG(j.trace()) << "domain too long";
-        return {telBAD_DOMAIN, conseq};
+        return telBAD_DOMAIN;
     }
 
-    return {preflight2(ctx), conseq};
+    return preflight2(ctx);
 }
 
 TER

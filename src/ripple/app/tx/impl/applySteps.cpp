@@ -38,36 +38,86 @@
 
 namespace ripple {
 
+// Templates so preflight does the right thing with T::ConsequencesFactory.
+//
+//For Transactor::Normal
+template <class T,
+    std::enable_if_t<T::ConsequencesFactory == Transactor::Normal, int> = 0>
+std::pair<NotTEC, TxConsequences>
+invoke_preflight_helper(PreflightContext const& ctx)
+{
+    return {T::preflight(ctx), TxConsequences{ctx.tx}};
+};
+
+//For Transactor::Blocker
+template <class T,
+    std::enable_if_t<T::ConsequencesFactory == Transactor::Blocker, int> = 0>
+std::pair<NotTEC, TxConsequences>
+invoke_preflight_helper(PreflightContext const& ctx)
+{
+    return {T::preflight(ctx), TxConsequences{ctx.tx, TxConsequences::blocker}};
+};
+
+// For Transactor::Custom
+template <class T,
+    std::enable_if_t<T::ConsequencesFactory == Transactor::Custom, int> = 0>
+std::pair<NotTEC, TxConsequences>
+invoke_preflight_helper(PreflightContext const& ctx)
+{
+    return {T::preflight(ctx), T::makeTxConsequences(ctx)};
+};
+
+
 static
 std::pair<NotTEC, TxConsequences>
 invoke_preflight (PreflightContext const& ctx)
 {
     switch(ctx.tx.getTxnType())
     {
-    case ttACCOUNT_DELETE:       return DeleteAccount     ::preflight(ctx);
-    case ttACCOUNT_SET:          return SetAccount        ::preflight(ctx);
-    case ttCHECK_CANCEL:         return CancelCheck       ::preflight(ctx);
-    case ttCHECK_CASH:           return CashCheck         ::preflight(ctx);
-    case ttCHECK_CREATE:         return CreateCheck       ::preflight(ctx);
-    case ttDEPOSIT_PREAUTH:      return DepositPreauth    ::preflight(ctx);
-    case ttOFFER_CANCEL:         return CancelOffer       ::preflight(ctx);
-    case ttOFFER_CREATE:         return CreateOffer       ::preflight(ctx);
-    case ttESCROW_CREATE:        return EscrowCreate      ::preflight(ctx);
-    case ttESCROW_FINISH:        return EscrowFinish      ::preflight(ctx);
-    case ttESCROW_CANCEL:        return EscrowCancel      ::preflight(ctx);
-    case ttPAYCHAN_CLAIM:        return PayChanClaim      ::preflight(ctx);
-    case ttPAYCHAN_CREATE:       return PayChanCreate     ::preflight(ctx);
-    case ttPAYCHAN_FUND:         return PayChanFund       ::preflight(ctx);
-    case ttPAYMENT:              return Payment           ::preflight(ctx);
-    case ttREGULAR_KEY_SET:      return SetRegularKey     ::preflight(ctx);
-    case ttSIGNER_LIST_SET:      return SetSignerList     ::preflight(ctx);
-    case ttTICKET_CREATE:        return CreateTicket      ::preflight(ctx);
-    case ttTRUST_SET:            return SetTrust          ::preflight(ctx);
-    case ttAMENDMENT:
-    case ttFEE:                  return Change            ::preflight(ctx);
-    default:
-        assert(false);
-        return {temUNKNOWN, TxConsequences {ctx.tx}};
+        case ttACCOUNT_DELETE:
+            return invoke_preflight_helper<DeleteAccount>(ctx);
+        case ttACCOUNT_SET:
+            return invoke_preflight_helper<SetAccount>(ctx);
+        case ttCHECK_CANCEL:
+            return invoke_preflight_helper<CancelCheck>(ctx);
+        case ttCHECK_CASH:
+            return invoke_preflight_helper<CashCheck>(ctx);
+        case ttCHECK_CREATE:
+            return invoke_preflight_helper<CreateCheck>(ctx);
+        case ttDEPOSIT_PREAUTH:
+            return invoke_preflight_helper<DepositPreauth>(ctx);
+        case ttOFFER_CANCEL:
+            return invoke_preflight_helper<CancelOffer>(ctx);
+        case ttOFFER_CREATE:
+            return invoke_preflight_helper<CreateOffer>(ctx);
+        case ttESCROW_CREATE:
+            return invoke_preflight_helper<EscrowCreate>(ctx);
+        case ttESCROW_FINISH:
+            return invoke_preflight_helper<EscrowFinish>(ctx);
+        case ttESCROW_CANCEL:
+            return invoke_preflight_helper<EscrowCancel>(ctx);
+        case ttPAYCHAN_CLAIM:
+            return invoke_preflight_helper<PayChanClaim>(ctx);
+        case ttPAYCHAN_CREATE:
+            return invoke_preflight_helper<PayChanCreate>(ctx);
+        case ttPAYCHAN_FUND:
+            return invoke_preflight_helper<PayChanFund>(ctx);
+        case ttPAYMENT:
+            return invoke_preflight_helper<Payment>(ctx);
+        case ttREGULAR_KEY_SET:
+            return invoke_preflight_helper<SetRegularKey>(ctx);
+        case ttSIGNER_LIST_SET:
+            return invoke_preflight_helper<SetSignerList>(ctx);
+        case ttTICKET_CREATE:
+            return invoke_preflight_helper<CreateTicket>(ctx);
+        case ttTRUST_SET:
+            return invoke_preflight_helper<SetTrust>(ctx);
+        case ttAMENDMENT:
+        case ttFEE:
+            return invoke_preflight_helper<Change>(ctx);
+        default:
+            assert(false);
+            return {temUNKNOWN, TxConsequences{ctx.tx}};
     }
 }
 
@@ -233,7 +283,7 @@ invoke_calculateBaseFee(
 
 
 TxConsequences::TxConsequences (STTx const& tx)
-: category_ (TxConsequences::normal)
+: isBlocker_ (false)
 , fee_ (
     tx[sfFee].native() && !tx[sfFee].negative() ? tx[sfFee].xrp() : beast::zero)
 , potentialSpend_ (beast::zero)
@@ -245,7 +295,7 @@ TxConsequences::TxConsequences (STTx const& tx)
 TxConsequences::TxConsequences (STTx const& tx, Category category)
 : TxConsequences (tx)
 {
-    category_ = category;
+    isBlocker_ = (category == blocker);
 }
 
 TxConsequences::TxConsequences (STTx const& tx, XRPAmount potentialSpend)

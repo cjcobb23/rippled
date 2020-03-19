@@ -31,6 +31,8 @@ class CreateTicket
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     constexpr static std::uint32_t minValidCount = {1};
 
     // A note on how the maxValidCount was determined.  The goal is for
@@ -67,9 +69,13 @@ public:
     {
     }
 
+    static
+    TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
     /** Enforce constraints beyond those of the Transactor base class. */
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     /** Enforce constraints beyond those of the Transactor base class. */
@@ -79,12 +85,6 @@ public:
 
     /** Precondition: fee collection is likely.  Attempt to create ticket(s). */
     TER doApply () override;
-
-private:
-    // Support for TxConsequences.
-    static
-    std::uint32_t
-    calculateSequencesConsumed (STTx const& tx);
 };
 
 }

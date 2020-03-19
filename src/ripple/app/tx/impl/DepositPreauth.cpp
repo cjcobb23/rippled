@@ -27,16 +27,15 @@
 
 namespace ripple {
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 DepositPreauth::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled (featureDepositPreauth))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     auto& tx = ctx.tx;
     auto& j = ctx.j;
@@ -45,7 +44,7 @@ DepositPreauth::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: Invalid flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
 
     auto const optAuth = ctx.tx[~sfAuthorize];
@@ -57,7 +56,7 @@ DepositPreauth::preflight (PreflightContext const& ctx)
         JLOG(j.trace()) <<
             "Malformed transaction: "
             "Invalid Authorize and Unauthorize field combination.";
-        return {temMALFORMED, conseq};
+        return temMALFORMED;
     }
 
     // Make sure that the passed account is valid.
@@ -66,7 +65,7 @@ DepositPreauth::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: Authorized or Unauthorized field zeroed.";
-        return {temINVALID_ACCOUNT_ID, conseq};
+        return temINVALID_ACCOUNT_ID;
     }
 
     // An account may not preauthorize itself.
@@ -74,10 +73,10 @@ DepositPreauth::preflight (PreflightContext const& ctx)
     {
         JLOG(j.trace()) <<
             "Malformed transaction: Attempting to DepositPreauth self.";
-        return {temCANNOT_PREAUTH_SELF, conseq};
+        return temCANNOT_PREAUTH_SELF;
     }
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER

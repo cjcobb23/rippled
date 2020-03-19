@@ -170,38 +170,42 @@ closeChannel (
 
 //------------------------------------------------------------------------------
 
-XRPAmount
-PayChanCreate::calculateMaxXRPSpend(STTx const& tx)
+TxConsequences
+PayChanCreate::makeTxConsequences(PreflightContext const& ctx)
 {
-    auto const& amount {tx[sfAmount]};
-    return amount.native() && !amount.negative() ?
-        amount.xrp() : beast::zero;
+    auto calculateMaxXRPSpend = [] (STTx const& tx) -> XRPAmount
+    {
+        auto const& amount {tx[sfAmount]};
+        return amount.native() && !amount.negative() ?
+            amount.xrp() : beast::zero;
+    };
+
+    return TxConsequences{ctx.tx, calculateMaxXRPSpend (ctx.tx)};
 }
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 PayChanCreate::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     if (!ctx.rules.enabled (featurePayChan))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     if (ctx.rules.enabled(fix1543) && ctx.tx.getFlags() & tfUniversalMask)
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     if (!isXRP (ctx.tx[sfAmount]) || (ctx.tx[sfAmount] <= beast::zero))
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
     if (ctx.tx[sfAccount] == ctx.tx[sfDestination])
-        return {temDST_IS_SRC, conseq};
+        return temDST_IS_SRC;
 
     if (!publicKeyType(ctx.tx[sfPublicKey]))
-        return {temMALFORMED, conseq};
+        return temMALFORMED;
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER
@@ -305,32 +309,36 @@ PayChanCreate::doApply()
 
 //------------------------------------------------------------------------------
 
-XRPAmount
-PayChanFund::calculateMaxXRPSpend(STTx const& tx)
+TxConsequences
+PayChanFund::makeTxConsequences(PreflightContext const& ctx)
 {
-    auto const& amount {tx[sfAmount]};
-    return amount.native() && !amount.negative() ?
-        amount.xrp() : beast::zero;
+    auto calculateMaxXRPSpend = [] (STTx const& tx) -> XRPAmount
+    {
+        auto const& amount {tx[sfAmount]};
+        return amount.native() && !amount.negative() ?
+            amount.xrp() : beast::zero;
+    };
+
+    return TxConsequences{ctx.tx, calculateMaxXRPSpend (ctx.tx)};
 }
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 PayChanFund::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     if (!ctx.rules.enabled (featurePayChan))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     if (ctx.rules.enabled(fix1543) && ctx.tx.getFlags() & tfUniversalMask)
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     if (!isXRP (ctx.tx[sfAmount]) || (ctx.tx[sfAmount] <= beast::zero))
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER
@@ -408,12 +416,11 @@ PayChanFund::doApply()
 
 //------------------------------------------------------------------------------
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 PayChanClaim::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled(featurePayChan))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     // A search through historic MainNet ledgers by the data team found no
     // occurrences of a transaction with the error that fix1512 fixed.  That
@@ -423,33 +430,33 @@ PayChanClaim::preflight (PreflightContext const& ctx)
 
     auto const ret = preflight1 (ctx);
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     auto const bal = ctx.tx[~sfBalance];
     if (bal && (!isXRP (*bal) || *bal <= beast::zero))
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
     auto const amt = ctx.tx[~sfAmount];
     if (amt && (!isXRP (*amt) || *amt <= beast::zero))
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
     if (bal && amt && *bal > *amt)
-        return {temBAD_AMOUNT, conseq};
+        return temBAD_AMOUNT;
 
     {
         auto const flags = ctx.tx.getFlags();
 
         if (ctx.rules.enabled(fix1543) && (flags & tfPayChanClaimMask))
-            return {temINVALID_FLAG, conseq};
+            return temINVALID_FLAG;
 
         if ((flags & tfClose) && (flags & tfRenew))
-            return {temMALFORMED, conseq};
+            return temMALFORMED;
     }
 
     if (auto const sig = ctx.tx[~sfSignature])
     {
         if (!(ctx.tx[~sfPublicKey] && bal))
-            return {temMALFORMED, conseq};
+            return temMALFORMED;
 
         // Check the signature
         // The signature isn't needed if txAccount == src, but if it's
@@ -459,20 +466,20 @@ PayChanClaim::preflight (PreflightContext const& ctx)
         auto const authAmt = amt ? amt->xrp() : reqBalance;
 
         if (reqBalance > authAmt)
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
 
         Keylet const k (ltPAYCHAN, ctx.tx[sfPayChannel]);
         if (!publicKeyType(ctx.tx[sfPublicKey]))
-            return {temMALFORMED, conseq};
+            return temMALFORMED;
 
         PublicKey const pk (ctx.tx[sfPublicKey]);
         Serializer msg;
         serializePayChanAuthorization (msg, k.key, authAmt);
         if (!verify (pk, msg.slice (), *sig, /*canonical*/ true))
-            return {temBAD_SIGNATURE, conseq};
+            return temBAD_SIGNATURE;
     }
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER

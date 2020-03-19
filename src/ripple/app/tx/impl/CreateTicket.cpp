@@ -27,30 +27,30 @@
 
 namespace ripple {
 
-std::pair<NotTEC, TxConsequences>
+TxConsequences
+CreateTicket::makeTxConsequences(PreflightContext const& ctx)
+{
+    // Create TxConsequences identifying the number of sequences consumed.
+    return TxConsequences{ctx.tx, ctx.tx[sfCount]};
+}
+
+NotTEC
 CreateTicket::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, calculateSequencesConsumed (ctx.tx)};
     if (! ctx.rules.enabled (featureTicketBatch))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     if (ctx.tx.getFlags() & tfUniversalMask)
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
 
     if (std::uint32_t const count = ctx.tx[sfCount];
         count < minValidCount || count > maxValidCount)
-            return {temINVALID_COUNT, conseq};
+            return temINVALID_COUNT;
 
     if (NotTEC const ret {preflight1 (ctx)}; ! isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
-    return {preflight2 (ctx), conseq};
-}
-
-std::uint32_t
-CreateTicket::calculateSequencesConsumed(STTx const& tx)
-{
-    return tx[sfCount];
+    return preflight2 (ctx);
 }
 
 TER

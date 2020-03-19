@@ -28,28 +28,27 @@
 
 namespace ripple {
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 CreateCheck::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
     if (! ctx.rules.enabled (featureChecks))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     NotTEC const ret {preflight1 (ctx)};
     if (! isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     if (ctx.tx.getFlags() & tfUniversalMask)
     {
         // There are no flags (other than universal) for CreateCheck yet.
         JLOG(ctx.j.warn()) << "Malformed transaction: Invalid flags set.";
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
     }
     if (ctx.tx[sfAccount] == ctx.tx[sfDestination])
     {
         // They wrote a check to themselves.
         JLOG(ctx.j.warn()) << "Malformed transaction: Check to self.";
-        return {temREDUNDANT, conseq};
+        return temREDUNDANT;
     }
 
     {
@@ -58,13 +57,13 @@ CreateCheck::preflight (PreflightContext const& ctx)
         {
             JLOG(ctx.j.warn()) << "Malformed transaction: bad sendMax amount: "
                 << sendMax.getFullText();
-            return {temBAD_AMOUNT, conseq};
+            return temBAD_AMOUNT;
         }
 
         if (badCurrency() == sendMax.getCurrency())
         {
             JLOG(ctx.j.warn()) <<"Malformed transaction: Bad currency.";
-            return {temBAD_CURRENCY, conseq};
+            return temBAD_CURRENCY;
         }
     }
 
@@ -73,11 +72,11 @@ CreateCheck::preflight (PreflightContext const& ctx)
         if (*optExpiry == 0)
         {
             JLOG(ctx.j.warn()) << "Malformed transaction: bad expiration";
-            return {temBAD_EXPIRATION, conseq};
+            return temBAD_EXPIRATION;
         }
     }
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 TER

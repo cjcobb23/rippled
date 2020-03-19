@@ -31,26 +31,25 @@
 
 namespace ripple {
 
-std::pair<NotTEC, TxConsequences>
+NotTEC
 DeleteAccount::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx, TxConsequences::blocker};
     if (! ctx.rules.enabled(featureDeletableAccounts))
-        return {temDISABLED, conseq};
+        return temDISABLED;
 
     if (ctx.tx.getFlags() & tfUniversalMask)
-        return {temINVALID_FLAG, conseq};
+        return temINVALID_FLAG;
 
     auto const ret = preflight1 (ctx);
 
     if (!isTesSuccess (ret))
-        return {ret, conseq};
+        return ret;
 
     if (ctx.tx[sfAccount] == ctx.tx[sfDestination])
         // An account cannot be deleted and give itself the resulting XRP.
-        return {temDST_IS_SRC, conseq};
+        return temDST_IS_SRC;
 
-    return {preflight2 (ctx), conseq};
+    return preflight2 (ctx);
 }
 
 FeeUnit64

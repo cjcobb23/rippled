@@ -35,26 +35,24 @@ class SetAccount
     static std::size_t const DOMAIN_BYTES_MAX = 256;
 
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     explicit SetAccount (ApplyContext& ctx)
         : Transactor(ctx)
     {
     }
 
-   static
-    std::pair<NotTEC, TxConsequences>
-    preflight (PreflightContext const& ctx);
+    static TxConsequences
+    makeTxConsequences(PreflightContext const& ctx);
+
+    static NotTEC
+    preflight(PreflightContext const& ctx);
 
     static
     TER
     preclaim(PreclaimContext const& ctx);
 
     TER doApply () override;
-
-private:
-    // Support for TxConsequences.
-    static
-    TxConsequences::Category
-    getTxConsequencesCategory(STTx const& tx);
 };
 
 } // ripple

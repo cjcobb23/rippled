@@ -35,6 +35,8 @@ class CreateOffer
     : public Transactor
 {
 public:
+    static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
+
     /** Construct a Transactor subclass that creates an offer in the ledger. */
     explicit CreateOffer (ApplyContext& ctx)
         : Transactor(ctx)
@@ -42,9 +44,13 @@ public:
     {
     }
 
+    static
+    TxConsequences
+    makeTxConsequences (PreflightContext const& ctx);
+
     /** Enforce constraints beyond those of the Transactor base class. */
     static
-    std::pair<NotTEC, TxConsequences>
+    NotTEC
     preflight (PreflightContext const& ctx);
 
     /** Enforce constraints beyond those of the Transactor base class. */
@@ -61,11 +67,6 @@ public:
     doApply() override;
 
 private:
-    // Support for TxConsequences.
-    static
-    XRPAmount
-    calculateMaxXRPSpend(STTx const& tx);
-
     std::pair<TER, bool>
     applyGuts (Sandbox& view, Sandbox& view_cancel);
 
