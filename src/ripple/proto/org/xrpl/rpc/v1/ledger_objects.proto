@@ -44,7 +44,7 @@ enum LedgerEntryType
     LEDGER_ENTRY_TYPE_SIGNER_LIST     = 12;
 }
 
-// Next field: 15
+// Next field: 16
 message AccountRoot
 {
     Account account = 1;
@@ -74,6 +74,8 @@ message AccountRoot
     TickSize tick_size = 13;
 
     TransferRate transfer_rate = 14;
+
+    TicketCount ticket_count = 15;
 }
 
 // Next field: 4

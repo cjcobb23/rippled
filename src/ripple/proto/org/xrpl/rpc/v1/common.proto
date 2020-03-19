@@ -169,6 +169,11 @@ message TickSize
 	uint32 value = 1;
 }
 
+message TicketCount
+{
+    uint32 value = 1;
+}
+
 message TransferRate
 {
     uint32 value = 1;
