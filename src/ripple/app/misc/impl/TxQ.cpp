@@ -318,9 +318,19 @@ TxQ::TxQAccount::TxQAccount(const AccountID& account_)
 {
 }
 
-auto
+TxQ::TxQAccount::TxMap::const_iterator
+TxQ::TxQAccount::getPrevTx (SeqOrTicket seqOrT) const
+{
+    // Find the entry that is greater than or equal to the new transaction,
+    // then decrement the iterator.
+    auto sameOrNextIter = transactions.lower_bound (seqOrT);
+    if (sameOrNextIter != transactions.begin())
+        --sameOrNextIter;
+    return sameOrNextIter;
+}
+
+TxQ::MaybeTx&
 TxQ::TxQAccount::add(MaybeTx&& txn)
-    -> MaybeTx&
 {
     auto const seqOrT = txn.seqOrT;
 
@@ -393,7 +403,7 @@ TxQ::canBeHeld(STTx const& tx, ApplyFlags const flags, OpenView const& view,
         return tesSUCCESS;
 
     // Allow this tx to replace another one.
-    if (replacementIter.is_initialized())
+    if (replacementIter)
         return tesSUCCESS;
 
     // Allow if there are fewer than the limit.
@@ -407,44 +417,6 @@ TxQ::canBeHeld(STTx const& tx, ApplyFlags const flags, OpenView const& view,
         return telCAN_NOT_QUEUE_FULL;
 
     return tesSUCCESS;
-}
-
-TxQ::TxQAccount::TxMap::const_iterator
-TxQ::preceedsNextOpenSeq (std::lock_guard<std::mutex> const&,
-    SeqOrTicket start, TxQAccount::TxMap const& queued)
-{
-    // Find the transaction in the queue that immediately precedes or
-    // equals start.
-    assert (start.isSeq());
-    TxQAccount::TxMap::const_iterator txIter =
-        [&queued, start] ()
-        {
-            auto sameOrNextIter = queued.lower_bound (start);
-            if (sameOrNextIter != queued.begin())
-                --sameOrNextIter;
-            return sameOrNextIter;
-        }();
-
-    // Initializing prevIter with queued.cend() covers the case where
-    // the very beginning of the queue has a gap (i.e., the first entry
-    // in the queue is greater than the account root's Sequence field).
-    // In that situation we want the caller to use their suggested start.
-    TxQAccount::TxMap::const_iterator prevIter = queued.cend();
-    for (SeqOrTicket proposed = start; txIter != queued.cend(); ++txIter)
-    {
-        // We're looking for the first hole in the queue that follows
-        // start.  If proposed is less than txIter's seqOrT, then we've
-        // found a hole.
-        if (proposed < txIter->first)
-            break;
-
-        // Try the next SeqOrTicket that could validly follow txIter.
-        // Remember that sequence numbers jump when a transaction
-        // creates tickets, so we can't simply increment proposed.
-        proposed = txIter->second.consequences().followingSeq();
-        prevIter = txIter;
-    }
-    return prevIter;
 }
 
 auto
@@ -480,27 +452,35 @@ TxQ::eraseAndAdvance(TxQ::FeeMultiSet::const_iterator_type candidateIter)
         accountIter == txQAccount.transactions.begin());
     assert(byFee_.iterator_to(accountIter->second) == candidateIter);
     auto const accountNextIter = std::next(accountIter);
-    /* Check if the next transaction for this account has a greater
-        SeqOrTicket, and a higher fee level, which means
-        we skipped it earlier, and need to try it again.
-        Edge cases: If the next account tx has a lower fee level,
-            it's going to be later in the fee queue, so we haven't
-            skipped it yet.
-            If the next tx has an equal fee level, it was either
-            submitted later, so it's also going to be later in the
-            fee queue, OR the current was resubmitted to bump up
-            the fee level, and we have skipped that next tx. In
-            the latter case, continue through the fee queue anyway
-            to head off potential ordering manipulation problems.
-    */
+
+    // Check if the next transaction for this account has a greater
+    // SeqOrTicket, and a higher fee level, which means we skipped it
+    // earlier, and need to try it again.
+    //
+    // Edge cases:
+    //  o If the next account tx has a lower fee level, it's going to be
+    //    later in the fee queue, so we haven't skipped it yet.
+    //
+    //  o If the next tx has an equal fee level, it was...
+    //
+    //     * EITHER submitted later, so it's also going to be later in the
+    //       fee queue,
+    //
+    //     * OR the current was resubmitted to bump up the fee level, and
+    //       we have skipped that next tx.
+    //
+    //    In the latter case, continue through the fee queue anyway
+    //    to head off potential ordering manipulation problems.
     auto const feeNextIter = std::next(candidateIter);
     bool const useAccountNext =
         accountNextIter != txQAccount.transactions.end() &&
             accountNextIter->first > candidateIter->seqOrT &&
                 (feeNextIter == byFee_.end() ||
                     accountNextIter->second.feeLevel > feeNextIter->feeLevel);
+
     auto const candidateNextIter = byFee_.erase(candidateIter);
     txQAccount.transactions.erase(accountIter);
+
     return useAccountNext ?
         byFee_.iterator_to(accountNextIter->second) :
             candidateNextIter;
@@ -796,24 +776,23 @@ TxQ::apply(Application& app, OpenView& view,
     };
 
     boost::optional<TxIter> const txIter =
-    [accountIter, byAccountEnd = byAccount_.end(), acctSeqOrT] ()
+    [accountIter, byAccountEnd = byAccount_.end(), acctSeqOrT]
+    () -> boost::optional<TxIter>
     {
-        boost::optional<TxIter> result;
         if (accountIter == byAccountEnd)
-            return result;
+            return {};
 
         // Find the first transaction in the queue that we might apply.
-        TxQAccount::TxMap& acctTxs {accountIter->second.transactions};
-        TxQAccount::TxMap::iterator const firstIter {
-            acctTxs.lower_bound (acctSeqOrT)};
+        TxQAccount::TxMap& acctTxs = accountIter->second.transactions;
+        TxQAccount::TxMap::iterator const firstIter =
+            acctTxs.lower_bound (acctSeqOrT);
 
         if (firstIter == acctTxs.end())
             // Even though there may be transactions in the queue, there are
             // none that we should pay attention to.
-            return result;
+            return {};
 
-        result.emplace (firstIter, acctTxs.end());
-        return result;
+        return {TxIter {firstIter, acctTxs.end()}};
     }();
 
     auto const acctTxCount {
@@ -912,31 +891,29 @@ TxQ::apply(Application& app, OpenView& view,
         }
     }
 
+    // If the transaction needs a Ticket is that Ticket in the ledger?
+    if (txSeqOrT.isTicket() &&
+        !view.exists (keylet::ticket (account, txSeqOrT.value())))
     {
-        // If the transaction needs a Ticket is that Ticket in the ledger?
-        bool needsTicket {
-            txSeqOrT.isTicket() &&
-            !view.exists (keylet::ticket (account, txSeqOrT.value()))};
+        if (txSeqOrT.value() < acctSeqOrT.value())
+            // The ticket number is low enough that it should already be
+            // in the ledger if it were ever going to exist.
+            return {tefNO_TICKET, false};
 
-        if (needsTicket)
-        {
-            if (txSeqOrT.value() < acctSeqOrT.value())
-                // The ticket number is low enough that it should already be
-                // in the ledger if it were ever going to exist.
-                return {tefNO_TICKET, false};
-
-            // We don't queue transactions that use Tickets unless
-            // we can find the Ticket in the ledger.
-            return {terPRE_TICKET, false};
-        }
+        // We don't queue transactions that use Tickets unless
+        // we can find the Ticket in the ledger.
+        return {terPRE_TICKET, false};
     }
 
     struct MultiTxn
     {
-        explicit MultiTxn() = default;
+        ApplyViewImpl applyView;
+        OpenView openView;
 
-        boost::optional<ApplyViewImpl> applyView;
-        boost::optional<OpenView> openView;
+        MultiTxn (OpenView& view, ApplyFlags flags)
+        : applyView (&view, flags)
+        , openView (&applyView)
+        {}
     };
 
     boost::optional<MultiTxn> multiTxn;
@@ -970,6 +947,7 @@ TxQ::apply(Application& app, OpenView& view,
         //  1. If there are two or more transactions in the account's queue, or
         //  2. If the account has a single queue entry, we may still need
         //     multiTxn, but only if that lone entry will not be replaced by tx.
+        bool requiresMultiTxn = {false};
         if (acctTxCount > 1 ||
             (acctTxCount == 1 && !replacedTxIter))
         {
@@ -980,10 +958,10 @@ TxQ::apply(Application& app, OpenView& view,
             if (! isTesSuccess (ter))
                 return {ter, false};
 
-            multiTxn.emplace();
+            requiresMultiTxn = true;
         }
 
-        if (multiTxn)
+        if (requiresMultiTxn)
         {
             // See if adding this entry to the queue makes sense.
             //
@@ -997,17 +975,8 @@ TxQ::apply(Application& app, OpenView& view,
 
             // Find the entry in the queue that precedes the new
             // transaction, if one does.
-            //
-            // To do that, find the entry that is greater than or equal
-            // to the new transaction, then decrement the iterator.
             TxQAccount::TxMap::const_iterator const prevIter =
-                [&txns = txQAcct.transactions, &txSeqOrT] ()
-            {
-                auto sameOrNextIter = txns.lower_bound (txSeqOrT);
-                if (sameOrNextIter != txns.begin())
-                    --sameOrNextIter;
-                return sameOrNextIter;
-            } ();
+                txQAcct.getPrevTx (txSeqOrT);
 
             // Does the new transaction go to the front of the queue?
             // This can happen if:
@@ -1112,10 +1081,9 @@ TxQ::apply(Application& app, OpenView& view,
             }
 
             // Create the test view from the current view.
-            multiTxn->applyView.emplace(&view, flags);
-            multiTxn->openView.emplace(&*multiTxn->applyView);
+            multiTxn.emplace (view, flags);
 
-            auto const sleBump = multiTxn->applyView->peek(accountKey);
+            auto const sleBump = multiTxn->applyView.peek(accountKey);
             if (!sleBump)
                 return {tefINTERNAL, false};
 
@@ -1141,9 +1109,8 @@ TxQ::apply(Application& app, OpenView& view,
     // Note that earlier code has already verified that the sequence/ticket
     // is valid.  So we use a special entry point that runs all of the
     // preclaim checks with the exception of the sequence check.
-    assert(!multiTxn || multiTxn->openView);
     auto const pcresult = preclaimWithoutSeqCheck (*this, pfresult, app,
-            multiTxn ? *multiTxn->openView : view);
+            multiTxn ? multiTxn->openView : view);
     if (!pcresult.likelyToClaimFee)
         return{ pcresult.ter, false };
 
@@ -1610,12 +1577,38 @@ TxQ::nextQueuableSeq (
 
     // Find the transaction in the queue that precedes the next opening
     // in the queue that follows proposed.
-    TxQAccount::TxMap const& txns {accountIter->second.transactions};
-    TxQAccount::TxMap::const_iterator const preceeds {
-        preceedsNextOpenSeq (lock, proposed, txns)};
+    TxQAccount const& acct = accountIter->second;
+    TxQAccount::TxMap::const_iterator const precedes = [proposed, &acct] ()
+    {
+        // Find the transaction in the queue that immediately precedes or
+        // equals proposed.
+        TxQAccount::TxMap::const_iterator txIter = acct.getPrevTx (proposed);
 
-    return preceeds == txns.cend() ?
-        proposed : preceeds->second.consequences().followingSeq();
+        // Initializing prevIter with acct.transctions.cend() covers the case
+        // where the very beginning of the queue has a gap (i.e., the first
+        // entry in the queue is greater than the account root's Sequence
+        // field).  In that situation we want the caller to use their proposed.
+        TxQAccount::TxMap::const_iterator prevIter = acct.transactions.cend();
+        for (SeqOrTicket attempt = proposed;
+            txIter != acct.transactions.cend(); ++txIter)
+        {
+            // We're looking for the first hole in the queue that follows
+            // proposed.  If attempt is less than txIter's seqOrT, then we've
+            // found a hole.
+            if (attempt < txIter->first)
+                break;
+
+            // Try the next SeqOrTicket that could validly follow txIter.
+            // Remember that sequence numbers jump when a transaction
+            // creates tickets, so we can't simply increment attempt.
+            attempt = txIter->second.consequences().followingSeq();
+            prevIter = txIter;
+        }
+        return prevIter;
+    }();
+
+    return precedes == acct.transactions.cend() ?
+        proposed : precedes->second.consequences().followingSeq();
 }
 
 TxQ::Metrics
