@@ -106,7 +106,7 @@ public:
 
     void insert (std::shared_ptr<STTx const> const& txn);
 
-    // Returns the next transaction on account that follows seqOrT in the
+    // Pops the next transaction on account that follows seqOrT in the
     // sort order.  Normally called when a transaction is successfully
     // applied to the open ledger so the next transaction can be resubmitted
     // without waiting for ledger close.
@@ -114,7 +114,7 @@ public:
     // The return value is often null, when an account has no more
     // transactions.
     std::shared_ptr<STTx const>
-    nextAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
+    popAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
 
     void reset (LedgerHash const& salt)
     {

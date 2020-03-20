@@ -142,7 +142,7 @@ public:
         can be resubmitted without waiting for ledger close.
     */
     std::shared_ptr<STTx const>
-    nextAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
+    popAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
 
     /** Get a ledger's hash by sequence number using the cache
     */
@@ -393,11 +393,6 @@ private:
         m_stats.validatedLedgerAge.set(getValidatedLedgerAge().count());
         m_stats.publishedLedgerAge.set(getPublishedLedgerAge().count());
     }
-
-    
-
-
-
 };
 
 } // ripple
