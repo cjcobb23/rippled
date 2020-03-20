@@ -57,7 +57,7 @@ void CanonicalTXSet::insert (std::shared_ptr<STTx const> const& txn)
 }
 
 std::shared_ptr<STTx const>
-CanonicalTXSet::nextAcctTransaction (AccountID const& account,
+CanonicalTXSet::popAcctTransaction (AccountID const& account,
     SeqOrTicket seqOrT)
 {
     // Determining the next viable transaction for an account with Tickets:
