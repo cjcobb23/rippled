@@ -104,7 +104,7 @@ public:
     TxConsequences& operator=(TxConsequences&&) = default;
 
     /// Fee
-    XRPAmount const& fee() const
+    XRPAmount fee() const
     {
         return fee_;
     }
@@ -303,25 +303,26 @@ PreclaimResult
 preclaim(PreflightResult const& preflightResult,
     Application& app, OpenView const& view);
 
-// This is a special entry point intended only for use by TxQ.  To help
-// enforce that, the TxQ must pass itself in.  The TxQ argument is otherwise
-// unused.
-//
-// The entry point runs all of the preclaim checks with the lone exception of
-// verifying Sequence or Ticket validity.  This allows the TxQ to perform its
-// own similar checks without needing to construct a bogus view.
-PreclaimResult
-preclaimWithoutSeqCheck(TxQ const&, PreflightResult const& preflightResult,
-    Application& app, OpenView const& view);
+// There are two special entry points that are only intended for use by the
+// TxQ.  To help enforce that this class contains the two functions as
+// static members.
+class ForTxQ
+{
+private:
+    friend TxQ;
 
-// This is a special entry point intended only for use by TxQ.  To help
-// enforce that, the TxQ must pass itself in.  The TxQ argument is otherwise
-// unused.
-//
-// Checks the sequence number explicitly.  Used in the case where the preclaim
-// sequence number check was skipped earlier.
-TER
-seqCheck(TxQ const&, OpenView& view, STTx const& tx, beast::Journal j);
+    // This entry point runs all of the preclaim checks with the lone exception
+    // of verifying Sequence or Ticket validity.  This allows the TxQ to
+    // perform its own similar checks without needing to construct a bogus view.
+    static PreclaimResult
+    preclaimWithoutSeqCheck(PreflightResult const& preflightResult,
+        Application& app, OpenView const& view);
+
+    // Checks the sequence number explicitly.  Used by the TxQ in the case
+    // where the preclaim sequence number check was skipped earlier.
+    static TER
+    seqCheck(OpenView& view, STTx const& tx, beast::Journal j);
+};
 
 /** Compute only the expected base fee for a transaction.
 
