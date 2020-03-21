@@ -1109,7 +1109,7 @@ TxQ::apply(Application& app, OpenView& view,
     // Note that earlier code has already verified that the sequence/ticket
     // is valid.  So we use a special entry point that runs all of the
     // preclaim checks with the exception of the sequence check.
-    auto const pcresult = preclaimWithoutSeqCheck (*this, pfresult, app,
+    auto const pcresult = ForTxQ::preclaimWithoutSeqCheck (pfresult, app,
             multiTxn ? multiTxn->openView : view);
     if (!pcresult.likelyToClaimFee)
         return{ pcresult.ter, false };
@@ -1172,7 +1172,7 @@ TxQ::apply(Application& app, OpenView& view,
             // or ticket correctly.  But things change over time.  Just to
             // be sure, run the actual seqCheck() and make sure it returns
             // tesSUCCESS before continuing.
-            TER const ter {seqCheck (*this, view, *tx, j)};
+            TER const ter {ForTxQ::seqCheck (view, *tx, j)};
             if (! isTesSuccess (ter))
             {
                 assert (isTesSuccess (ter));

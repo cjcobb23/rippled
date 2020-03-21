@@ -165,7 +165,7 @@ invoke_seqCheck(ReadView const& view, STTx const& tx, beast::Journal j)
 }
 
 TER
-seqCheck (TxQ const&, OpenView& view, STTx const& tx, beast::Journal j)
+ForTxQ::seqCheck (OpenView& view, STTx const& tx, beast::Journal j)
 {
     switch(tx.getTxnType())
     {
@@ -353,7 +353,7 @@ preclaim (PreflightResult const& preflightResult,
 }
 
 PreclaimResult
-preclaimWithoutSeqCheck (TxQ const&, PreflightResult const& preflightResult,
+ForTxQ::preclaimWithoutSeqCheck (PreflightResult const& preflightResult,
     Application& app, OpenView const& view)
 {
     return preclaim (preflightResult, app, view, SeqCheck::no);
