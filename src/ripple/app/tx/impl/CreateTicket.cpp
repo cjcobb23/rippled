@@ -37,8 +37,8 @@ CreateTicket::preflight (PreflightContext const& ctx)
     if (ctx.tx.getFlags() & tfUniversalMask)
         return {temINVALID_FLAG, conseq};
 
-    if (std::uint32_t const count = {ctx.tx[sfCount]};
-                (count < minValidCount || count > maxValidCount))
+    if (std::uint32_t const count = ctx.tx[sfCount];
+        count < minValidCount || count > maxValidCount)
             return {temINVALID_COUNT, conseq};
 
     if (NotTEC const ret {preflight1 (ctx)}; ! isTesSuccess (ret))
@@ -64,10 +64,10 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
     // Make sure the TicketCreate would not cause the account to own
     // too many tickets.
     std::uint32_t const curTicketCount =
-        {(*sleAccountRoot)[~sfTicketCount].value_or (0u)};
-    std::uint32_t const addedTickets = {ctx.tx[sfCount]};
+        (*sleAccountRoot)[~sfTicketCount].value_or (0u);
+    std::uint32_t const addedTickets = ctx.tx[sfCount];
     std::uint32_t const consumedTickets =
-        {ctx.tx.getSeqOrTicket().isTicket() ? 1u : 0u};
+        ctx.tx.getSeqOrTicket().isTicket() ? 1u : 0u;
 
     // Note that unsigned integer underflow can't currently happen because
     //  o curTicketCount   >= 0
@@ -92,7 +92,7 @@ CreateTicket::doApply ()
     // Each ticket counts against the reserve of the issuing account, but we
     // check the starting balance because we want to allow dipping into the
     // reserve to pay fees.
-    std::uint32_t const ticketCount = {ctx_.tx[sfCount]};
+    std::uint32_t const ticketCount = ctx_.tx[sfCount];
     {
         XRPAmount const reserve = view().fees().accountReserve (
             sleAccountRoot->getFieldU32(sfOwnerCount) + ticketCount);
@@ -107,15 +107,13 @@ CreateTicket::doApply ()
     // root sequence.  Before we got here to doApply(), the transaction
     // machinery already incremented the account root sequence if that
     // was appropriate.
-    std::uint32_t const firstTicketSeq = {(*sleAccountRoot)[sfSequence]};
-#ifdef BEAST_DEBUG
+    std::uint32_t const firstTicketSeq = (*sleAccountRoot)[sfSequence];
+
     // Sanity check that the transaction machinery really did already
     // increment the account root Sequence.
-    if (std::uint32_t const txSeq = {ctx_.tx[sfSequence]}; txSeq != 0)
-    {
-        assert (txSeq + 1 == firstTicketSeq);
-    }
-#endif
+    if (std::uint32_t const txSeq = ctx_.tx[sfSequence];
+        txSeq != 0 && txSeq != (firstTicketSeq - 1))
+            return tefINTERNAL;
 
     for (std::uint32_t i = 0; i < ticketCount; ++i)
     {
@@ -142,7 +140,7 @@ CreateTicket::doApply ()
 
     // Update the record of the number of Tickets this account owns.
     std::uint32_t const oldTicketCount =
-        {(std::as_const(*(sleAccountRoot)))[~sfTicketCount].value_or (0u)};
+        (std::as_const(*(sleAccountRoot)))[~sfTicketCount].value_or (0u);
 
     sleAccountRoot->setFieldU32 (sfTicketCount, oldTicketCount + ticketCount);
 
