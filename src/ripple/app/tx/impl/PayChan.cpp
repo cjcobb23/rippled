@@ -170,10 +170,18 @@ closeChannel (
 
 //------------------------------------------------------------------------------
 
+XRPAmount
+PayChanCreate::calculateMaxXRPSpend(STTx const& tx)
+{
+    auto const& amount {tx[sfAmount]};
+    return amount.native() && !amount.negative() ?
+        amount.xrp() : beast::zero;
+}
+
 std::pair<NotTEC, TxConsequences>
 PayChanCreate::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
+    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     if (!ctx.rules.enabled (featurePayChan))
         return {temDISABLED, conseq};
 
@@ -297,10 +305,18 @@ PayChanCreate::doApply()
 
 //------------------------------------------------------------------------------
 
+XRPAmount
+PayChanFund::calculateMaxXRPSpend(STTx const& tx)
+{
+    auto const& amount {tx[sfAmount]};
+    return amount.native() && !amount.negative() ?
+        amount.xrp() : beast::zero;
+}
+
 std::pair<NotTEC, TxConsequences>
 PayChanFund::preflight (PreflightContext const& ctx)
 {
-    TxConsequences const conseq {ctx.tx};
+    TxConsequences const conseq {ctx.tx, calculateMaxXRPSpend (ctx.tx)};
     if (!ctx.rules.enabled (featurePayChan))
         return {temDISABLED, conseq};
 

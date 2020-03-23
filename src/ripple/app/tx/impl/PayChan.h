@@ -44,6 +44,12 @@ public:
 
     TER
     doApply() override;
+
+private:
+    // Support for TxConsequences.
+    static
+    XRPAmount
+    calculateMaxXRPSpend(STTx const& tx);
 };
 
 //------------------------------------------------------------------------------
@@ -64,6 +70,12 @@ public:
 
     TER
     doApply() override;
+
+private:
+    // Support for TxConsequences.
+    static
+    XRPAmount
+    calculateMaxXRPSpend(STTx const& tx);
 };
 
 //------------------------------------------------------------------------------
