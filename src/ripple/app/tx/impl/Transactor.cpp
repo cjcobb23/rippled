@@ -60,7 +60,6 @@ preflight1 (PreflightContext const& ctx)
     if (ctx.tx.getSeqOrTicket().isTicket() &&
         !ctx.rules.enabled (featureTicketBatch))
     {
-        // If it's a ticket, and tickets are not yet enabled, it's malformed.
         return temMALFORMED;
     }
 
