@@ -135,12 +135,18 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                 bool anyAuthChanged = {false};
                 XRPAmount totalSpend(0);
 
+                // We expect txs to be returned sorted by SeqOrTicket.  Verify
+                // that with a couple of asserts.
+                std::uint32_t lastSeqValue = 0;
+                std::uint32_t lastTicketValue = 0;
                 for (auto const& tx : txs)
                 {
                     Json::Value jvTx = Json::objectValue;
 
                     if (tx.seqOrT.isSeq())
                     {
+                        assert (lastSeqValue < tx.seqOrT.value());
+                        lastSeqValue = tx.seqOrT.value();
                         jvTx[jss::seq] = tx.seqOrT.value();
                         seqCount += 1;
                         if (!lowestSeq)
@@ -149,6 +155,8 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                     }
                     else
                     {
+                        assert (lastTicketValue < tx.seqOrT.value());
+                        lastTicketValue = tx.seqOrT.value();
                         jvTx[jss::ticket] = tx.seqOrT.value();
                         ticketCount += 1;
                         if (!lowestTicket)
