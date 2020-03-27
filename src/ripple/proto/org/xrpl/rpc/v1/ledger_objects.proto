@@ -23,6 +23,7 @@ message LedgerObject
         PayChannel pay_channel = 10;
         RippleState ripple_state = 11;
         SignerList signer_list = 12;
+	Ticket ticket = 13;
     }
 }
 
@@ -42,6 +43,7 @@ enum LedgerEntryType
     LEDGER_ENTRY_TYPE_PAY_CHANNEL     = 10;
     LEDGER_ENTRY_TYPE_RIPPLE_STATE    = 11;
     LEDGER_ENTRY_TYPE_SIGNER_LIST     = 12;
+    LEDGER_ENTRY_TYPE_TICKET          = 13;
 }
 
 // Next field: 16
@@ -330,4 +332,10 @@ message SignerList
     SignerListID signer_list_id = 6;
 
     SignerQuorum signer_quorum = 7;
+}
+
+message Ticket
+{
+	//Add all of the fields. Define the fields in common.proto. Some may already be defined
+
 }

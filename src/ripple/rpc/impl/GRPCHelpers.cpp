@@ -1109,6 +1109,15 @@ convert(org::xrpl::rpc::v1::TrustSet& to, STObject const& from)
 }
 
 void
+convert(org::xrpl::rpc::v1::CreateTicket& to, STObject const& from)
+{
+	//populate each field
+	//for each field, there is a corresponding populate[field_name] function
+	//for any new fields, write an additional populate[field_name] function
+        //reused fields should already have a populate function
+}
+
+void
 convert(org::xrpl::rpc::v1::Payment& to, STObject const& from)
 {
     populateAmount(to, from);
@@ -1418,6 +1427,12 @@ convert(org::xrpl::rpc::v1::SignerList& to, STObject const& from)
 }
 
 void
+convert(org::xrpl::rpc::v1::Ticket& to, STObject const& from)
+{
+   //populate all of the fields. write additional populate* helpers for new fields
+}
+
+void
 setLedgerEntryType(
     org::xrpl::rpc::v1::AffectedNode& proto,
     std::uint16_t lgrType)
@@ -1472,6 +1487,8 @@ setLedgerEntryType(
             proto.set_ledger_entry_type(
                 org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH);
             break;
+	case ltTICKET:
+           //similar code as above
     }
 }
 
@@ -1516,6 +1533,9 @@ convert(T& to, STObject& from, std::uint16_t type)
             break;
         case ltDEPOSIT_PREAUTH:
             RPC::convert(*to.mutable_deposit_preauth(), from);
+            break;
+        case ltTICKET:
+	    RPC::convert(*to.mutable_ticket(), from);
             break;
     }
 }
@@ -1787,6 +1807,8 @@ convert(
         case TxType::ttACCOUNT_DELETE:
             convert(*to.mutable_account_delete(), fromObj);
             break;
+	case TxType::ttCREATE_TICKET:
+            convert(*to.mutable_create_ticket(), fromObj);
         default:
             break;
     }

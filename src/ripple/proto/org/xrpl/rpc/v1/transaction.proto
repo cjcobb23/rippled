@@ -16,7 +16,13 @@ message Transaction
 
     XRPDropsAmount fee = 2;
 
-    Sequence sequence = 3;
+	oneof seq_or_ticket
+{
+
+   Sequence sequence = 3;
+   TicketSequence ticket_sequence = 31;
+}
+
 
     // Data specific to the type of transaction
     oneof transaction_data
@@ -32,6 +38,8 @@ message Transaction
         CheckCash check_cash = 16;
 
         CheckCreate check_create = 17;
+
+	CreateTicket create_ticket = 30;
 
         DepositPreauth deposit_preauth = 18;
 
@@ -153,6 +161,12 @@ message CheckCreate
     Expiration expiration = 4;
 
     InvoiceID invoice_id = 5;
+}
+
+message CreateTicket
+{
+  //Add all of the necessary fields. Define new fields in common.proto
+
 }
 
 // Next field: 3
