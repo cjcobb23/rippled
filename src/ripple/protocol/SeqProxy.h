@@ -17,8 +17,8 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_PROTOCOL_SEQ_OR_TICKET_H_INCLUDED
-#define RIPPLE_PROTOCOL_SEQ_OR_TICKET_H_INCLUDED
+#ifndef RIPPLE_PROTOCOL_SEQ_PROXY_H_INCLUDED
+#define RIPPLE_PROTOCOL_SEQ_PROXY_H_INCLUDED
 
 #include <cstdint>
 #include <ostream>
@@ -27,32 +27,22 @@ namespace ripple {
 
 /** A type that represents either a sequence value or a ticket value.
 
-  We use the value() of a SeqOrTicket in places where a sequence was used
+  We use the value() of a SeqProxy in places where a sequence was used
   before.  An example of this is the sequence of an Offer stored in the
   ledger.  We do the same thing with the in-ledger identifier of a
   Check, Payment Channel, and Escrow.
 
-  Why is this safe?  If we use the SeqOrTicket::value(), how do we know that
+  Why is this safe?  If we use the SeqProxy::value(), how do we know that
   each ledger entry will be unique?
 
   There are two components that make this safe:
 
-  1. When an account creates tickets it must use a sequence number.  You may
-     not use a ticket to create tickets.
-
-     Because the account used that sequence to create the ticket, we know that
-     for the given account the sequence was consumed by the "TicketCreate"
-     transaction.  Since a sequence can only be used once, we know that
-     sequence cannot be used for an offer or any other transaction.  It was
-     used by the "TicketCreate"
-
-     Since the sequence number on the ticket was previously used to build a
-     ticket, that same sequence number cannot have previously been used to
-     create (for example) an Offer on the same account.  So as long as we make
-     sure a ticket can only be consumed by one transaction, we can be
-     confident that using the ticket number to fill in the sequence of an
-     Offer would not duplicate a sequence used on another Offer created by
-     the same account.
+  1. A "TicketCreate" transaction carefully avoids creating a ticket
+     that corresponds with an already used Sequence or Ticket value.
+     The transactor does this by referring to the account root's
+     sequence number.  And creating the ticket advances the account
+     root's sequence number so the same ticket (or sequence) value
+     cannot be used again.
 
   2. When a "TicketCreate" transaction creates a batch of tickets it advances
      the account root sequence to one past the largest created ticket.
@@ -62,7 +52,7 @@ namespace ripple {
      may only be used once there will never be any duplicates within this
      account.
 */
-class SeqOrTicket
+class SeqProxy
 {
 public:
     enum Type : std::uint8_t
@@ -76,14 +66,14 @@ private:
     Type type_;
 
 public:
-    constexpr explicit SeqOrTicket (Type t, std::uint32_t v)
+    constexpr explicit SeqProxy (Type t, std::uint32_t v)
     : value_ {v}
     , type_ {t}
     { }
 
-    SeqOrTicket (SeqOrTicket const& other) = default;
+    SeqProxy (SeqProxy const& other) = default;
 
-    SeqOrTicket& operator= (SeqOrTicket const& other) = default;
+    SeqProxy& operator= (SeqProxy const& other) = default;
 
     constexpr std::uint32_t value() const
     {
@@ -110,44 +100,44 @@ public:
     // This somewhat surprising sort order has benefits for transaction
     // processing.  It guarantees that transactions creating Tickets are
     // sorted in from of transactions that consume Tickets.
-    friend constexpr bool operator== (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator== (SeqProxy lhs, SeqProxy rhs)
     {
         if (lhs.type_ != rhs.type_)
             return false;
         return (lhs.value() == rhs.value());
     }
 
-    friend constexpr bool operator!= (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator!= (SeqProxy lhs, SeqProxy rhs)
     {
         return ! (lhs == rhs);
     }
 
-    friend constexpr bool operator< (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator< (SeqProxy lhs, SeqProxy rhs)
     {
         if (lhs.type_ != rhs.type_)
             return lhs.type_ < rhs.type_;
         return lhs.value() < rhs.value();
     }
 
-    friend constexpr bool operator> (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator> (SeqProxy lhs, SeqProxy rhs)
     {
         return rhs < lhs;
     }
 
-    friend constexpr bool operator>= (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator>= (SeqProxy lhs, SeqProxy rhs)
     {
         return ! (lhs < rhs);
     }
 
-    friend constexpr bool operator<= (SeqOrTicket lhs, SeqOrTicket rhs)
+    friend constexpr bool operator<= (SeqProxy lhs, SeqProxy rhs)
     {
         return ! (lhs > rhs);
     }
 
-    friend std::ostream& operator<< (std::ostream& os, SeqOrTicket seqOrT)
+    friend std::ostream& operator<< (std::ostream& os, SeqProxy seqProx)
     {
-        os << (seqOrT.isSeq() ? "sequence " : "ticket ");
-        os << seqOrT.value();
+        os << (seqProx.isSeq() ? "sequence " : "ticket ");
+        os << seqProx.value();
         return os;
     }
 

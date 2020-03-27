@@ -1088,14 +1088,14 @@ public:
             BEAST_EXPECT(aliceStat.size() == 7);
             for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(tx.seqOrT.isSeq() && tx.seqOrT.value() == seq);
+                BEAST_EXPECT(tx.seqProxy.isSeq() && tx.seqProxy.value() == seq);
                 BEAST_EXPECT(tx.feeLevel == toFeeLevel(fee, baseFee).second);
                 BEAST_EXPECT(tx.lastValid);
                 BEAST_EXPECT((
                     tx.consequences.fee() == drops(fee) &&
                     tx.consequences.potentialSpend() == drops(0) &&
                     !tx.consequences.isBlocker()) ||
-                    tx.seqOrT.value() == env.seq(alice) + 6);
+                    tx.seqProxy.value() == env.seq(alice) + 6);
                 ++seq;
             }
         }
@@ -2566,7 +2566,7 @@ public:
             BEAST_EXPECT(aliceStat.size() == 5);
             for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(tx.seqOrT.isSeq() && tx.seqOrT.value() == seq);
+                BEAST_EXPECT(tx.seqProxy.isSeq() && tx.seqProxy.value() == seq);
                 BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
                 if(seq == aliceSeq + 2)
                 {
@@ -2620,7 +2620,7 @@ public:
                 if (seq == aliceSeq + 2)
                     ++seq;
 
-                BEAST_EXPECT(tx.seqOrT.isSeq() && tx.seqOrT.value() == seq);
+                BEAST_EXPECT(tx.seqProxy.isSeq() && tx.seqProxy.value() == seq);
                 BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
                 BEAST_EXPECT(!tx.lastValid);
                 ++seq;
@@ -2635,7 +2635,7 @@ public:
             BEAST_EXPECT(aliceStat.size() == 5);
             for (auto const& tx : aliceStat)
             {
-                BEAST_EXPECT(tx.seqOrT.isSeq() && tx.seqOrT.value() == seq);
+                BEAST_EXPECT(tx.seqProxy.isSeq() && tx.seqProxy.value() == seq);
                 BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 25600 });
                 BEAST_EXPECT(!tx.lastValid);
                 ++seq;
@@ -3448,7 +3448,7 @@ public:
             auto seq = aliceSeq;
             for (auto const& tx : aliceQueue)
             {
-                BEAST_EXPECT(tx.seqOrT.isSeq() && tx.seqOrT.value() == seq);
+                BEAST_EXPECT(tx.seqProxy.isSeq() && tx.seqProxy.value() == seq);
                 BEAST_EXPECT(tx.feeLevel == FeeLevel64{ 2560 });
                 ++seq;
             }

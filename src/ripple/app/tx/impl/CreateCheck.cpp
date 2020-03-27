@@ -184,8 +184,8 @@ CreateCheck::doApply ()
     }
 
     // Note that we we use the value from the sequence or ticket as the
-    // Check sequence.  For more explanation see comments in SeqOrTicket.h.
-    std::uint32_t const seq = {ctx_.tx.getSeqOrTicket().value()};
+    // Check sequence.  For more explanation see comments in SeqProxy.h.
+    std::uint32_t const seq = ctx_.tx.getSeqProxy().value();
     auto sleCheck =
         std::make_shared<SLE>(ltCHECK, getCheckIndex (account_, seq));
 

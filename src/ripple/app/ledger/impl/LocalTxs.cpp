@@ -64,7 +64,7 @@ public:
         , m_expire (index + holdLedgers)
         , m_id (txn->getTransactionID ())
         , m_account (txn->getAccountID(sfAccount))
-        , m_seqOrT (txn->getSeqOrTicket())
+        , m_seqProxy (txn->getSeqProxy())
     {
         if (txn->isFieldPresent (sfLastLedgerSequence))
             m_expire = std::min (m_expire, txn->getFieldU32 (sfLastLedgerSequence) + 1);
@@ -75,9 +75,9 @@ public:
         return m_id;
     }
 
-    SeqOrTicket getSeqOrTicket () const
+    SeqProxy getSeqProxy () const
     {
-        return m_seqOrT;
+        return m_seqProxy;
     }
 
     bool isExpired (LedgerIndex i) const
@@ -101,7 +101,7 @@ private:
     LedgerIndex                 m_expire;
     uint256                     m_id;
     AccountID                   m_account;
-    SeqOrTicket                 m_seqOrT;
+    SeqProxy                    m_seqProxy;
 };
 
 //------------------------------------------------------------------------------
@@ -157,12 +157,12 @@ public:
                 return false;
 
             std::uint32_t const acctSeq = {sleAcct->getFieldU32 (sfSequence)};
-            SeqOrTicket const seqOrT = txn.getSeqOrTicket();
+            SeqProxy const seqProx = txn.getSeqProxy();
 
-            if (seqOrT.isSeq())
-                return acctSeq > seqOrT.value(); // Remove tefPAST_SEQ
+            if (seqProx.isSeq())
+                return acctSeq > seqProx.value(); // Remove tefPAST_SEQ
 
-            if (seqOrT.isTicket() && acctSeq <= seqOrT.value())
+            if (seqProx.isTicket() && acctSeq <= seqProx.value())
                 // Keep ticket from the future.  Note, however, that the
                 // transaction will not be held indefinitely since LocalTxs
                 // will only hold a transaction for a maximum of 5 ledgers.
@@ -170,7 +170,7 @@ public:
 
             // Ticket should have been created by now.  Remove if ticket
             // does not exist.
-            return !view.exists(keylet::ticket (acctID, seqOrT.value()));
+            return !view.exists(keylet::ticket (acctID, seqProx.value()));
         });
     }
 

@@ -67,7 +67,7 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
         (*sleAccountRoot)[~sfTicketCount].value_or (0u);
     std::uint32_t const addedTickets = ctx.tx[sfCount];
     std::uint32_t const consumedTickets =
-        ctx.tx.getSeqOrTicket().isTicket() ? 1u : 0u;
+        ctx.tx.getSeqProxy().isTicket() ? 1u : 0u;
 
     // Note that unsigned integer underflow can't currently happen because
     //  o curTicketCount   >= 0

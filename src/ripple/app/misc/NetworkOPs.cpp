@@ -1215,7 +1215,7 @@ void NetworkOPsImp::apply (std::unique_lock<std::mutex>& batchLock)
 
                 auto const& txCur = e.transaction->getSTransaction();
                 auto const txNext = m_ledgerMaster.popAcctTransaction (
-                    txCur->getAccountID(sfAccount), txCur->getSeqOrTicket());
+                    txCur->getAccountID(sfAccount), txCur->getSeqProxy());
                 if (txNext)
                 {
                     std::string reason;

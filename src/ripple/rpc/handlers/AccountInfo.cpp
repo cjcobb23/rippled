@@ -126,16 +126,16 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                 auto& jvQueueTx = jvQueueData[jss::transactions];
                 jvQueueTx = Json::arrayValue;
 
-                std::uint32_t seqCount = {0};
-                std::uint32_t ticketCount = {0};
+                std::uint32_t seqCount = 0;
+                std::uint32_t ticketCount = 0;
                 boost::optional<std::uint32_t> lowestSeq;
                 boost::optional<std::uint32_t> highestSeq;
                 boost::optional<std::uint32_t> lowestTicket;
                 boost::optional<std::uint32_t> highestTicket;
-                bool anyAuthChanged = {false};
+                bool anyAuthChanged = false;
                 XRPAmount totalSpend(0);
 
-                // We expect txs to be returned sorted by SeqOrTicket.  Verify
+                // We expect txs to be returned sorted by SeqProxy.  Verify
                 // that with a couple of asserts.
                 std::uint32_t lastSeqValue = 0;
                 std::uint32_t lastTicketValue = 0;
@@ -143,25 +143,25 @@ Json::Value doAccountInfo (RPC::JsonContext& context)
                 {
                     Json::Value jvTx = Json::objectValue;
 
-                    if (tx.seqOrT.isSeq())
+                    if (tx.seqProxy.isSeq())
                     {
-                        assert (lastSeqValue < tx.seqOrT.value());
-                        lastSeqValue = tx.seqOrT.value();
-                        jvTx[jss::seq] = tx.seqOrT.value();
+                        assert (lastSeqValue < tx.seqProxy.value());
+                        lastSeqValue = tx.seqProxy.value();
+                        jvTx[jss::seq] = tx.seqProxy.value();
                         seqCount += 1;
                         if (!lowestSeq)
-                            lowestSeq = tx.seqOrT.value();
-                        highestSeq = tx.seqOrT.value();
+                            lowestSeq = tx.seqProxy.value();
+                        highestSeq = tx.seqProxy.value();
                     }
                     else
                     {
-                        assert (lastTicketValue < tx.seqOrT.value());
-                        lastTicketValue = tx.seqOrT.value();
-                        jvTx[jss::ticket] = tx.seqOrT.value();
+                        assert (lastTicketValue < tx.seqProxy.value());
+                        lastTicketValue = tx.seqProxy.value();
+                        jvTx[jss::ticket] = tx.seqProxy.value();
                         ticketCount += 1;
                         if (!lowestTicket)
-                            lowestTicket = tx.seqOrT.value();
-                        highestTicket = tx.seqOrT.value();
+                            lowestTicket = tx.seqProxy.value();
+                        highestTicket = tx.seqProxy.value();
                     }
 
                     jvTx[jss::fee_level] = to_string(tx.feeLevel);

@@ -1105,8 +1105,8 @@ CreateOffer::applyGuts (Sandbox& sb, Sandbox& sbCancel)
     auto const cancelSequence = ctx_.tx[~sfOfferSequence];
 
     // Note that we we use the value from the sequence or ticket as the
-    // offer sequence.  For more explanation see comments in SeqOrTicket.h.
-    auto const offerSequence = ctx_.tx.getSeqOrTicket().value();
+    // offer sequence.  For more explanation see comments in SeqProxy.h.
+    auto const offerSequence = ctx_.tx.getSeqProxy().value();
 
     // This is the original rate of the offer, and is the rate at which
     // it will be placed, even if crossing offers change the amounts that

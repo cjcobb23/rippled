@@ -36,7 +36,7 @@ SetAccount::makeTxConsequences(PreflightContext const& ctx)
     // specific account flags.
     auto getTxConsequencesCategory = [] (STTx const& tx)
     {
-        if (std::uint32_t const uTxFlags = {tx.getFlags()};
+        if (std::uint32_t const uTxFlags = tx.getFlags();
             uTxFlags & (tfRequireAuth | tfOptionalAuth))
                 return TxConsequences::blocker;
 

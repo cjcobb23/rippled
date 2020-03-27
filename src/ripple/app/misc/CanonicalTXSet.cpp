@@ -27,9 +27,9 @@ bool operator< (CanonicalTXSet::Key const& lhs, CanonicalTXSet::Key const& rhs)
 
     if (lhs.account_ > rhs.account_) return false;
 
-    if (lhs.seqOrT_ < rhs.seqOrT_) return true;
+    if (lhs.seqProxy_ < rhs.seqProxy_) return true;
 
-    if (lhs.seqOrT_ > rhs.seqOrT_) return false;
+    if (lhs.seqProxy_ > rhs.seqProxy_) return false;
 
     return lhs.txId_ < rhs.txId_;
 }
@@ -51,14 +51,14 @@ void CanonicalTXSet::insert (std::shared_ptr<STTx const> const& txn)
         std::make_pair (
             Key (
                 accountKey (txn->getAccountID(sfAccount)),
-                txn->getSeqOrTicket (),
+                txn->getSeqProxy (),
                 txn->getTransactionID ()),
             txn));
 }
 
 std::shared_ptr<STTx const>
 CanonicalTXSet::popAcctTransaction (AccountID const& account,
-    SeqOrTicket seqOrT)
+    SeqProxy seqProx)
 {
     // Determining the next viable transaction for an account with Tickets:
     //
@@ -74,7 +74,7 @@ CanonicalTXSet::popAcctTransaction (AccountID const& account,
     std::shared_ptr<STTx const> result;
     uint256 const effectiveAccount {accountKey (account)};
 
-    Key const after (effectiveAccount, seqOrT, beast::zero);
+    Key const after (effectiveAccount, seqProx, beast::zero);
     auto const itrNext {map_.lower_bound (after)};
     if (itrNext != map_.end() &&
         itrNext->first.getAccount() == effectiveAccount)

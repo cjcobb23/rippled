@@ -38,9 +38,9 @@ struct PayChan_test : public beast::unit_test::suite
     uint256
     channel (jtx::Account const& account,
         jtx::Account const& dst,
-        std::uint32_t seqOrTicketValue)
+        std::uint32_t seqProxyValue)
     {
-        auto const k = keylet::payChan (account, dst, seqOrTicketValue);
+        auto const k = keylet::payChan (account, dst, seqProxyValue);
         return k.key;
     }
 

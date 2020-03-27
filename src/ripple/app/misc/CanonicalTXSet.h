@@ -21,7 +21,7 @@
 #define RIPPLE_APP_MISC_CANONICALTXSET_H_INCLUDED
 
 #include <ripple/protocol/RippleLedgerHash.h>
-#include <ripple/protocol/SeqOrTicket.h>
+#include <ripple/protocol/SeqProxy.h>
 #include <ripple/protocol/STTx.h>
 
 namespace ripple {
@@ -40,10 +40,10 @@ private:
     class Key
     {
     public:
-        Key (uint256 const& account, SeqOrTicket seqOrT, uint256 const& id)
+        Key (uint256 const& account, SeqProxy seqProx, uint256 const& id)
             : account_ (account)
             , txId_ (id)
-            , seqOrT_ (seqOrT)
+            , seqProxy_ (seqProx)
         {
         }
 
@@ -87,7 +87,7 @@ private:
     private:
         uint256 account_;
         uint256 txId_;
-        SeqOrTicket seqOrT_;
+        SeqProxy seqProxy_;
     };
 
     friend bool operator< (Key const& lhs, Key const& rhs);
@@ -106,7 +106,7 @@ public:
 
     void insert (std::shared_ptr<STTx const> const& txn);
 
-    // Pops the next transaction on account that follows seqOrT in the
+    // Pops the next transaction on account that follows seqProx in the
     // sort order.  Normally called when a transaction is successfully
     // applied to the open ledger so the next transaction can be resubmitted
     // without waiting for ledger close.
@@ -114,7 +114,7 @@ public:
     // The return value is often null, when an account has no more
     // transactions.
     std::shared_ptr<STTx const>
-    popAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
+    popAcctTransaction (AccountID const& account, SeqProxy seqProx);
 
     void reset (LedgerHash const& salt)
     {

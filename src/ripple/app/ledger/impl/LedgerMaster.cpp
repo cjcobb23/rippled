@@ -502,11 +502,11 @@ LedgerMaster::applyHeldTransactions ()
 
 std::shared_ptr<STTx const>
 LedgerMaster::popAcctTransaction (AccountID const& account,
-    SeqOrTicket seqOrT)
+    SeqProxy seqProx)
 {
     std::lock_guard sl(m_mutex);
 
-    return mHeldTransactions.popAcctTransaction (account, seqOrT);
+    return mHeldTransactions.popAcctTransaction (account, seqProx);
 }
 
 LedgerIndex

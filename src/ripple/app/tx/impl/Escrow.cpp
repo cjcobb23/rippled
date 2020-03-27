@@ -238,9 +238,9 @@ EscrowCreate::doApply()
     }
 
     // Create escrow in ledger.  Note that we we use the value from the
-    // sequence or ticket.  For more explanation see comments in SeqOrTicket.h.
+    // sequence or ticket.  For more explanation see comments in SeqProxy.h.
     auto const slep = std::make_shared<SLE>(
-        keylet::escrow(account, ctx_.tx.getSeqOrTicket().value()));
+        keylet::escrow(account, ctx_.tx.getSeqProxy().value()));
     (*slep)[sfAmount] = ctx_.tx[sfAmount];
     (*slep)[sfAccount] = account;
     (*slep)[~sfCondition] = ctx_.tx[~sfCondition];

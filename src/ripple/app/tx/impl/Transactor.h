@@ -119,7 +119,7 @@ public:
 
     static
     NotTEC
-    checkSeqOrTicket (ReadView const& view, STTx const& tx, beast::Journal j);
+    checkSeqProxy (ReadView const& view, STTx const& tx, beast::Journal j);
 
     static
     NotTEC
@@ -184,7 +184,7 @@ protected:
 private:
     std::pair<TER, XRPAmount> reset(XRPAmount fee);
 
-    TER consumeSeqOrTicket (SLE::pointer const& sleAccount);
+    TER consumeSeqProxy (SLE::pointer const& sleAccount);
     TER payFee ();
     static NotTEC checkSingleSign (PreclaimContext const& ctx);
     static NotTEC checkMultiSign (PreclaimContext const& ctx);

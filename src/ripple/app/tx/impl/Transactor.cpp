@@ -57,7 +57,7 @@ preflight1 (PreflightContext const& ctx)
 {
     // This is inappropriate in preflight0, because only Change transactions
     // skip this function, and those do not allow an sfTicketSequence field.
-    if (ctx.tx.getSeqOrTicket().isTicket() &&
+    if (ctx.tx.getSeqProxy().isTicket() &&
         !ctx.rules.enabled (featureTicketBatch))
     {
         return temMALFORMED;
@@ -230,7 +230,7 @@ TER Transactor::payFee ()
 }
 
 NotTEC
-Transactor::checkSeqOrTicket (
+Transactor::checkSeqProxy (
     ReadView const& view, STTx const& tx, beast::Journal j)
 {
     auto const id = tx.getAccountID(sfAccount);
@@ -245,27 +245,27 @@ Transactor::checkSeqOrTicket (
         return terNO_ACCOUNT;
     }
 
-    SeqOrTicket const t_seqOrT = tx.getSeqOrTicket ();
+    SeqProxy const t_seqProx = tx.getSeqProxy ();
     std::uint32_t const a_seq = sle->getFieldU32 (sfSequence);
 
-    if (t_seqOrT.isSeq() && t_seqOrT.value() != a_seq)
+    if (t_seqProx.isSeq() && t_seqProx.value() != a_seq)
     {
-        if (a_seq < t_seqOrT.value())
+        if (a_seq < t_seqProx.value())
         {
             JLOG(j.trace()) <<
                 "applyTransaction: has future sequence number " <<
-                "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
+                "a_seq=" << a_seq << " t_seq=" << t_seqProx.value();
             return terPRE_SEQ;
         }
         // It's an already-used sequence number.
         JLOG(j.trace()) <<
             "applyTransaction: has past sequence number " <<
-            "a_seq=" << a_seq << " t_seq=" << t_seqOrT.value();
+            "a_seq=" << a_seq << " t_seq=" << t_seqProx.value();
         return tefPAST_SEQ;
     }
-    else if (t_seqOrT.isTicket())
+    else if (t_seqProx.isTicket())
     {
-        if (a_seq  <= t_seqOrT.value())
+        if (a_seq  <= t_seqProx.value())
         {
             // If the Ticket number is greater than or equal to the
             // account sequence there's the possibility that the
@@ -273,16 +273,16 @@ Transactor::checkSeqOrTicket (
             // yet.  Allow a retry.
             JLOG(j.trace()) <<
                 "applyTransaction: has future ticket id " <<
-                "a_seq=" << a_seq << " ticket=" << t_seqOrT.value();
+                "a_seq=" << a_seq << " ticket=" << t_seqProx.value();
             return terPRE_TICKET;
         }
 
         // Transaction can never succeed if the Ticket is not in the ledger.
-        if (! view.exists (keylet::ticket (id, t_seqOrT.value())))
+        if (! view.exists (keylet::ticket (id, t_seqProx.value())))
         {
             JLOG(j.trace()) <<
                 "applyTransaction: ticket already used or never created " <<
-                "a_seq=" << a_seq << "ticket=" << t_seqOrT.value();
+                "a_seq=" << a_seq << "ticket=" << t_seqProx.value();
             return tefNO_TICKET;
         }
     }
@@ -320,16 +320,16 @@ Transactor::checkPriorTxAndLastLedger (PreclaimContext const& ctx)
     return tesSUCCESS;
 }
 
-TER Transactor::consumeSeqOrTicket (SLE::pointer const& sleAccount)
+TER Transactor::consumeSeqProxy (SLE::pointer const& sleAccount)
 {
-    SeqOrTicket const seqOrT = ctx_.tx.getSeqOrTicket();
-    if (seqOrT.isSeq())
+    SeqProxy const seqProx = ctx_.tx.getSeqProxy();
+    if (seqProx.isSeq())
     {
-        sleAccount->setFieldU32 (sfSequence, seqOrT.value() + 1);
+        sleAccount->setFieldU32 (sfSequence, seqProx.value() + 1);
         return tesSUCCESS;
     }
     return ticketDelete (
-        view(), account_, getTicketIndex (account_, seqOrT.value()), j_);
+        view(), account_, getTicketIndex (account_, seqProx.value()), j_);
 }
 
 // Remove a single Ticket from the ledger.
@@ -405,7 +405,7 @@ TER Transactor::apply ()
         mPriorBalance   = STAmount {(*sle)[sfBalance]}.xrp ();
         mSourceBalance  = mPriorBalance;
 
-        TER result = consumeSeqOrTicket (sle);
+        TER result = consumeSeqProxy (sle);
         if (result != tesSUCCESS)
             return result;
 
@@ -716,7 +716,7 @@ Transactor::reset(XRPAmount fee)
     // then the ledger is corrupted.  Rather than make things worse we
     // reject the transaction.
     txnAcct->setFieldAmount (sfBalance, balance - fee);
-    TER const ter {consumeSeqOrTicket (txnAcct)};
+    TER const ter {consumeSeqProxy (txnAcct)};
     assert (isTesSuccess (ter));
 
     if (isTesSuccess (ter))

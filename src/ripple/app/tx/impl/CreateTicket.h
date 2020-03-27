@@ -33,7 +33,7 @@ class CreateTicket
 public:
     static constexpr ConsequencesFactoryType ConsequencesFactory{Custom};
 
-    constexpr static std::uint32_t minValidCount = {1};
+    constexpr static std::uint32_t minValidCount = 1;
 
     // A note on how the maxValidCount was determined.  The goal is for
     // a single TicketCreate transaction to not use more compute power than
@@ -54,7 +54,7 @@ public:
     // about the same compute time as a single compute-intensive payment.
     //
     // October 2018.
-    constexpr static std::uint32_t maxValidCount = {250};
+    constexpr static std::uint32_t maxValidCount = 250;
 
     // The maximum number of Tickets an account may hold.  If a
     // TicketCreate would cause an account to own more than this many
@@ -62,7 +62,7 @@ public:
     //
     // The number was chosen arbitrarily and is an effort toward avoiding
     // ledger-stuffing with Tickets.
-    constexpr static std::uint32_t maxTicketThreshold = {250};
+    constexpr static std::uint32_t maxTicketThreshold = 250;
 
     explicit CreateTicket (ApplyContext& ctx)
         : Transactor(ctx)

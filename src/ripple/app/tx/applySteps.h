@@ -65,8 +65,8 @@ private:
     XRPAmount fee_;
     /// Does NOT include the fee.
     XRPAmount potentialSpend_;
-    /// SeqOrTicket or transaction.
-    SeqOrTicket seqOrT_;
+    /// SeqProxy of transaction.
+    SeqProxy seqProx_;
     /// Number of sequences consumed.
     std::uint32_t sequencesConsumed_;
 
@@ -104,10 +104,10 @@ public:
         return potentialSpend_;
     }
 
-    /// SeqOrTicket
-    SeqOrTicket seqOrT() const
+    /// SeqProxy
+    SeqProxy seqProxy() const
     {
-        return seqOrT_;
+        return seqProx_;
     }
 
     /// Sequences consumed
@@ -122,36 +122,36 @@ public:
         return isBlocker_;
     }
 
-    // Could nextSeqOrT immediately follow this?
-    NotTEC couldBeNext (SeqOrTicket nextSeqOrT) const
+    // Could nextSeqProx immediately follow this?
+    NotTEC couldBeNext (SeqProxy nextSeqProx) const
     {
         // A Ticket can follow any Sequence or a smaller Ticket.
         // Also Tickets allow gaps.
-        if (nextSeqOrT.isTicket())
-            return (seqOrT_ < nextSeqOrT) ?
+        if (nextSeqProx.isTicket())
+            return (seqProx_ < nextSeqProx) ?
                 NotTEC {tesSUCCESS} : NotTEC {telCAN_NOT_QUEUE};
 
-        // If this has a ticket and nextSeqOrT has a sequence then no way.
-        if (seqOrT_.isTicket())
+        // If this has a ticket and nextSeqProx has a sequence then no way.
+        if (seqProx_.isTicket())
             return telCAN_NOT_QUEUE;
 
-        // Both this and nextSeqOrT have sequence numbers.  Requires an
+        // Both this and nextSeqProx have sequence numbers.  Requires an
         // exact match of the expected value.  No gaps in sequence numbers
         // allowed except when Tickets are created.
-        SeqOrTicket const expectSeq = followingSeq();
-        if (nextSeqOrT < expectSeq)
+        SeqProxy const expectSeq = followingSeq();
+        if (nextSeqProx < expectSeq)
             return tefPAST_SEQ;
-        if (nextSeqOrT > expectSeq)
+        if (nextSeqProx > expectSeq)
             return terPRE_SEQ;
         return tesSUCCESS;
     }
 
-    // Return the SeqOrTicket that would follow this.
-    SeqOrTicket followingSeq () const
+    // Return the SeqProxy that would follow this.
+    SeqProxy followingSeq () const
     {
-        return SeqOrTicket {
-            seqOrT_.isSeq() ? SeqOrTicket::seq : SeqOrTicket::ticket,
-            seqOrT_.value() + sequencesConsumed()
+        return SeqProxy {
+            seqProx_.isSeq() ? SeqProxy::seq : SeqProxy::ticket,
+            seqProx_.value() + sequencesConsumed()
         };
     }
 };

@@ -1637,34 +1637,34 @@ convert(
     {
         to.set_txn_count(from.size());
 
-        std::uint32_t seqCount = {0};
-        std::uint32_t ticketCount = {0};
+        std::uint32_t seqCount = 0;
+        std::uint32_t ticketCount = 0;
         boost::optional<std::uint32_t> lowestSeq;
         boost::optional<std::uint32_t> highestSeq;
         boost::optional<std::uint32_t> lowestTicket;
         boost::optional<std::uint32_t> highestTicket;
-        bool anyAuthChanged = {false};
+        bool anyAuthChanged = false;
         XRPAmount totalSpend(0);
 
         for (auto const& tx : from)
         {
             org::xrpl::rpc::v1::QueuedTransaction& qt = *to.add_transactions();
 
-            if (tx.seqOrT.isSeq())
+            if (tx.seqProxy.isSeq())
             {
-                qt.mutable_sequence()->set_value (tx.seqOrT.value());
+                qt.mutable_sequence()->set_value (tx.seqProxy.value());
                 seqCount += 1;
                 if (!lowestSeq)
-                    lowestSeq = tx.seqOrT.value();
-                highestSeq = tx.seqOrT.value();
+                    lowestSeq = tx.seqProxy.value();
+                highestSeq = tx.seqProxy.value();
             }
             else
             {
-                qt.mutable_ticket()->set_value (tx.seqOrT.value());
+                qt.mutable_ticket()->set_value (tx.seqProxy.value());
                 ticketCount += 1;
                 if (!lowestTicket)
-                    lowestTicket = tx.seqOrT.value();
-                highestTicket = tx.seqOrT.value();
+                    lowestTicket = tx.seqProxy.value();
+                highestTicket = tx.seqProxy.value();
             }
 
             qt.set_fee_level(tx.feeLevel.fee());

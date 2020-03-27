@@ -22,7 +22,7 @@
 
 #include <ripple/protocol/PublicKey.h>
 #include <ripple/protocol/SecretKey.h>
-#include <ripple/protocol/SeqOrTicket.h>
+#include <ripple/protocol/SeqProxy.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/TxFormats.h>
 #include <boost/container/flat_set.hpp>
@@ -105,7 +105,7 @@ public:
         return getFieldVL (sfSigningPubKey);
     }
 
-    SeqOrTicket getSeqOrTicket () const;
+    SeqProxy getSeqProxy () const;
 
     boost::container::flat_set<AccountID>
     getMentionedAccounts() const;

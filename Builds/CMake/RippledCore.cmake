@@ -229,7 +229,7 @@ install (
     src/ripple/protocol/STVector256.h
     src/ripple/protocol/SecretKey.h
     src/ripple/protocol/Seed.h
-    src/ripple/protocol/SeqOrTicket.h
+    src/ripple/protocol/SeqProxy.h
     src/ripple/protocol/Serializer.h
     src/ripple/protocol/Sign.h
     src/ripple/protocol/SystemParameters.h
@@ -874,7 +874,7 @@ target_sources (rippled PRIVATE
   src/test/protocol/STValidation_test.cpp
   src/test/protocol/SecretKey_test.cpp
   src/test/protocol/Seed_test.cpp
-    src/test/protocol/SeqOrTicket_test.cpp
+  src/test/protocol/SeqProxy_test.cpp
   src/test/protocol/TER_test.cpp
   src/test/protocol/digest_test.cpp
   src/test/protocol/types_test.cpp

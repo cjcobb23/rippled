@@ -142,7 +142,7 @@ public:
         can be resubmitted without waiting for ledger close.
     */
     std::shared_ptr<STTx const>
-    popAcctTransaction (AccountID const& account, SeqOrTicket seqOrT);
+    popAcctTransaction (AccountID const& account, SeqProxy seqProx);
 
     /** Get a ledger's hash by sequence number using the cache
     */

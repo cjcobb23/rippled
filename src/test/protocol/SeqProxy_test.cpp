@@ -17,28 +17,28 @@
 */
 //==============================================================================
 
-#include <ripple/protocol/SeqOrTicket.h>
+#include <ripple/protocol/SeqProxy.h>
 #include <ripple/beast/unit_test.h>
 #include <limits>
 #include <sstream>
 
 namespace ripple {
 
-struct SeqOrTicket_test : public beast::unit_test::suite
+struct SeqProxy_test : public beast::unit_test::suite
 {
     // Exercise value(), isSeq(), and isTicket().
     static constexpr bool expectValues (
-        SeqOrTicket seqOrT, std::uint32_t value, SeqOrTicket::Type type)
+        SeqProxy seqProx, std::uint32_t value, SeqProxy::Type type)
     {
-        bool const expectSeq {type == SeqOrTicket::seq};
+        bool const expectSeq {type == SeqProxy::seq};
         return
-            ( seqOrT.value()    == value     ) &&
-            ( seqOrT.isSeq()    == expectSeq ) &&
-            ( seqOrT.isTicket() == !expectSeq);
+            ( seqProx.value()    == value     ) &&
+            ( seqProx.isSeq()    == expectSeq ) &&
+            ( seqProx.isTicket() == !expectSeq);
     }
 
-    // Exercise all SeqOrTicket comparison operators expecting lhs < rhs.
-    static constexpr bool expectLt (SeqOrTicket lhs, SeqOrTicket rhs)
+    // Exercise all SeqProxy comparison operators expecting lhs < rhs.
+    static constexpr bool expectLt (SeqProxy lhs, SeqProxy rhs)
     {
         return
             (   lhs <  rhs ) &&
@@ -49,8 +49,8 @@ struct SeqOrTicket_test : public beast::unit_test::suite
             (! (lhs >  rhs));
     }
 
-    // Exercise all SeqOrTicket comparison operators expecting lhs == rhs.
-    static constexpr bool expectEq (SeqOrTicket lhs, SeqOrTicket rhs)
+    // Exercise all SeqProxy comparison operators expecting lhs == rhs.
+    static constexpr bool expectEq (SeqProxy lhs, SeqProxy rhs)
     {
         return
             (! (lhs <  rhs)) &&
@@ -61,8 +61,8 @@ struct SeqOrTicket_test : public beast::unit_test::suite
             (! (lhs >  rhs));
     }
 
-    // Exercise all SeqOrTicket comparison operators expecting lhs > rhs.
-    static constexpr bool expectGt (SeqOrTicket lhs, SeqOrTicket rhs)
+    // Exercise all SeqProxy comparison operators expecting lhs > rhs.
+    static constexpr bool expectGt (SeqProxy lhs, SeqProxy rhs)
     {
         return
             (! (lhs <  rhs)) &&
@@ -74,13 +74,13 @@ struct SeqOrTicket_test : public beast::unit_test::suite
     }
 
     // Verify streaming.
-    bool streamTest (SeqOrTicket seqOrT)
+    bool streamTest (SeqProxy seqProx)
     {
-        std::string const type {seqOrT.isSeq() ? "sequence" : "ticket"};
-        std::string const value {std::to_string (seqOrT.value())};
+        std::string const type {seqProx.isSeq() ? "sequence" : "ticket"};
+        std::string const value {std::to_string (seqProx.value())};
 
         std::stringstream ss;
-        ss << seqOrT;
+        ss << seqProx;
         std::string str {ss.str()};
 
         return
@@ -92,25 +92,25 @@ struct SeqOrTicket_test : public beast::unit_test::suite
     void
     run() override
     {
-        // While SeqOrTicket supports values of zero, they are not
+        // While SeqProxy supports values of zero, they are not
         // expected in the wild.  Nevertheless they are tested here.
         // But so are values of 1, which are expected to occur in the wild.
         static constexpr std::uint32_t uintMax {
             std::numeric_limits<std::uint32_t>::max()};
-        static constexpr SeqOrTicket::Type seq {SeqOrTicket::seq};
-        static constexpr SeqOrTicket::Type ticket {SeqOrTicket::ticket};
+        static constexpr SeqProxy::Type seq {SeqProxy::seq};
+        static constexpr SeqProxy::Type ticket {SeqProxy::ticket};
 
-        static constexpr SeqOrTicket seqZero {seq, 0};
-        static constexpr SeqOrTicket seqSmall {seq, 1};
-        static constexpr SeqOrTicket seqMid0 {seq, 2};
-        static constexpr SeqOrTicket seqMid1 {seqMid0};
-        static constexpr SeqOrTicket seqBig {seq, uintMax};
+        static constexpr SeqProxy seqZero {seq, 0};
+        static constexpr SeqProxy seqSmall {seq, 1};
+        static constexpr SeqProxy seqMid0 {seq, 2};
+        static constexpr SeqProxy seqMid1 {seqMid0};
+        static constexpr SeqProxy seqBig {seq, uintMax};
 
-        static constexpr SeqOrTicket ticZero {ticket, 0};
-        static constexpr SeqOrTicket ticSmall {ticket, 1};
-        static constexpr SeqOrTicket ticMid0 {ticket, 2};
-        static constexpr SeqOrTicket ticMid1 {ticMid0};
-        static constexpr SeqOrTicket ticBig {ticket, uintMax};
+        static constexpr SeqProxy ticZero {ticket, 0};
+        static constexpr SeqProxy ticSmall {ticket, 1};
+        static constexpr SeqProxy ticMid0 {ticket, 2};
+        static constexpr SeqProxy ticMid1 {ticMid0};
+        static constexpr SeqProxy ticBig {ticket, uintMax};
 
         // Verify operation of value(), isSeq() and isTicket().
         static_assert (expectValues (seqZero,        0, seq), "");
@@ -250,6 +250,6 @@ struct SeqOrTicket_test : public beast::unit_test::suite
     }
 };
 
-BEAST_DEFINE_TESTSUITE(SeqOrTicket,protocol,ripple);
+BEAST_DEFINE_TESTSUITE(SeqProxy,protocol,ripple);
 
 } //namespace ripple

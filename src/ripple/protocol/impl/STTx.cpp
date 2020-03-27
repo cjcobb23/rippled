@@ -163,18 +163,18 @@ Blob STTx::getSignature () const
     }
 }
 
-SeqOrTicket STTx::getSeqOrTicket () const
+SeqProxy STTx::getSeqProxy () const
 {
     std::uint32_t const seq {getFieldU32 (sfSequence)};
     if (seq != 0)
-        return SeqOrTicket {SeqOrTicket::seq, seq};
+        return SeqProxy {SeqProxy::seq, seq};
 
     boost::optional<std::uint32_t> const ticketSeq {
         operator[](~sfTicketSequence)};
     if (!ticketSeq)
-        return SeqOrTicket {SeqOrTicket::seq, seq};
+        return SeqProxy {SeqProxy::seq, seq};
 
-    return SeqOrTicket {SeqOrTicket::ticket, *ticketSeq};
+    return SeqProxy {SeqProxy::ticket, *ticketSeq};
 }
 
 void STTx::sign (

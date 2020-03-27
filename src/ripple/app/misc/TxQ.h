@@ -24,7 +24,7 @@
 #include <ripple/ledger/OpenView.h>
 #include <ripple/ledger/ApplyView.h>
 #include <ripple/protocol/TER.h>
-#include <ripple/protocol/SeqOrTicket.h>
+#include <ripple/protocol/SeqProxy.h>
 #include <ripple/protocol/STTx.h>
 #include <boost/intrusive/set.hpp>
 #include <boost/circular_buffer.hpp>
@@ -82,7 +82,7 @@ public:
         std::size_t queueSizeMin = 2000;
         /** Extra percentage required on the fee level of a queued
             transaction to replace that transaction with another
-            with the same SeqOrTicket.
+            with the same SeqProxy.
 
             If queued transaction for account "Alice" with seq 45
             has a fee level of 512, a replacement transaction for
@@ -203,7 +203,7 @@ public:
             boost::optional<LedgerIndex> const& lastValid_,
             TxConsequences const& consequences_,
             AccountID const& account_,
-            SeqOrTicket const& seqOrT_,
+            SeqProxy const& seqProxy_,
             std::shared_ptr<STTx const> const& txn_,
             int retriesRemaining_,
             TER preflightResult_,
@@ -212,7 +212,7 @@ public:
         , lastValid (lastValid_)
         , consequences (consequences_)
         , account (account_)
-        , seqOrT (seqOrT_)
+        , seqProxy (seqProxy_)
         , txn (txn_)
         , retriesRemaining (retriesRemaining_)
         , preflightResult (preflightResult_)
@@ -229,8 +229,8 @@ public:
         TxConsequences consequences;
         /// The account the transaction is queued for
         AccountID account;
-        /// SeqOrTicket of the transaction
-        SeqOrTicket seqOrT;
+        /// SeqProxy of the transaction
+        SeqProxy seqProxy;
         /// The full transaction
         std::shared_ptr<STTx const> txn;
         /** Number of times the transactor can return a retry / `ter` result
@@ -310,7 +310,7 @@ public:
         ReadView const& view, bool timeLeap);
 
     /** Given a sequence number, return the next that would go in the queue. */
-    SeqOrTicket nextQueuableSeq(ReadView const& view,
+    SeqProxy nextQueuableSeq(ReadView const& view,
         AccountID const& account, std::uint32_t proposedSeq) const;
 
     /** Returns fee metrics in reference fee level units.
@@ -521,9 +521,9 @@ private:
         /// Expiration ledger for the transaction
         /// (`sfLastLedgerSequence` field).
         boost::optional<LedgerIndex> const lastValid;
-        /// Transaction SeqOrTicket number
+        /// Transaction SeqProxy number
         /// (`sfSequence` or `sfTicketSequence` field).
-        SeqOrTicket const seqOrT;
+        SeqProxy const seqProxy;
         /**
             A transaction at the front of the queue will be given
             several attempts to succeed before being dropped from
@@ -593,7 +593,7 @@ private:
         TxDetails getTxDetails () const
         {
             return {feeLevel, lastValid, consequences(), account,
-                seqOrT, txn, retriesRemaining, pfresult->ter, lastResult};
+                seqProxy, txn, retriesRemaining, pfresult->ter, lastResult};
         }
     };
 
@@ -612,12 +612,12 @@ private:
     };
 
     /** Used to represent an account to the queue, and stores the
-        transactions queued for that account by SeqOrTicket.
+        transactions queued for that account by SeqProxy.
     */
     class TxQAccount
     {
     public:
-        using TxMap = std::map <SeqOrTicket, MaybeTx>;
+        using TxMap = std::map <SeqProxy, MaybeTx>;
 
         /// The account
         AccountID const account;
@@ -658,21 +658,21 @@ private:
             return !getTxnCount();
         }
 
-        /// Find the entry in transactions that precedes seqOrT, if one does.
+        /// Find the entry in transactions that precedes seqProx, if one does.
         TxMap::const_iterator
-        getPrevTx (SeqOrTicket seqOrT) const;
+        getPrevTx (SeqProxy seqProx) const;
 
         /// Add a transaction candidate to this account for queuing
         MaybeTx&
         add(MaybeTx&&);
 
-        /** Remove the candidate with given SeqOrTicket value from this
+        /** Remove the candidate with given SeqProxy value from this
             account.
 
             @return Whether a candidate was removed
         */
         bool
-        remove(SeqOrTicket seqOrT);
+        remove(SeqProxy seqProx);
     };
 
     using FeeHook = boost::intrusive::member_hook

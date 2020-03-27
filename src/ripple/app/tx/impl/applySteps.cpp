@@ -147,7 +147,7 @@ invoke_preclaim(PreclaimContext const& ctx, SeqCheck seqChk)
         TER result {tesSUCCESS};
         if (seqChk == SeqCheck::yes)
         {
-            result = T::checkSeqOrTicket (ctx.view, ctx.tx, ctx.j);
+            result = T::checkSeqProxy (ctx.view, ctx.tx, ctx.j);
 
             if (result != tesSUCCESS)
                 return result;
@@ -211,7 +211,7 @@ static
 TER
 invoke_seqCheck(ReadView const& view, STTx const& tx, beast::Journal j)
 {
-    return T::checkSeqOrTicket (view, tx, j);
+    return T::checkSeqProxy (view, tx, j);
 }
 
 TER
@@ -287,8 +287,8 @@ TxConsequences::TxConsequences (STTx const& tx)
 , fee_ (
     tx[sfFee].native() && !tx[sfFee].negative() ? tx[sfFee].xrp() : beast::zero)
 , potentialSpend_ (beast::zero)
-, seqOrT_ (tx.getSeqOrTicket())
-, sequencesConsumed_ (tx.getSeqOrTicket().isSeq() ? 1 : 0)
+, seqProx_ (tx.getSeqProxy())
+, sequencesConsumed_ (tx.getSeqProxy().isSeq() ? 1 : 0)
 {
 }
 
