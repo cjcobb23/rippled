@@ -416,6 +416,15 @@ populateSignerQuorum(T& to, STObject const& from)
     populateProtoPrimitive(
         [&to]() { return to.mutable_signer_quorum(); }, from, sfSignerQuorum);
 }
+
+template <class T>
+void
+populateCount(T& to, STObject const& from)
+{
+    populateProtoPrimitive(
+        [&to]() { return to.mutable_count(); }, from, sfCount);
+}
+
 template <class T>
 void
 populateLimitAmount(T& to, STObject const& from)
@@ -705,6 +714,16 @@ populateSignerListID(T& to, STObject const& from)
 {
     populateProtoPrimitive(
         [&to]() { return to.mutable_signer_list_id(); }, from, sfSignerListID);
+}
+
+template <class T>
+void
+populateTicketSequence(T& to, STObject const& from)
+{
+    populateProtoPrimitive(
+        [&to]() { return to.mutable_ticket_sequence(); },
+        from,
+        sfTicketSequence);
 }
 
 template <class T>
@@ -1099,6 +1118,12 @@ convert(org::xrpl::rpc::v1::SignerListSet& to, STObject const& from)
 }
 
 void
+convert(org::xrpl::rpc::v1::TicketCreate& to, STObject const& from)
+{
+    populateCount (to, from);
+}
+
+void
 convert(org::xrpl::rpc::v1::TrustSet& to, STObject const& from)
 {
     populateLimitAmount(to, from);
@@ -1418,6 +1443,22 @@ convert(org::xrpl::rpc::v1::SignerList& to, STObject const& from)
 }
 
 void
+convert(org::xrpl::rpc::v1::TicketObject& to, STObject const& from)
+{
+    populateAccount(to, from);
+
+    populateFlags(to, from);
+
+    populateOwnerNode(to, from);
+
+    populatePreviousTransactionID(to, from);
+
+    populatePreviousTransactionLedgerSequence(to, from);
+
+    populateTicketSequence(to, from);
+}
+
+void
 setLedgerEntryType(
     org::xrpl::rpc::v1::AffectedNode& proto,
     std::uint16_t lgrType)
@@ -1472,6 +1513,9 @@ setLedgerEntryType(
             proto.set_ledger_entry_type(
                 org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_DEPOSIT_PREAUTH);
             break;
+        case ltTICKET:
+            proto.set_ledger_entry_type(
+                org::xrpl::rpc::v1::LEDGER_ENTRY_TYPE_TICKET);
     }
 }
 
@@ -1516,6 +1560,9 @@ convert(T& to, STObject& from, std::uint16_t type)
             break;
         case ltDEPOSIT_PREAUTH:
             RPC::convert(*to.mutable_deposit_preauth(), from);
+            break;
+        case ltTICKET:
+            RPC::convert(*to.mutable_ticket(), from);
             break;
     }
 }
@@ -1786,6 +1833,9 @@ convert(
             break;
         case TxType::ttACCOUNT_DELETE:
             convert(*to.mutable_account_delete(), fromObj);
+            break;
+        case TxType::ttTICKET_CREATE:
+            convert(*to.mutable_ticket_create(), fromObj);
             break;
         default:
             break;

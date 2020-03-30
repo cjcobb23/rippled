@@ -32,6 +32,12 @@ message CloseTime
 	uint32 value = 1;
 }
 
+message Count
+{
+    // Number of items being created.  Only used by TicketCreate currently.
+    uint32 value = 1;
+}
+
 message Date
 {
     // time in seconds since Ripple epoch
@@ -175,6 +181,11 @@ message Ticket
 }
 
 message TicketCount
+{
+    uint32 value = 1;
+}
+
+message TicketSequence
 {
     uint32 value = 1;
 }
