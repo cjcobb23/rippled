@@ -19,4 +19,4 @@ jobs:
       with:
         ref: develop
     - name: breaking-change
-      run: /home/runner/buf check breaking --against-input '.git#branch=develop' -against-input-config buf.yaml
+      run: /home/runner/buf check breaking --against-input '.git#branch=develop' --against-input-config buf.yaml
