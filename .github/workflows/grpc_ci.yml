@@ -17,4 +17,4 @@ jobs:
     - name: lint
       run: /home/runner/buf check lint
     - name: breaking-change
-      run: /home/runner/buf check breaking --against-input '.git#branch=origin/develop'
+      run: /home/runner/buf check breaking --against-input '.git#branch=develop'
