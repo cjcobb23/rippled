@@ -15,8 +15,6 @@ jobs:
     - name: lint
       run: pwd && /home/runner/buf check lint --input-config buf.yaml
     - name: checkout
-      uses: actions/checkout@v2
-      with:
-        ref: develop
+      run: git fetch develop
     - name: breaking-change
       run: /home/runner/buf check breaking --against-input '.git#branch=develop' --against-input-config buf.yaml
