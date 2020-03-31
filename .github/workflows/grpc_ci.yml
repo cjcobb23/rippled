@@ -10,9 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: checkout
-      uses: actions/checkout@v2
-      with:
-        ref: develop
+      run: git fetch origin develop
     - name: download-buf
       run: curl -sSL "https://github.com/bufbuild/buf/releases/download/v0.7.0/buf-Linux-x86_64" -o "/home/runner/buf" &&
            chmod +x "/home/runner/buf"
