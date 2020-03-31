@@ -9,12 +9,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - run: |
+        git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
     - name: download-buf
       run: curl -sSL "https://github.com/bufbuild/buf/releases/download/v0.7.0/buf-Linux-x86_64" -o "/home/runner/buf" &&
            chmod +x "/home/runner/buf"
     - name: lint
       run: pwd && /home/runner/buf check lint --input-config buf.yaml
-    - name: checkout
-      run: git fetch develop
     - name: breaking-change
       run: /home/runner/buf check breaking --against-input '.git#branch=develop' --against-input-config buf.yaml
