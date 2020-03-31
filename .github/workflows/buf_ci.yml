@@ -1,4 +1,4 @@
-name: Buf lint
+name: gRPC breaking change
 
 on: [push]
 
