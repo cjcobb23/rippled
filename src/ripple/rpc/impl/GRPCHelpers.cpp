@@ -1776,6 +1776,8 @@ convert(
 
     populateSigners(to, fromObj);
 
+    populateTicketSequence(to, fromObj);
+
     auto type = safe_cast<TxType>(fromObj.getFieldU16(sfTransactionType));
 
     switch (type)

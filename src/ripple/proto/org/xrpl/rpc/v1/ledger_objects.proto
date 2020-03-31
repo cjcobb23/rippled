@@ -6,7 +6,7 @@ option java_multiple_files = true;
 
 import "org/xrpl/rpc/v1/common.proto";
 
-// Next field: 13
+// Next field: 14
 message LedgerObject
 {
     oneof object
@@ -27,7 +27,7 @@ message LedgerObject
     }
 }
 
-// Next field: 13
+// Next field: 14
 enum LedgerEntryType
 {
     LEDGER_ENTRY_TYPE_UNSPECIFIED     = 0;
