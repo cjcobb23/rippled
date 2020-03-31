@@ -12,7 +12,7 @@ jobs:
       with:
         ref: develop
     - name: checkout 
-      run: git checkout -
+      run: git checkout @{-1}
     - name: download-buf
       run: curl -sSL "https://github.com/bufbuild/buf/releases/download/v0.7.0/buf-Linux-x86_64" -o "/home/runner/buf" &&
            chmod +x "/home/runner/buf"
