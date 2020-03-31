@@ -1,0 +1,18 @@
+name: gRPC lint and breaking change detector
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: download-buf
+      run: curl -sSL "https://github.com/bufbuild/buf/releases/download/v0.7.0/buf-Linux-x86_64" -o "/home/runner/buf" &&
+           chmod +x "/home/runner/buf"
+    - name: lint
+      run: pwd && /home/runner/buf check lint --input-config buf.yaml
+    - name: breaking-change
+      run: /home/runner/buf check breaking --against-input '.git#branch=develop'
