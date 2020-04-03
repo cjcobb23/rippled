@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package org.xrpl.rpc.v1;
 option java_package = "org.xrpl.rpc.v1";
-option java_multiple_files = true;
 
 // A representation of an account address
 // Next field: 2

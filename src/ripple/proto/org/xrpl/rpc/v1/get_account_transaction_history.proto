@@ -6,7 +6,6 @@ import "org/xrpl/rpc/v1/ledger.proto";
 
 package org.xrpl.rpc.v1;
 option java_package = "org.xrpl.rpc.v1";
-option java_multiple_files = true;
 
 // Next field: 8
 message GetAccountTransactionHistoryRequest
