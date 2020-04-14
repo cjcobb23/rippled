@@ -2268,8 +2268,8 @@ NetworkOPsImp::getTxsAccountB(
     auto bound = [&ret](
                      std::uint32_t ledgerIndex,
                      std::string const& status,
-                     Blob const& rawTxn,
-                     Blob const& rawMeta) {
+                     Blob&& rawTxn,
+                     Blob&& rawMeta) {
         ret.emplace_back(std::move(rawTxn), std::move(rawMeta), ledgerIndex);
     };
 

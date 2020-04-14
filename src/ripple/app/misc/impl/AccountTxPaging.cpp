@@ -68,8 +68,8 @@ accountTxPage(
     std::function<void(
         std::uint32_t,
         std::string const&,
-        Blob const&,
-        Blob const&)> const& onTransaction,
+        Blob&&,
+        Blob&&)> const& onTransaction,
     AccountID const& account,
     std::int32_t minLedger,
     std::int32_t maxLedger,
@@ -250,8 +250,8 @@ accountTxPage(
                 onTransaction(
                     rangeCheckedCast<std::uint32_t>(ledgerSeq.value_or(0)),
                     *status,
-                    rawData,
-                    rawMeta);
+                    std::move(rawData),
+                    std::move(rawMeta));
                 --numberOfResults;
             }
         }
