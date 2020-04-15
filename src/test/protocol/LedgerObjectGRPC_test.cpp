@@ -73,29 +73,51 @@ public:
 
         // For all ledger entry types, verify that they have a name
         // corresponding to the name of a LedgerFormats Item.
-        std::size_t itemCount = 0u;
-        using entryEnumType = std::underlying_type_t<grpc::LedgerEntryType>;
-        for (entryEnumType i = grpc::LedgerEntryType_MIN;
-            i <= grpc::LedgerEntryType_MAX; i += 1)
+        google::protobuf::EnumDescriptor const* enumDescriptor = grpc::LedgerEntryType_descriptor();
+        auto numValues = enumDescriptor->value_count();
+
+        for(auto i = 0; i < numValues; ++i)
         {
-            if (grpc::LedgerEntryType_IsValid (i))
-            {
-                grpc::LedgerEntryType e = safe_cast<grpc::LedgerEntryType>(i);
+            google::protobuf::EnumValueDescriptor const* enumValueDescriptor = enumDescriptor->value(i);
+            std::string name = enumValueDescriptor->name();
+            //TODO: check that this is the actual value of the string
+            // The UNSPECIFIED value will not be in LedgerFormats.
+            if(name == "LEDGER_ENTRY_TYPE_UNSPECIFIED")
+                continue;
 
-                // The UNSPECIFIED value will not be in LedgerFormats.
-                if (e == grpc::LEDGER_ENTRY_TYPE_UNSPECIFIED)
-                    continue;
-
-                // Count LedgerEntryType and verify it has an expected string.
-                itemCount += 1;
-                std::string const& entryTypeName =
-                    grpc::LedgerEntryType_Name(e);
-                BEAST_EXPECT (ledgerEntryTypeNames.count(entryTypeName) == 1);
-            }
+            // Count LedgerEntryType and verify it has an expected string.
+            BEAST_EXPECT(ledgerEntryTypeNames.count(name) == 1);
         }
 
         // Verify that LedgerFormats and gRPC have the same number of entries.
-        BEAST_EXPECT (itemCount == ledgerEntryTypeNames.size());
+        // -1 because numValue includes LEDGER_ENTRY_TYPE_UNSPECIFIED
+        BEAST_EXPECT((numValues-1) == ledgerEntryTypeNames.size());
+
+
+        // Verify each individual ledger object matches
+        grpc::LedgerObject ledgerObject;
+        google::protobuf::Descriptor const* ledgerObjectDescriptor = ledgerObject.GetDescriptor();
+
+        //TODO: test that this name is correct
+        google::protobuf::OneofDescriptor const* oneOfDescriptor = ledgerObjectDescriptor->FindOneofByName("object");
+
+        BEAST_EXPECT(oneOfDescriptor->field_count() == ledgerEntryTypeNames.size());
+
+        // This loop should be iterating through each possible ledger object
+        for(auto i = 0; i < oneOfDescriptor->field_count(); ++i)
+        {
+            google::protobuf::FieldDescriptor const* fieldDescriptor = oneOfDescriptor->field(i);
+
+            //TODO: check that this is correct. messageDescriptor should
+            //be a descriptor for a particular ledger object
+            google::protobuf::Descriptor const* messageDescriptor = fieldDescriptor->message_type();
+
+
+            //TODO: get number of fields defined in LedgerFormats for this 
+            //specific ledger object. 0 is just a placeholder
+            auto numFields = 0;
+            BEAST_EXPECT(messageDescriptor->field_count() == numFields);
+        }
     }
 
     void run() override
