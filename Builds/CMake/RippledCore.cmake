@@ -868,6 +868,7 @@ target_sources (rippled PRIVATE
   #]===============================]
   src/test/protocol/InnerObjectFormats_test.cpp
   src/test/protocol/Issue_test.cpp
+  src/test/protocol/LedgerObjectGRPC_test.cpp
   src/test/protocol/PublicKey_test.cpp
   src/test/protocol/Quality_test.cpp
   src/test/protocol/STAccount_test.cpp
