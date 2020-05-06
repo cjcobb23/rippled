@@ -301,6 +301,14 @@ processAccountTxStoredProcedureResult(
                         auto txID = from_hex_text<uint256>(idHex);
                         auto ledger =
                             context.ledgerMaster.getLedgerBySeq(ledgerSequence);
+                        if (!ledger)
+                        {
+                            JLOG(context.j.error())
+                                << "doTxStoredProcedure - "
+                                << "could not find ledger with sequence = "
+                                << ledgerSequence;
+                            continue;
+                        }
                         if (args.binary)
                         {
                             auto const item = ledger->txMap().peekItem(txID);
@@ -324,6 +332,15 @@ processAccountTxStoredProcedureResult(
                         else
                         {
                             auto [txn, meta] = ledger->txRead(txID);
+                            if (!txn || !meta)
+                            {
+                                JLOG(context.j.error())
+                                    << "doTxStoredProcedure - "
+                                    << "could not find txn in ledger. id = "
+                                    << strHex(txID) << " . ledger sequence = "
+                                    << ledgerSequence;
+                                continue;
+                            }
 
                             std::string reason;
                             auto txnRet = std::make_shared<Transaction>(
@@ -393,6 +410,7 @@ processAccountTxStoredProcedureResult(
 std::pair<AccountTxResult, RPC::Status>
 doAccountTxStoredProcedure(AccountTxArgs const& args, RPC::Context& context)
 {
+    assert(context.app.config().usePostgresTx());
     std::shared_ptr<PgQuery> pg =
         std::make_shared<PgQuery>(context.app.pgPool());
     JLOG(context.j.debug()) << "doTxStoredProcedure - starting";
