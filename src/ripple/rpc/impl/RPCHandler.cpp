@@ -65,7 +65,7 @@ namespace {
      Failure:
         {
            "result" : {
-              "error" : "noNetwork",
+              "error" : "notSynced",
               "error_code" : 16,
               "error_message" : "Not synced to Ripple network.",
               "request" : {
@@ -95,7 +95,7 @@ namespace {
 
      Failure:
         {
-          "error" : "noNetwork",
+          "error" : "notSynced",
           "error_code" : 16,
           "error_message" : "Not synced to Ripple network.",
           "request" : {

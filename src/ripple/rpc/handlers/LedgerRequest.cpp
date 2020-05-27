@@ -67,7 +67,7 @@ doLedgerRequest(RPC::JsonContext& context)
         // We need a validated ledger to get the hash from the sequence
         if (ledgerMaster.getValidatedLedgerAge() >
             RPC::Tuning::maxValidatedLedgerAge)
-            return rpcError(rpcNO_CURRENT);
+            return rpcError(rpcNOT_SYNCED);
 
         ledgerIndex = jsonIndex.asInt();
         auto ledger = ledgerMaster.getValidatedLedger();

@@ -105,7 +105,7 @@ doAccountTxOld(RPC::JsonContext& context)
         if (!bValidated && (iLedgerMin == -1 || iLedgerMax == -1))
         {
             // Don't have a validated ledger range.
-            return rpcError(rpcLGR_IDXS_INVALID);
+            return rpcError(rpcNOT_SYNCED);
         }
 
         uLedgerMin = iLedgerMin == -1 ? uValidatedMin : iLedgerMin;
@@ -113,7 +113,7 @@ doAccountTxOld(RPC::JsonContext& context)
 
         if (uLedgerMax < uLedgerMin)
         {
-            return rpcError(rpcLGR_IDXS_INVALID);
+            return rpcError(rpcNOT_SYNCED);
         }
     }
     else

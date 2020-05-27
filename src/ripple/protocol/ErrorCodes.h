@@ -61,9 +61,9 @@ enum error_code_i {
     rpcAMENDMENT_BLOCKED = 14,
 
     // Networking
-    rpcNO_CLOSED = 15,
-    rpcNO_CURRENT = 16,
-    rpcNO_NETWORK = 17,
+    rpcNOT_SYNCED = 15,
+    // unused                  16,
+    // unused                  17,
 
     // Ledger state
     // unused                  18,
@@ -109,7 +109,7 @@ enum error_code_i {
     // unused                  54,
     // unused                  55,
     // unused                  56,
-    rpcLGR_IDXS_INVALID = 57,
+    // unused                  57,
     rpcLGR_IDX_MALFORMED = 58,
     // unused                  59,
     // unused                  60,

@@ -214,7 +214,7 @@ getLedgerRange(
     if (!bValidated)
     {
         // Don't have a validated ledger range.
-        return rpcLGR_IDXS_INVALID;
+        return rpcNOT_SYNCED;
     }
 
     std::uint32_t uLedgerMin = uValidatedMin;
@@ -236,7 +236,7 @@ getLedgerRange(
                         uLedgerMax = ls.max;
                     }
                     if (uLedgerMax < uLedgerMin)
-                        return rpcLGR_IDXS_INVALID;
+                        return rpcNOT_SYNCED;
                 }
                 else
                 {

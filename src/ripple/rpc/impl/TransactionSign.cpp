@@ -308,7 +308,7 @@ checkTxJsonFields(
     if (verify && !config.standalone() &&
         (validatedLedgerAge > Tuning::maxValidatedLedgerAge))
     {
-        ret.first = rpcError(rpcNO_CURRENT);
+        ret.first = rpcError(rpcNOT_SYNCED);
         return ret;
     }
 
