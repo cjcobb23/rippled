@@ -67,7 +67,7 @@ namespace {
            "result" : {
               "error" : "notSynced",
               "error_code" : 16,
-              "error_message" : "Not synced to Ripple network.",
+              "error_message" : "Not synced to the network.",
               "request" : {
                  "command" : "ledger",
                  "ledger_index" : 10300865
@@ -97,7 +97,7 @@ namespace {
         {
           "error" : "notSynced",
           "error_code" : 16,
-          "error_message" : "Not synced to Ripple network.",
+          "error_message" : "Not synced to the network.",
           "request" : {
              "command" : "ledger",
              "ledger_index" : 10300865

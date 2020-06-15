@@ -300,7 +300,7 @@ public:
         BEAST_EXPECT(result[jss::error] == "notSynced");
         BEAST_EXPECT(result[jss::status] == "error");
         BEAST_EXPECT(
-            result[jss::error_message] == "Not synced to XRP network.");
+            result[jss::error_message] == "Not synced to the network.");
     }
 
     void

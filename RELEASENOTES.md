@@ -7,6 +7,11 @@ This document contains the release notes for `rippled`, the reference server imp
  
 Have new ideas? Need help with setting up your node? Come visit us [here](https://github.com/ripple/rippled/issues/new/choose)
 
+# Change Log
+
+- The error codes `noClosed`, `noCurrent`, and `noNetwork` have been removed. Instead, the API returns the code `notSynced` in all of these cases.
+- The error code `lgrIdxInvalid` has been removed. Instead, the server returns either `notSynced`, if the server isn't synced to the network, or `invalidParams`, if the supplied ledger indexes are not valid.
+
 # Releases
 
 ## Version 1.5.0

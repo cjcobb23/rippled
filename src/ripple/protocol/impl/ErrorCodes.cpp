@@ -87,7 +87,7 @@ constexpr static ErrorInfo unorderedErrorInfos[]{
     {rpcNOT_IMPL, "notImpl", "Not implemented."},
     {rpcNOT_READY, "notReady", "Not ready to handle this request."},
     {rpcNOT_SUPPORTED, "notSupported", "Operation not supported."},
-    {rpcNOT_SYNCED, "notSynced", "Not synced to XRP network."},
+    {rpcNOT_SYNCED, "notSynced", "Not synced to the network."},
     {rpcNO_EVENTS, "noEvents", "Current transport does not support events."},
     {rpcNO_PERMISSION,
      "noPermission",

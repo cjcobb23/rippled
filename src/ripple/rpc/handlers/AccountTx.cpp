@@ -236,7 +236,7 @@ getLedgerRange(
                         uLedgerMax = ls.max;
                     }
                     if (uLedgerMax < uLedgerMin)
-                        return rpcNOT_SYNCED;
+                        return rpcINVALID_LGR_RANGE;
                 }
                 else
                 {

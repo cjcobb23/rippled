@@ -174,7 +174,7 @@ class AccountTx_test : public beast::unit_test::suite
             p[jss::ledger_index_min] = 2;
             p[jss::ledger_index_max] = 1;
             BEAST_EXPECT(isErr(
-                env.rpc("json", "account_tx", to_string(p)), rpcNOT_SYNCED));
+                env.rpc("json", "account_tx", to_string(p)), rpcINVALID_LGR_RANGE));
         }
 
         // Ledger index min only
@@ -188,7 +188,7 @@ class AccountTx_test : public beast::unit_test::suite
 
             p[jss::ledger_index_min] = env.current()->info().seq;
             BEAST_EXPECT(isErr(
-                env.rpc("json", "account_tx", to_string(p)), rpcNOT_SYNCED));
+                env.rpc("json", "account_tx", to_string(p)), rpcINVALID_LGR_RANGE));
         }
 
         // Ledger index max only

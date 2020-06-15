@@ -1443,7 +1443,7 @@ static RPCCallTestData const rpcCallTestArray[] = {
        {
          "error" : "notSynced",
          "error_code" : 55,
-         "error_message" : "Not synced to XRP network."
+         "error_message" : "Not synced to the network."
        }
     ]
     })",
@@ -5911,7 +5911,7 @@ static RPCCallTestData const rpcCallTestArray[] = {
        {
          "error" : "notSynced",
          "error_code" : 55,
-         "error_message" : "Not synced to XRP network."
+         "error_message" : "Not synced to the network."
        }
     ]
     })",
