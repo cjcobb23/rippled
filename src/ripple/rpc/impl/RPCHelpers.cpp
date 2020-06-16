@@ -347,7 +347,7 @@ getLedger(T& ledger, uint32_t ledgerIndex, Context& context)
         isValidatedOld(context.ledgerMaster, context.app.config().standalone()))
     {
         ledger.reset();
-        return {rpcNOT_SYNCED, "InsufficientNetworkMode"};
+        return {rpcNOT_SYNCED, "notSynced"};
     }
 
     return Status::OK;
@@ -358,13 +358,13 @@ Status
 getLedger(T& ledger, LedgerShortcut shortcut, Context& context)
 {
     if (isValidatedOld(context.ledgerMaster, context.app.config().standalone()))
-        return {rpcNOT_SYNCED, "InsufficientNetworkMode"};
+        return {rpcNOT_SYNCED, "notSynced"};
 
     if (shortcut == LedgerShortcut::VALIDATED)
     {
         ledger = context.ledgerMaster.getValidatedLedger();
         if (ledger == nullptr)
-            return {rpcNOT_SYNCED, "InsufficientNetworkMode"};
+            return {rpcNOT_SYNCED, "notSynced"};
 
         assert(!ledger->open());
     }
@@ -386,7 +386,7 @@ getLedger(T& ledger, LedgerShortcut shortcut, Context& context)
         }
 
         if (ledger == nullptr)
-            return {rpcNOT_SYNCED, "InsufficientNetworkMode"};
+            return {rpcNOT_SYNCED, "notSynced"};
 
         static auto const minSequenceGap = 10;
 
@@ -394,7 +394,7 @@ getLedger(T& ledger, LedgerShortcut shortcut, Context& context)
             context.ledgerMaster.getValidLedgerIndex())
         {
             ledger.reset();
-            return {rpcNOT_SYNCED, "InsufficientNetworkMode"};
+            return {rpcNOT_SYNCED, "notSynced"};
         }
     }
     return Status::OK;
