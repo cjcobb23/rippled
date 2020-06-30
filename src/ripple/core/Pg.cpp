@@ -899,7 +899,7 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                      static_cast<char const*>(e.getKey()),
                                      static_cast<char const*>(e.getKey()) +
                                          keyBytes) +
-                                 '\t' +
+                                 '\t' + "\\\\x" +
                                  strHex(
                                      static_cast<char const*>(compressed.first),
                                      static_cast<char const*>(
