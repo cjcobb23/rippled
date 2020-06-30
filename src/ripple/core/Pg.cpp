@@ -874,33 +874,61 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                 std::shared_ptr<Pg> conn;
                 try
                 {
-                    // TODO make something with a condition var instead of spinning.
+                    // TODO make something with a condition var instead of
+                    // spinning.
                     while (!conn)
                         conn = pool_->checkout();
+                    PGresult* res =
+                        PQexec(conn->getConn(), "COPY objects FROM stdin");
 
-                    std::stringstream command;
-                    for (auto const& no : batch)
+                    if (PQresultStatus(res) == PGRES_COPY_IN)
                     {
-                        NodeStore::EncodedBlob e;
-                        e.prepare(no);
-                        nudb::detail::buffer bf;
-                        std::pair<void const*, std::size_t> compressed =
-                            NodeStore::nodeobject_compress(e.getData(),
-                                e.getSize(), bf);
+                        std::stringstream copyBuffer;
+                        for (auto const& no : batch)
+                        {
+                            NodeStore::EncodedBlob e;
+                            e.prepare(no);
+                            nudb::detail::buffer bf;
+                            std::pair<void const*, std::size_t> compressed =
+                                NodeStore::nodeobject_compress(
+                                    e.getData(), e.getSize(), bf);
 
-                        command << "INSERT INTO objects VALUES ('\\x"
-                            << strHex(static_cast<char const*>(e.getKey()),
-                                static_cast<char const*>(e.getKey()) + keyBytes)
-                            << "', '\\x"
-                            << strHex(
-                                static_cast<char const*>(compressed.first),
-                                static_cast<char const*>(compressed.first) +
-                                compressed.second)
-                            << "') ON CONFLICT DO NOTHING; ";
+                            copyBuffer
+                                << "\\\\x"
+                                << strHex(
+                                       static_cast<char const*>(e.getKey()),
+                                       static_cast<char const*>(e.getKey()) +
+                                           keyBytes)
+                                << '\t'
+                                << strHex(
+                                       static_cast<char const*>(
+                                           compressed.first),
+                                       static_cast<char const*>(
+                                           compressed.first) +
+                                           compressed.second)
+                                << '\n';
+                        }
+
+                        if (PQputCopyData(
+                                conn->getConn(),
+                                copyBuffer.str().c_str(),
+                                copyBuffer.str().size()) == 1)
+                        {
+                            if (PQputCopyEnd(conn->getConn(), nullptr) == 1)
+                            {
+                                res = PQgetResult(conn->getConn());
+                                if (PQresultStatus(res) == PGRES_COMMAND_OK)
+                                {
+                                    while (res)
+                                    {
+                                        PQclear(res);
+                                        res = nullptr;
+                                        res = PQgetResult(conn->getConn());
+                                    }
+                                }
+                            }
+                        }
                     }
-                    JLOG(pool_->j_.debug()) << "store batch before";
-                    conn->batchQuery(yield, *strand, command.str().c_str());
-                    JLOG(pool_->j_.debug()) << "store batch after";
                     counter += batch.size();
                     JLOG(pool_->j_.debug()) << "store batch counter "
                         << counter;
