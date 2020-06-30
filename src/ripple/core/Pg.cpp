@@ -908,6 +908,7 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                  '\n');
                         }
 
+                        PQsetnonblocking(conn->getConn(), 0);
                         if (PQputCopyData(
                                 conn->getConn(),
                                 copyBuffer.c_str(),
@@ -924,6 +925,7 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                         res = nullptr;
                                         res = PQgetResult(conn->getConn());
                                     }
+                                    PQsetnonblocking(conn->getConn(), 1);
                                     JLOG(pool_->j_.debug())
                                         << "successfully executed copy in";
                                 }
