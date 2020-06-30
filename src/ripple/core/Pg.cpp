@@ -924,6 +924,8 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                         res = nullptr;
                                         res = PQgetResult(conn->getConn());
                                     }
+                                    JLOG(pool_->j_.debug())
+                                        << "successfully executed copy in";
                                 }
                                 else
                                 {
