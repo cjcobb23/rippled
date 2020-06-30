@@ -883,7 +883,7 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
 
                     if (PQresultStatus(res) == PGRES_COPY_IN)
                     {
-                        std::stringstream copyBuffer;
+                        std::string copyBuffer;
                         for (auto const& no : batch)
                         {
                             NodeStore::EncodedBlob e;
@@ -893,26 +893,25 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                 NodeStore::nodeobject_compress(
                                     e.getData(), e.getSize(), bf);
 
-                            copyBuffer
-                                << "\\\\x"
-                                << strHex(
-                                       static_cast<char const*>(e.getKey()),
-                                       static_cast<char const*>(e.getKey()) +
-                                           keyBytes)
-                                << '\t'
-                                << strHex(
-                                       static_cast<char const*>(
-                                           compressed.first),
-                                       static_cast<char const*>(
-                                           compressed.first) +
-                                           compressed.second)
-                                << '\n';
+                            copyBuffer +=
+                                ("\\\\x" +
+                                 strHex(
+                                     static_cast<char const*>(e.getKey()),
+                                     static_cast<char const*>(e.getKey()) +
+                                         keyBytes) +
+                                 '\t' +
+                                 strHex(
+                                     static_cast<char const*>(compressed.first),
+                                     static_cast<char const*>(
+                                         compressed.first) +
+                                         compressed.second) +
+                                 '\n');
                         }
 
                         if (PQputCopyData(
                                 conn->getConn(),
-                                copyBuffer.str().c_str(),
-                                copyBuffer.str().size()) == 1)
+                                copyBuffer.c_str(),
+                                copyBuffer.size()) == 1)
                         {
                             if (PQputCopyEnd(conn->getConn(), nullptr) == 1)
                             {
