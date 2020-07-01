@@ -906,6 +906,22 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                          compressed.first) +
                                          compressed.second) +
                                  '\n');
+                            JLOG(pool_->j_.debug())
+                                << __func__ << " : "
+                                << "Storing key = "
+                                << strHex(
+                                       static_cast<char const*>(e.getKey()),
+                                       static_cast<char const*>(e.getKey()) +
+                                           keyBytes);
+                            JLOG(pool_->j_.debug())
+                                << __func__ << " : "
+                                << "Storing data = "
+                                << strHex(
+                                       static_cast<char const*>(
+                                           compressed.first),
+                                       static_cast<char const*>(
+                                           compressed.first) +
+                                           compressed.second);
                         }
 
                         PQsetnonblocking(conn->getConn(), 0);
