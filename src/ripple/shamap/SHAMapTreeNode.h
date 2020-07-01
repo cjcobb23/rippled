@@ -167,7 +167,8 @@ public:
     void setFullBelowGen (std::uint32_t gen);
 
     bool updateHash () override;
-    void updateHashDeep();
+    bool
+    updateHashDeep();
     void addRaw (Serializer&, SHANodeFormat format) const override;
     std::string getString (SHAMapNodeID const&) const override;
     uint256 const& key() const override;

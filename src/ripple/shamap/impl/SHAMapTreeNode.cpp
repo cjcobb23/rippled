@@ -291,7 +291,7 @@ SHAMapInnerNode::updateHash()
     return true;
 }
 
-void
+bool
 SHAMapInnerNode::updateHashDeep()
 {
     for (auto pos = 0; pos < 16; ++pos)
@@ -299,7 +299,7 @@ SHAMapInnerNode::updateHashDeep()
         if (mChildren[pos] != nullptr)
             mHashes[pos] = mChildren[pos]->getNodeHash();
     }
-    updateHash();
+    return updateHash();
 }
 
 bool

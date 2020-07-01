@@ -1000,9 +1000,9 @@ SHAMap::walkSubTree (bool doWrite, NodeObjectType t, std::uint32_t seq,
                         ++flushed;
 
                         assert (node->getSeq() == seq_);
-                        child->updateHash();
+                        bool changed = child->updateHash();
 
-                        if (doWrite && backed_)
+                        if (doWrite && backed_ && changed)
                             child = writeNode(t, seq, std::move(child), etl);
                         else
                             child->setSeq (0);
@@ -1014,10 +1014,10 @@ SHAMap::walkSubTree (bool doWrite, NodeObjectType t, std::uint32_t seq,
         }
 
         // update the hash of this inner node
-        node->updateHashDeep();
+        bool changed = node->updateHashDeep();
 
         // This inner node can now be shared
-        if (doWrite && backed_)
+        if (doWrite && backed_ && changed)
             node = std::static_pointer_cast<SHAMapInnerNode>(writeNode(t, seq,
                                                                        std::move(node),
                                                                        etl));
