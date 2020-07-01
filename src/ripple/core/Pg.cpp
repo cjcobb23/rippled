@@ -931,25 +931,32 @@ PgQuery::store(std::size_t const keyBytes, bool const sync)
                                 }
                                 else
                                 {
+                                    std::string msg =
+                                        PQerrorMessage(conn->getConn());
                                     Throw<std::runtime_error>(
-                                        "Error getting result status");
+                                        "Error getting result status : " + msg);
                                 }
                             }
                             else
                             {
+                                std::string msg =
+                                    PQerrorMessage(conn->getConn());
                                 Throw<std::runtime_error>(
-                                    "Error putting copy end");
+                                    "Error putting copy end : " + msg);
                             }
                         }
                         else
                         {
+                            std::string msg = PQerrorMessage(conn->getConn());
                             Throw<std::runtime_error>(
-                                "Error putting copy data");
+                                "Error putting copy data : " + msg);
                         }
                     }
                     else
                     {
-                        Throw<std::runtime_error>("Error creating copy in");
+                        std::string msg = PQerrorMessage(conn->getConn());
+                        Throw<std::runtime_error>(
+                            "Error creating copy in : " + msg);
                     }
                     counter += batch.size();
                     JLOG(pool_->j_.debug()) << "store batch counter "
