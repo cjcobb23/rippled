@@ -113,6 +113,9 @@ SHAMap::walkTowardsKey(uint256 const& id, SharedPtrNodeStack* stack) const
     auto inNode = root_;
     SHAMapNodeID nodeID;
 
+    std::string problemKey =
+        "E7955FFF0AACD32C2A05ACEB51F75DBBC8548A200372B9968707B010132FC32A";
+
     while (inNode->isInner())
     {
         if (stack != nullptr)
@@ -124,6 +127,15 @@ SHAMap::walkTowardsKey(uint256 const& id, SharedPtrNodeStack* stack) const
             return nullptr;
 
         inNode = descendThrow (inner, branch);
+        if (to_string(inNode->getNodeHash()) == problemKey)
+        {
+            JLOG(journal_.error())
+                << __func__ << " : "
+                << "Found problem record. leaf id = " << to_string(id)
+                << " . hash of problem record = "
+                << to_string(inNode->getNodeHash())
+                << " .  isinner = " << inNode->isInner();
+        }
         nodeID = nodeID.getChildNodeID (branch);
     }
 
