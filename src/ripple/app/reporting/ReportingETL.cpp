@@ -573,6 +573,8 @@ ReportingETL::runETLPipeline(uint32_t startSequence)
     std::thread loader{
         [this, &lastPublishedSequence, &loadQueue, &writeConflict]() {
             beast::setCurrentThreadName("rippled: ReportingETL load");
+	    size_t totalTransactions = 0;
+	    double totalTime = 0;
             while (!writeConflict)
             {
                 std::optional<std::pair<
@@ -604,13 +606,17 @@ ReportingETL::runETLPipeline(uint32_t startSequence)
                 // still publish even if we are relinquishing ETL control
                 publishLedger(ledger);
                 lastPublishedSequence = ledger->info().seq;
-                assert(checkConsistency(*this));
+                if(checkConsistency_)
+			assert(checkConsistency(*this));
 
                 // print some performance numbers
                 auto kvTime = ((mid - start).count()) / 1000000000.0;
                 auto relationalTime = ((end - mid).count()) / 1000000000.0;
 
+
                 size_t numTxns = accountTxData.size();
+		totalTime += kvTime;
+		totalTransactions += numTxns;
                 JLOG(journal_.info())
                     << "Load phase of etl : "
                     << "Successfully published ledger! Ledger info: "
@@ -618,7 +624,8 @@ ReportingETL::runETLPipeline(uint32_t startSequence)
                     << ". key-value write time = " << kvTime
                     << ". relational write time = " << relationalTime
                     << ". key-value tps = " << numTxns / kvTime
-                    << ". relational tps = " << numTxns / relationalTime;
+                    << ". relational tps = " << numTxns / relationalTime
+		    << ". total key-value tps = " << totalTransactions / totalTime;
             }
         }};
 
