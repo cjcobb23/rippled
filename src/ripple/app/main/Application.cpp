@@ -1037,7 +1037,7 @@ public:
             auto j = logs_->journal("NodeObject");
             NodeStore::DummyScheduler dummyScheduler;
             RootStoppable dummyRoot {"DummyRoot"};
-            std::unique_ptr <NodeStore::Database> source =
+            std::unique_ptr<NodeStore::Database> source =
                 NodeStore::Manager::instance().make_Database(
                     "NodeStore.import",
                     dummyScheduler,
@@ -1045,8 +1045,7 @@ public:
                     dummyRoot,
                     config_->section(ConfigSection::importNodeDatabase()),
                     config_->reporting(),
-                    j,
-                    pgPool());
+                    j);
 
             JLOG(j.warn()) <<
                 "Starting node import from '" << source->getName() <<
