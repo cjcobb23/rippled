@@ -744,7 +744,7 @@ ReportingETL::monitor()
         constexpr size_t timeoutSeconds = 10;
         bool success =
             publishLedger(nextSequence, timeoutSeconds);
-        if (!success)
+        if (!success || true)
         {
             JLOG(journal_.warn()) << __func__ << " : "
                                   << "Failed to publish ledger with sequence = "
