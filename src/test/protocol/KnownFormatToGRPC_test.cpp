@@ -61,7 +61,7 @@ private:
     // Convert from CamelCase to snake_case.  Do not be fooled by consecutive
     // capital letters like in NegativeUNL.
     static std::string
-    formatNameToEntryTypeName(std::string fmtName)
+    formatNameToEntryTypeName(std::string const& fmtName)
     {
         std::string entryName;
         entryName.reserve(fmtName.size());
@@ -81,7 +81,7 @@ private:
 
     // Create a map of (most) all the SFields in an SOTemplate.  This map
     // can be used to correlate a gRPC Descriptor to its corresponding SField.
-    template <typename KeyType = int>
+    template <typename KeyType>
     static std::map<std::string, SField const*>
     soTemplateToSFields(
         SOTemplate const& soTemplate,
@@ -100,7 +100,7 @@ private:
                 sfLedgerEntryType.fieldCode,
                 sfOperationLimit.fieldCode};
 
-            if (excludedSFields.count(sField.fieldCode) == 1)
+            if (excludedSFields.count(sField.fieldCode))
                 continue;
 
             // There are certain fields that gRPC never represents in
@@ -113,7 +113,7 @@ private:
                     sfWalletLocator.fieldCode,
                     sfWalletSize.fieldCode};
 
-                if (excludedTxFields.count(sField.fieldCode) == 1)
+                if (excludedTxFields.count(sField.fieldCode))
                     continue;
             }
 
@@ -169,9 +169,9 @@ private:
             };
             // clang-format on
 
-            std::string gRPCName = sFieldToGRPC.count(sField.getName()) == 1
-                ? sFieldToGRPC.at(sField.getName())
-                : sField.getName();
+            auto const iter = sFieldToGRPC.find(sField.getName());
+            std::string gRPCName =
+                iter != sFieldToGRPC.end() ? iter->second : sField.getName();
 
             sFields.insert({std::move(gRPCName), &sField});
         }
@@ -183,9 +183,9 @@ private:
     void
     validateDescriptorAgainstSFields(
         google::protobuf::Descriptor const* const pbufDescriptor,
-        std::optional<google::protobuf::Descriptor const* const> commonFields,
+        google::protobuf::Descriptor const* const commonFields,
         std::string const& knownFormatName,
-        std::map<std::string, SField const*> sFields)
+        std::map<std::string, SField const*>&& sFields)
     {
         // Create namespace aliases for shorter names.
         namespace pbuf = google::protobuf;
@@ -216,7 +216,7 @@ private:
                         name[i + 2] = 'L';
                     }
 
-                    if (sFields.count(name) != 1)
+                    if (!sFields.count(name))
                     {
                         fail(
                             std::string("Repeated Protobuf Descriptor '") +
@@ -239,7 +239,7 @@ private:
                         return;
 
                     name = entryDesc->name();
-                    if (sFields.count(name) != 1)
+                    if (!sFields.count(name))
                     {
                         fail(
                             std::string("Protobuf Descriptor '") +
@@ -276,12 +276,12 @@ private:
         // the commonFields next.
         if (commonFields)
         {
-            for (int i = 0; i < (*commonFields)->field_count(); ++i)
+            for (int i = 0; i < commonFields->field_count(); ++i)
             {
                 // If the field we picked up is a OneOf, skip it.  Common
                 // fields are never OneOfs.
                 pbuf::FieldDescriptor const* const fieldDesc =
-                    (*commonFields)->field(i);
+                    commonFields->field(i);
 
                 if (fieldDesc == nullptr ||
                     fieldDesc->containing_oneof() != nullptr ||
@@ -486,7 +486,7 @@ private:
 
         // Compare the SFields to the FieldDescriptor->Descriptors.
         validateDescriptorAgainstSFields(
-            entryDesc, {}, sField->getName(), std::move(sFields));
+            entryDesc, nullptr, sField->getName(), std::move(sFields));
     }
 
     // Compare a protobuf descriptor with only one field to an SField.
@@ -595,7 +595,7 @@ private:
                 {sfTakerPaysCurrency.fieldCode, "Currency"},
             };
             // clang-format on
-            if (messageMap.count(sField->fieldCode) == 1)
+            if (messageMap.count(sField->fieldCode))
             {
                 pbuf::Descriptor const* const entry2Desc =
                     fieldDesc->message_type();
@@ -663,7 +663,7 @@ private:
         // representation is reasonable for what the ledger implements.
         static const std::set<std::string> noFurtherDetail{{sfPaths.getName()}};
 
-        if (noFurtherDetail.count(sField->getName()) == 1)
+        if (noFurtherDetail.count(sField->getName()))
         {
             // There is no Format representation for further details of this
             // repeated type.  We've done the best we can.
@@ -682,7 +682,7 @@ private:
             {sfSignerEntries.getName(), &sfSignerEntry},
             {sfSigners.getName(), &sfSigner}};
 
-        if (repeatsWhat.count(sField->getName()) != 1)
+        if (!repeatsWhat.count(sField->getName()))
         {
             fail(
                 std::string("Unexpected repeated type ") + fieldDesc->name(),

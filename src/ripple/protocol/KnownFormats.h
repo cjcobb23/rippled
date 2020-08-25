@@ -134,13 +134,13 @@ public:
     typename std::forward_list<Item>::const_iterator
     begin() const
     {
-        return std::as_const(formats_).begin();
+        return formats_.begin();
     }
 
     typename std::forward_list<Item>::const_iterator
     end() const
     {
-        return std::as_const(formats_).end();
+        return formats_.end();
     }
 
 protected:
