@@ -152,7 +152,6 @@ private:
                             {ltACCOUNT_ROOT, {&sfWalletLocator, &sfWalletSize}},
                             {ltDIR_NODE, {&sfExchangeRate}},
                             {ltLEDGER_HASHES, {&sfFirstLedgerSequence}},
-                            {ltPAYCHAN, {&sfDestinationNode}},
                         };
 
                 if (auto const iter = gRPCOmitFields.find(fmtId);

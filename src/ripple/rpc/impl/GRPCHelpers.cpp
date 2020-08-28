@@ -1378,6 +1378,8 @@ convert(org::xrpl::rpc::v1::PayChannel& to, STObject const& from)
     populateSourceTag(to, from);
 
     populateDestinationTag(to, from);
+
+    populateDestinationNode(to, from);
 }
 
 void
