@@ -92,7 +92,15 @@ private:
         {
             SField const& sField = element.sField();
 
-            // Fields that gRPC never includes.  This is probably intentional.
+            // Fields that gRPC never includes.
+            //
+            //   o sfLedgerIndex and
+            //   o sfLedgerEntryType are common to all ledger objects, so
+            //     gRPC includes them at a higher level than the ledger
+            //     object itself.
+            //
+            //   o sfOperationLimit is an optional field in all transactions,
+            //     but no one knows what it was intended for.
             using FieldCode_t =
                 std::remove_const<decltype(SField::fieldCode)>::type;
             static const std::set<FieldCode_t> excludedSFields{
@@ -105,6 +113,15 @@ private:
 
             // There are certain fields that gRPC never represents in
             // transactions.  Exclude those.
+            //
+            //   o sfPreviousTxnID is obsolete and was replaced by
+            //     sfAccountTxnID some time before November of 2014.
+            //
+            //   o sfWalletLocator and
+            //   o sfWalletSize have been deprecated for six years or more.
+            //
+            //   o sfTransactionType is not needed by gRPC, since the typing
+            //     is handled using protobuf message types.
             if constexpr (std::is_same_v<KeyType, TxType>)
             {
                 static const std::set<FieldCode_t> excludedTxFields{
@@ -122,7 +139,13 @@ private:
             {
                 // Fields that gRPC does not include in certain LedgerFormats.
                 //
-                // Some of these may be bugs.
+                //   o sfWalletLocator,
+                //   o sfWalletSize,
+                //   o sfExchangeRate, and
+                //   o sfFirstLedgerSequence are all deprecated fields in
+                //     their respective ledger objects.
+                //
+                //   o sfDestinationNode's omission from ltPAYCHAN may be a bug.
                 static const std::
                     map<LedgerEntryType, std::vector<SField const*>>
                         gRPCOmitFields{
@@ -155,8 +178,30 @@ private:
             // Provide a mapping from SField names to gRPC names for the
             // known exceptions.
             //
-            // At least one gRPC spelling is a bug.
             // clang-format off
+            //
+            // The implementers of the gRPC interface made the decision not
+            // to abbreviate anything.  This accounts for the following
+            // field name differences:
+            //
+            //   "AccountTxnID",      "AccountTransactionID"
+            //   "PreviousTxnID",     "PreviousTransactionID"
+            //   "PreviousTxnLgrSeq", "PreviousTransactionLedgerSequence"
+            //   "SigningPubKey",     "SigningPublicKey"
+            //   "TxnSignature",      "TransactionSignature"
+            //
+            // gRPC adds typing information for Fee, which accounts for
+            //   "Fee",               "XRPDropsAmount"
+            //
+            // There's one misspelling which accounts for
+            //   "TakerGetsCurrency", "TakerGetsCurreny"
+            //
+            // The implementers of the gRPC interface observed that a
+            // PaymentChannelClaim transaction has a TxnSignature field at the
+            // upper level and a Signature field at the lever level.  They
+            // felt that was confusing, which is the reason for
+            //    "Signature",         "PaymentChannelSignature"
+            //
             static const std::map<std::string, std::string> sFieldToGRPC{
                 {"AccountTxnID",      "AccountTransactionID"},
                 {"Fee",               "XRPDropsAmount"},
@@ -725,7 +770,7 @@ private:
         return validateOneDescriptor(entryDesc, sField);
     }
 
-    // Compare a protobuf descriptor to a LedgerFormat::Item
+    // Compare a protobuf descriptor to a KnownFormat::Item
     template <typename FmtType>
     void
     validateFields(
