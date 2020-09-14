@@ -1285,8 +1285,11 @@ loadLedgerInfosPostgres(
         std::pair<uint32_t, uint32_t>> const& whichLedger,
     Application& app)
 {
+
+    auto log = app.journal("Ledger");
     assert(app.config().reporting());
-    std::string sql =
+    std::stringstream sql;
+    sql << 
         "SELECT ledger_hash, prev_hash, account_set_hash, trans_set_hash,"
         "       total_coins, closing_time, prev_closing_time, close_time_res,"
         "       close_flags, ledger_seq"
@@ -1296,11 +1299,11 @@ loadLedgerInfosPostgres(
 
     if (auto ledgerSeq = std::get_if<uint32_t>(&whichLedger))
     {
-        sql += "WHERE ledger_seq = " + std::to_string(*ledgerSeq);
+        sql << "WHERE ledger_seq = " + std::to_string(*ledgerSeq);
     }
     else if (auto ledgerHash = std::get_if<uint256>(&whichLedger))
     {
-        sql += ("WHERE ledger_hash = \'\\x" + strHex(*ledgerHash) + "\'");
+        sql << ("WHERE ledger_hash = \'\\x" + strHex(*ledgerHash) + "\'");
     }
     else if (
         auto minAndMax =
@@ -1308,33 +1311,60 @@ loadLedgerInfosPostgres(
     {
         expNumResults = minAndMax->second - minAndMax->first;
 
-        sql +=
+        sql <<
             ("WHERE ledger_seq >= " + std::to_string(minAndMax->first) +
              " AND ledger_seq <= " + std::to_string(minAndMax->second));
     }
     else
     {
-        sql += ("ORDER BY ledger_seq desc LIMIT 1");
+        sql << ("ORDER BY ledger_seq desc LIMIT 1");
     }
-    sql += ";";
+    sql << ";";
 
-    JLOG(app.journal("Ledger").debug())
-        << "loadLedgerInfosPostgres - sql : " << sql;
+    JLOG(log.trace())
+        << __func__ << " : sql = " << sql.str();
 
-    auto res = PgQuery(app.getPgPool())(sql.data());
-    assert(res);
-
-    JLOG(app.journal("Ledger").debug())
-        << "loadLedgerInfosPostgres - result: " << res.msg();
-
-    if (res.ntuples() > 0)
-        assert(res.nfields() == 10);
-
-    if (res.ntuples() == 0)
+    auto res = PgQuery(app.getPgPool())(sql.str().data());
+    if(!res)
     {
-        auto stream = app.journal("Ledger").debug();
-        JLOG(stream) << "Ledger not found: " << sql;
+        JLOG(log.error()) << __func__ << " : Postgres response is null - sql = "
+            << sql.str();
+        assert(false);
         return {};
+        
+    }
+    else if(res.status() != PGRES_TUPLES_OK)
+    {
+        JLOG(log.error()) << __func__
+                          << " : Postgres response should have been "
+                             "PGRES_TUPLES_OK but instead was "
+                          << res.status() << " - msg  = " << res.msg()
+                          << " - sql = " << sql.str();
+        assert(false);
+        return {};
+    }
+
+    JLOG(log.trace())
+        << __func__ << " Postgres result msg  : " << res.msg();
+
+    if(res.isNull() || res.ntuples() == 0)
+    {
+        JLOG(log.debug()) << __func__
+                          << " : Ledger not found. sql = " << sql.str();
+        return {};
+    }
+    else if (res.ntuples() > 0)
+    {
+        if(res.nfields() != 10)
+        {
+            JLOG(log.error()) << __func__
+                              << " : Wrong number of fields in Postgres "
+                                 "response. Expected 10, but got "
+                              << res.nfields() << " . sql = "
+                              << sql.str();
+            assert(false);
+            return {};
+        }
     }
 
     std::vector<LedgerInfo> infos;
@@ -1351,11 +1381,15 @@ loadLedgerInfosPostgres(
         std::int64_t closeFlags = res.asBigInt(i, 8);
         std::int64_t ledgerSeq = res.asBigInt(i, 9);
 
-        JLOG(app.journal("Ledger").debug())
-            << "loadLedgerInfosPostgres - data = " << hash << " , " << prevHash
+        JLOG(log.trace())
+            << __func__ << " - Postgres response = " << hash << " , " << prevHash
             << " , " << accountHash << " , " << txHash << " , " << totalCoins
             << ", " << closeTime << ", " << parentCloseTime << ", "
-            << closeTimeRes << ", " << closeFlags << ", " << ledgerSeq;
+            << closeTimeRes << ", " << closeFlags << ", " << ledgerSeq
+            << " - sql = " << sql.str();
+        JLOG(log.debug()) << __func__
+                          << " - Successfully fetched ledger with sequence = "
+                          << ledgerSeq << " from Postgres";
 
         using time_point = NetClock::time_point;
         using duration = NetClock::duration;
@@ -1661,6 +1695,7 @@ std::vector<std::pair<std::shared_ptr<STTx const>, std::shared_ptr<STObject cons
 flatFetchTransactions(ReadView const& ledger, Application& app)
 {
 
+    auto log = app.journal("Ledger");
     if (!app.config().reporting())
     {
         assert(false);
@@ -1679,11 +1714,53 @@ flatFetchTransactions(ReadView const& ledger, Application& app)
         " WHERE ledger_seq = " +
         std::to_string(ledger.info().seq);
     auto res = PgQuery(app.getPgPool())(query.c_str());
-    assert(res);
 
+    if(!res)
+    {
+        JLOG(log.error()) << __func__ << " : Postgres response is null - query = "
+            << query;
+        assert(false);
+        return {};
+        
+    }
+    else if(res.status() != PGRES_TUPLES_OK)
+    {
+        JLOG(log.error()) << __func__
+                          << " : Postgres response should have been "
+                             "PGRES_TUPLES_OK but instead was "
+                          << res.status() << " - msg  = " << res.msg()
+                          << " - query = " << query;
+        assert(false);
+        return {};
+    }
+
+    JLOG(log.trace())
+        << __func__ << " Postgres result msg  : " << res.msg();
+
+    if(res.isNull() || res.ntuples() == 0)
+    {
+        JLOG(log.debug()) << __func__
+                          << " : Ledger not found. query = " << query;
+        return {};
+    }
+    else if (res.ntuples() > 0)
+    {
+        if(res.nfields() != 3)
+        {
+            JLOG(log.error()) << __func__
+                              << " : Wrong number of fields in Postgres "
+                                 "response. Expected 3, but got "
+                              << res.nfields() << " . query = "
+                              << query;
+            assert(false);
+            return {};
+        }
+    }
+
+    JLOG(log.trace()) <<__func__ << " : result = " << res.c_str()
+        << " : query = " << query;
     for (size_t i = 0; i < res.ntuples(); ++i)
     {
-        assert(res.nfields() == 3);
 
         char const* txID = res.c_str(i, 1);
         char const* nodestoreHash = res.c_str(i, 2);
@@ -1697,8 +1774,9 @@ flatFetchTransactions(ReadView const& ledger, Application& app)
         app.getNodeFamily().db().fetchBatch(nodestoreHashes);
 
     auto end = std::chrono::system_clock::now();
-    JLOG(app.journal("Ledger").debug()) << "ledger Flat fetch time : "
-                                  << ((end - start).count() / 1000000000.0);
+    JLOG(log.debug()) << "ledger " << ledger.info().seq
+                      << " Flat fetch time : "
+                      << ((end - start).count() / 1000000000.0);
     assert(objs.size() == nodestoreHashes.size());
     for (size_t i = 0; i < objs.size(); ++i)
     {

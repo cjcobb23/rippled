@@ -610,20 +610,20 @@ ReportingETL::runETLPipeline(uint32_t startSequence)
                 // write to RDBMS
                 // if there is a write conflict, some other process has already
                 // written this ledger and has taken over as the ETL writer
-                if (app_.config().reporting())
-                    if (!writeToPostgres(
-                            ledger->info(),
-                            accountTxData,
-                            app_.getPgPool(),
-                            journal_))
-                        writeConflict = true;
+                if (!writeToPostgres(
+                        ledger->info(),
+                        accountTxData,
+                        app_.getPgPool(),
+                        journal_))
+                    writeConflict = true;
 
                 auto end = std::chrono::system_clock::now();
 
-                // still publish even if we are relinquishing ETL control
-                publishLedger(ledger);
-                lastPublishedSequence = ledger->info().seq;
-
+                if (!writeConflict)
+                {
+                    publishLedger(ledger);
+                    lastPublishedSequence = ledger->info().seq;
+                }
                 // print some performance numbers
                 auto kvTime = ((mid - start).count()) / 1000000000.0;
                 auto relationalTime = ((end - mid).count()) / 1000000000.0;

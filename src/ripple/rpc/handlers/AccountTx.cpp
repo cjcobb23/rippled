@@ -491,27 +491,47 @@ doAccountTxStoredProcedure(AccountTxArgs const& args, RPC::Context& context)
     }
     for (size_t i = 0; i < values.size(); ++i)
     {
-        JLOG(context.j.debug()) << "value " << std::to_string(i) << " = "
+        JLOG(context.j.trace()) << "value " << std::to_string(i) << " = "
                                 << (values[i] ? values[i].value() : "null");
     }
 
     auto res = PgQuery(context.app.getPgPool())(dbParams);
-    assert(res);
-    assert(res.ntuples() == 1);
-    assert(res.nfields() == 1);
-
-    JLOG(context.j.debug()) << "doAccountTxStoredProcedure - "
-                            << "result status = " << res.msg();
-    if (res.isNull())
+    if(!res)
     {
-        JLOG(context.j.debug()) << "doAccountTxStoredProcedure - "
-                                << "result is null";
-        return {};
+        JLOG(context.j.error()) << __func__ << " : Postgres response is null - account = "
+            << strHex(args.account);
+        assert(false);
+        return {{}, {rpcINTERNAL, "Postgres error"}};
+    }
+    else if(res.status() != PGRES_TUPLES_OK)
+    {
+        JLOG(context.j.error()) << __func__
+                          << " : Postgres response should have been "
+                             "PGRES_TUPLES_OK but instead was "
+                          << res.status() << " - msg  = " << res.msg()
+                          << " - account = " << strHex(args.account);
+        assert(false);
+        return {{}, {rpcINTERNAL, "Postgres error"}};
     }
 
+    JLOG(context.j.trace())
+        << __func__ << " Postgres result msg  : " << res.msg();
+    if(res.isNull() || res.ntuples() == 0)
+    {
+    
+        JLOG(context.j.debug()) << __func__
+                          << " : No data returned from Postgres : account = "
+                          << strHex(args.account);
+
+        assert(false);
+        return {{}, {rpcINTERNAL, "Postgres error"}};
+    }
+
+
     char const* resultStr = res.c_str();
-    JLOG(context.j.trace()) << "doAccountTxStoredProcedure - "
-                            << "postgres result = " << resultStr;
+    JLOG(context.j.trace()) << __func__ << " : "
+                            << "postgres result = " << resultStr
+                            << " : account = " << strHex(args.account);
 
     Json::Value v;
     Json::Reader reader;
@@ -521,8 +541,9 @@ doAccountTxStoredProcedure(AccountTxArgs const& args, RPC::Context& context)
         return processAccountTxStoredProcedureResult(args, v, context);
     }
 
-    // on error, return empty value
-    return {};
+    // This shouldn't happen. Postgres should return a parseable error
+    assert(false);
+    return {{}, {rpcINTERNAL, "Failed to deserialize Postgres result"}};
 }
 
 std::pair<AccountTxResult, RPC::Status>

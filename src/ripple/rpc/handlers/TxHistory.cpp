@@ -57,8 +57,49 @@ doTxHistoryReporting(RPC::JsonContext& context)
         startIndex);
 
     auto res = PgQuery(context.app.getPgPool())(sql.data());
-    assert(res);
-    JLOG(context.j.debug()) << "txHistory - result: " << res.msg();
+
+    if (!res)
+    {
+        JLOG(context.j.error())
+            << __func__ << " : Postgres response is null - sql = " << sql;
+        assert(false);
+        return {};
+    }
+    else if (res.status() != PGRES_TUPLES_OK)
+    {
+        JLOG(context.j.error())
+            << __func__
+            << " : Postgres response should have been "
+               "PGRES_TUPLES_OK but instead was "
+            << res.status() << " - msg  = " << res.msg() << " - sql = " << sql;
+        assert(false);
+        return {};
+    }
+
+    JLOG(context.j.trace())
+        << __func__ << " Postgres result msg  : " << res.msg();
+
+    if (res.isNull() || res.ntuples() == 0)
+    {
+        JLOG(context.j.debug()) << __func__ << " : Empty postgres response";
+        assert(false);
+        return {};
+    }
+    else if (res.ntuples() > 0)
+    {
+        if (res.nfields() != 1)
+        {
+            JLOG(context.j.error()) << __func__
+                                    << " : Wrong number of fields in Postgres "
+                                       "response. Expected 1, but got "
+                                    << res.nfields() << " . sql = " << sql;
+            assert(false);
+            return {};
+        }
+    }
+
+    JLOG(context.j.trace())
+        << __func__ << " : Postgres result = " << res.c_str();
 
     Json::Value txs;
 

@@ -58,65 +58,76 @@ writeToPostgres(
     JLOG(j.debug()) << __func__ << " : "
                     << "Beginning write to Postgres";
 
-    // Create a PgQuery object to run multiple commands over the same
-    // connection in a single transaction block.
-    PgQuery pg(pgPool);
-    auto res = pg("BEGIN");
-    if (!res)
+    try
     {
-        std::stringstream msg;
-        msg << "bulkWriteToTable : Postgres insert error: "
-            << res.msg();
-        Throw<std::runtime_error>(msg.str());
-    }
+        // Create a PgQuery object to run multiple commands over the same
+        // connection in a single transaction block.
+        PgQuery pg(pgPool);
+        auto res = pg("BEGIN");
+        if (!res || res.status() != PGRES_COMMAND_OK)
+        {
+            std::stringstream msg;
+            msg << "bulkWriteToTable : Postgres insert error: " << res.msg();
+            Throw<std::runtime_error>(msg.str());
+        }
 
-    // Writing to the ledgers db fails if the ledger already exists in the db.
-    // In this situation, the ETL process has detected there is another writer,
-    // and falls back to only publishing
-    if (!writeToLedgersDB(info, pg, j))
+        // Writing to the ledgers db fails if the ledger already exists in the
+        // db. In this situation, the ETL process has detected there is another
+        // writer, and falls back to only publishing
+        if (!writeToLedgersDB(info, pg, j))
+        {
+            JLOG(j.warn()) << __func__ << " : "
+                           << "Failed to write to ledgers database.";
+            return false;
+        }
+
+        std::stringstream transactionsCopyBuffer;
+        std::stringstream accountTransactionsCopyBuffer;
+        for (auto& data : accountTxData)
+        {
+            std::string txHash = strHex(data.txHash);
+            std::string nodestoreHash = strHex(data.nodestoreHash);
+            auto idx = data.transactionIndex;
+            auto ledgerSeq = data.ledgerSequence;
+
+            transactionsCopyBuffer << std::to_string(ledgerSeq) << '\t'
+                                   << std::to_string(idx) << '\t' << "\\\\x"
+                                   << txHash << '\t' << "\\\\x" << nodestoreHash
+                                   << '\n';
+
+            for (auto& a : data.accounts)
+            {
+                std::string acct = strHex(a);
+                accountTransactionsCopyBuffer
+                    << "\\\\x" << acct << '\t' << std::to_string(ledgerSeq)
+                    << '\t' << std::to_string(idx) << '\n';
+            }
+        }
+
+        pg.bulkInsert("transactions", transactionsCopyBuffer.str());
+        pg.bulkInsert(
+            "account_transactions", accountTransactionsCopyBuffer.str());
+
+        res = pg("COMMIT");
+        if (!res || res.status() != PGRES_COMMAND_OK)
+        {
+            std::stringstream msg;
+            msg << "bulkWriteToTable : Postgres insert error: " << res.msg();
+            assert(false);
+            Throw<std::runtime_error>(msg.str());
+        }
+
+        JLOG(j.info()) << __func__ << " : "
+                       << "Successfully wrote to Postgres";
+        return true;
+    }
+    catch (std::exception& e)
     {
-        JLOG(j.warn()) << __func__ << " : "
-                       << "Failed to write to ledgers database.";
+        JLOG(j.error()) << __func__ << "Caught exception writing to Postgres : "
+                        << e.what();
+        assert(false);
         return false;
     }
-
-    std::stringstream transactionsCopyBuffer;
-    std::stringstream accountTransactionsCopyBuffer;
-    for (auto& data : accountTxData)
-    {
-        std::string txHash = strHex(data.txHash);
-        std::string nodestoreHash = strHex(data.nodestoreHash);
-        auto idx = data.transactionIndex;
-        auto ledgerSeq = data.ledgerSequence;
-
-        transactionsCopyBuffer
-            << std::to_string(ledgerSeq) << '\t' << std::to_string(idx) << '\t'
-            << "\\\\x" << txHash << '\t' << "\\\\x" << nodestoreHash << '\n';
-
-        for (auto& a : data.accounts)
-        {
-            std::string acct = strHex(a);
-            accountTransactionsCopyBuffer << "\\\\x" << acct << '\t'
-                                          << std::to_string(ledgerSeq) << '\t'
-                                          << std::to_string(idx) << '\n';
-        }
-    }
-
-    pg.bulkInsert("transactions", transactionsCopyBuffer.str());
-    pg.bulkInsert("account_transactions", accountTransactionsCopyBuffer.str());
-
-    res = pg("COMMIT");
-    if (!res)
-    {
-        std::stringstream msg;
-        msg << "bulkWriteToTable : Postgres insert error: "
-            << res.msg();
-        Throw<std::runtime_error>(msg.str());
-    }
-
-    JLOG(j.info()) << __func__ << " : "
-                   << "Successfully wrote to Postgres";
-    return true;
 }
 
 }  // namespace ripple

@@ -136,15 +136,35 @@ Transaction::locate(uint256 const& id, Application& app)
 
     auto res = PgQuery(app.getPgPool())(sql.data());
 
-    assert(res);
-    assert(res.ntuples() == 1);
-    assert(res.nfields() == 1);
-
-    if (!res || res.isNull())
+    if (!res)
     {
-        JLOG(app.journal("Transaction::Locator").error())
-            << "Bad postgres result"
-            << (res ? res.msg() : "res is null");
+        JLOG(app.journal("Transaction").error())
+            << __func__
+            << " : Postgres response is null - tx ID = " << strHex(id);
+        assert(false);
+        return {};
+    }
+    else if (res.status() != PGRES_TUPLES_OK)
+    {
+        JLOG(app.journal("Transaction").error())
+            << __func__
+            << " : Postgres response should have been "
+               "PGRES_TUPLES_OK but instead was "
+            << res.status() << " - msg  = " << res.msg()
+            << " - tx ID = " << strHex(id);
+        assert(false);
+        return {};
+    }
+
+    JLOG(app.journal("Transaction").trace())
+        << __func__ << " Postgres result msg  : " << res.msg();
+    if (res.isNull() || res.ntuples() == 0)
+    {
+        JLOG(app.journal("Transaction").debug())
+            << __func__
+            << " : No data returned from Postgres : tx ID = " << strHex(id);
+        // This shouldn't happen
+        assert(false);
         return {};
     }
 
@@ -169,6 +189,9 @@ Transaction::locate(uint256 const& id, Application& app)
             return {std::make_pair(v["min_seq"].asUInt(), v["max_seq"].asUInt())};
         }
     }
+    // Shouldn' happen. Postgres should return the ledger range searched if
+    // the transaction was not found
+    assert(false);
     return {};
 }
 
