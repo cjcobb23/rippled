@@ -28,13 +28,13 @@
 
 namespace ripple {
 
-// This datastructure is used to keep track of the sequence of the most recent
-// ledger validated by the network. There are two methods that will wait until
-// certain conditions are met. This datastructure is able to be "stopped". When
-// the datastructure is stopped, any threads currently waiting are unblocked.
-// Any later calls to methods of this datastructure will not wait. Once the
-// datastructure is stopped, the datastructure remains stopped for the rest of
-// it's lifetime.
+/// This datastructure is used to keep track of the sequence of the most recent
+/// ledger validated by the network. There are two methods that will wait until
+/// certain conditions are met. This datastructure is able to be "stopped". When
+/// the datastructure is stopped, any threads currently waiting are unblocked.
+/// Any later calls to methods of this datastructure will not wait. Once the
+/// datastructure is stopped, the datastructure remains stopped for the rest of
+/// it's lifetime.
 class NetworkValidatedLedgers
 {
     // max sequence validated by network
@@ -48,8 +48,8 @@ class NetworkValidatedLedgers
 
 public:
 
-    // Notify the datastructure that idx has been validated by the network
-    // @param idx sequence validated by network
+    /// Notify the datastructure that idx has been validated by the network
+    /// @param idx sequence validated by network
     void
     push(uint32_t idx)
     {
@@ -59,10 +59,10 @@ public:
         cv_.notify_all();
     }
 
-    // Get most recently validated sequence. If no ledgers are known to have
-    // been validated, this function waits until the next ledger is validated
-    // @return sequence of most recently validated ledger. empty optional if
-    // the datastructure has been stopped
+    /// Get most recently validated sequence. If no ledgers are known to have
+    /// been validated, this function waits until the next ledger is validated
+    /// @return sequence of most recently validated ledger. empty optional if
+    /// the datastructure has been stopped
     std::optional<uint32_t>
     getMostRecent()
     {
@@ -71,10 +71,10 @@ public:
         return max_;
     }
 
-    // Waits for the sequence to be validated by the network
-    // @param sequence to wait for
-    // @return true if sequence was validated, false otherwise
-    // a return value of false means the datastructure has been stopped
+    /// Waits for the sequence to be validated by the network
+    /// @param sequence to wait for
+    /// @return true if sequence was validated, false otherwise
+    /// a return value of false means the datastructure has been stopped
     bool
     waitUntilValidatedByNetwork(uint32_t sequence)
     {
@@ -85,9 +85,9 @@ public:
         return !stopping_;
     }
 
-    // Puts the datastructure in the stopped state
-    // Future calls to this datastructure will not block
-    // This operation cannot be reversed
+    /// Puts the datastructure in the stopped state
+    /// Future calls to this datastructure will not block
+    /// This operation cannot be reversed
     void
     stop()
     {
@@ -97,7 +97,7 @@ public:
     }
 };
 
-// Generic thread-safe queue with an optional maximum size
+/// Generic thread-safe queue with an optional maximum size
 template <class T>
 class ThreadSafeQueue
 {
@@ -108,19 +108,19 @@ class ThreadSafeQueue
     std::optional<uint32_t> maxSize_;
 
     public:
-    // @param maxSize maximum size of the queue. Calls that would cause the
-    // queue to exceed this size will block until free space is available
+    /// @param maxSize maximum size of the queue. Calls that would cause the
+    /// queue to exceed this size will block until free space is available
     ThreadSafeQueue(uint32_t maxSize) : maxSize_(maxSize)
     {
     }
 
-    // Create a queue with no maximum size
+    /// Create a queue with no maximum size
     ThreadSafeQueue()
     {
     }
 
-    // @param elt element to push onto queue
-    // if maxSize is set, this method will block until free space is available
+    /// @param elt element to push onto queue
+    /// if maxSize is set, this method will block until free space is available
     void
     push(T const& elt)
     {
@@ -132,8 +132,8 @@ class ThreadSafeQueue
         cv_.notify_all();
     }
 
-    // @param elt element to push onto queue. elt is moved from
-    // if maxSize is set, this method will block until free space is available
+    /// @param elt element to push onto queue. elt is moved from
+    /// if maxSize is set, this method will block until free space is available
     void
     push(T&& elt)
     {
@@ -145,7 +145,7 @@ class ThreadSafeQueue
         cv_.notify_all();
     }
 
-    // @return element popped from queue. Will block until queue is non-empty
+    /// @return element popped from queue. Will block until queue is non-empty
     T
     pop()
     {
@@ -160,7 +160,7 @@ class ThreadSafeQueue
     }
 };
 
-// Convenience function for printing out basic ledger info
+/// Convenience function for printing out basic ledger info
 inline std::string
 toString(LedgerInfo const& info)
 {
@@ -172,8 +172,8 @@ toString(LedgerInfo const& info)
     return ss.str();
 }
 
-// Parititions the uint256 keyspace into numMarkers partitions, each of equal
-// size.
+/// Parititions the uint256 keyspace into numMarkers partitions, each of equal
+/// size.
 inline std::vector<uint256>
 getMarkers(size_t numMarkers)
 {

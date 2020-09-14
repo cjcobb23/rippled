@@ -34,8 +34,9 @@ forwardToP2p(RPC::JsonContext& context)
 std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
 getP2pForwardingStub(RPC::Context& context)
 {
-    return context.app.getReportingETL().getETLLoadBalancer().getP2pForwardingStub(
-        context);
+    return context.app.getReportingETL()
+        .getETLLoadBalancer()
+        .getP2pForwardingStub();
 }
 
 // We only forward requests where ledger_index is "current" or "closed"

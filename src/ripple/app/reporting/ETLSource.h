@@ -36,12 +36,12 @@ namespace ripple {
 
 class ReportingETL;
 
-// This class manages a connection to a single ETL source. This is almost always
-// a p2p node, but really could be another reporting node. This class subscribes
-// to the ledgers and transactions_proposed streams of the associated p2p node,
-// and keeps track of which ledgers the p2p node has. This class also has
-// methods for extracting said ledgers. Lastly this class forwards transactions
-// received on the transactions_proposed streams to any subscribers.
+/// This class manages a connection to a single ETL source. This is almost always
+/// a p2p node, but really could be another reporting node. This class subscribes
+/// to the ledgers and transactions_proposed streams of the associated p2p node,
+/// and keeps track of which ledgers the p2p node has. This class also has
+/// methods for extracting said ledgers. Lastly this class forwards transactions
+/// received on the transactions_proposed streams to any subscribers.
 class ETLSource
 {
     std::string ip_;
@@ -116,23 +116,23 @@ class ETLSource
     }
 
 
-    // Create ETL source without gRPC endpoint
-    // Fetch ledger and load initial ledger will fail for this source
-    // Primarly used in read-only mode, to monitor when ledgers are validated
+    /// Create ETL source without gRPC endpoint
+    /// Fetch ledger and load initial ledger will fail for this source
+    /// Primarly used in read-only mode, to monitor when ledgers are validated
     ETLSource(
         std::string ip,
         std::string wsPort,
         ReportingETL& etl);
 
-    // Create ETL source with gRPC endpoint
+    /// Create ETL source with gRPC endpoint
     ETLSource(
         std::string ip,
         std::string wsPort,
         std::string grpcPort,
         ReportingETL& etl);
 
-    // @param sequence ledger sequence to check for
-    // @return true if this source has the desired ledger
+    /// @param sequence ledger sequence to check for
+    /// @return true if this source has the desired ledger
     bool
     hasLedger(uint32_t sequence)
     {
@@ -154,9 +154,9 @@ class ETLSource
         return false;
     }
 
-    // process the validated range received on the ledgers stream. set the
-    // appropriate member variable
-    // @param range validated range received on ledgers stream
+    /// process the validated range received on the ledgers stream. set the
+    /// appropriate member variable
+    /// @param range validated range received on ledgers stream
     void
     setValidatedRange(std::string const& range)
     {
@@ -192,8 +192,8 @@ class ETLSource
         validatedLedgersRaw_ = range;
     }
 
-    // @return the validated range of this source
-    // @note this is only used by server_info
+    /// @return the validated range of this source
+    /// @note this is only used by server_info
     std::string
     getValidatedRange()
     {
@@ -202,7 +202,7 @@ class ETLSource
         return validatedLedgersRaw_;
     }
 
-    // Close the underlying websocket
+    /// Close the underlying websocket
     void
     stop()
     {
@@ -214,11 +214,11 @@ class ETLSource
 
     }
 
-    // Fetch the specified ledger
-    // @param ledgerSequence sequence of the ledger to fetch
-    // @getObjects whether to get the account state diff between this ledger and
-    // the prior one
-    // @return the extracted data and the result status
+    /// Fetch the specified ledger
+    /// @param ledgerSequence sequence of the ledger to fetch
+    /// @getObjects whether to get the account state diff between this ledger and
+    /// the prior one
+    /// @return the extracted data and the result status
     std::pair<grpc::Status, org::xrpl::rpc::v1::GetLedgerResponse>
     fetchLedger(
         uint32_t ledgerSequence,
@@ -248,77 +248,76 @@ class ETLSource
         return result;
     }
 
-    // Download a ledger in full
-    // @param ledgerSequence sequence of the ledger to download
-    // @param writeQueue queue to push downloaded ledger objects
-    // @return true if the download was successful
+    /// Download a ledger in full
+    /// @param ledgerSequence sequence of the ledger to download
+    /// @param writeQueue queue to push downloaded ledger objects
+    /// @return true if the download was successful
     bool
     loadInitialLedger(
         uint32_t ledgerSequence,
         ThreadSafeQueue<std::shared_ptr<SLE>>& writeQueue);
 
-    // Begin sequence of operations to connect to the ETL source and subscribe
-    // to ledgers and transactions_proposed
+    /// Begin sequence of operations to connect to the ETL source and subscribe
+    /// to ledgers and transactions_proposed
     void
     start();
 
-    // Attempt to reconnect to the ETL source
+    /// Attempt to reconnect to the ETL source
     void
     reconnect(boost::beast::error_code ec);
 
-    // Callback
+    /// Callback
     void
     onResolve(
         boost::beast::error_code ec,
         boost::asio::ip::tcp::resolver::results_type results);
 
-    // Callback
+    /// Callback
     void
     onConnect(
         boost::beast::error_code ec,
         boost::asio::ip::tcp::resolver::results_type::endpoint_type endpoint);
 
-    // Callback
+    /// Callback
     void
     onHandshake(boost::beast::error_code ec);
 
-    // Callback
+    /// Callback
     void
     onWrite(boost::beast::error_code ec, size_t size);
 
-    // Callback
+    /// Callback
     void
     onRead(boost::beast::error_code ec, size_t size);
 
-    // Handle the most recently received message
-    // @return true if the message was handled successfully. false on error
+    /// Handle the most recently received message
+    /// @return true if the message was handled successfully. false on error
     bool
     handleMessage();
 
-    // Close the websocket
-    // @param startAgain whether to reconnect
+    /// Close the websocket
+    /// @param startAgain whether to reconnect
     void
     close(bool startAgain);
 
-    // Get grpc stub to forward requests to p2p node
-    // @param context context of RPC request
-    // @return stub to send requests to ETL source
+    /// Get grpc stub to forward requests to p2p node
+    /// @return stub to send requests to ETL source
     std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
-    getP2pForwardingStub(RPC::Context& context);
+    getP2pForwardingStub();
 
-    // Forward a JSON RPC request to a p2p node
-    // @param context context of RPC request
-    // @return response received from ETL source
+    /// Forward a JSON RPC request to a p2p node
+    /// @param context context of RPC request
+    /// @return response received from ETL source
     Json::Value
     forwardToP2p(RPC::JsonContext& context);
 };
 
-// This class is used to manage connections to transaction processing processes
-// This class spawns a listener for each etl source, which listens to messages
-// on the ledgers stream (to keep track of which ledgers have been validated by
-// the network, and the range of ledgers each etl source has). This class also
-// allows requests for ledger data to be load balanced across all possible etl
-// sources.
+/// This class is used to manage connections to transaction processing processes
+/// This class spawns a listener for each etl source, which listens to messages
+/// on the ledgers stream (to keep track of which ledgers have been validated by
+/// the network, and the range of ledgers each etl source has). This class also
+/// allows requests for ledger data to be load balanced across all possible etl
+/// sources.
 class ETLLoadBalancer
 {
 private:
@@ -332,57 +331,57 @@ private:
 public:
     ETLLoadBalancer(ReportingETL& etl);
 
-    // Add an ETL source
-    // @param host host or ip of ETL source
-    // @param websocketPort port where ETL source accepts websocket connections
-    // @param grpcPort port where ETL source accepts gRPC requests
+    /// Add an ETL source
+    /// @param host host or ip of ETL source
+    /// @param websocketPort port where ETL source accepts websocket connections
+    /// @param grpcPort port where ETL source accepts gRPC requests
     void
     add(std::string& host, std::string& websocketPort, std::string& grpcPort);
 
-    // Add an ETL source without gRPC support. This source will send messages
-    // on the ledgers and transactions_proposed streams, but will not be able
-    // to handle the gRPC requests that are used for ETL
-    // @param host host or ip of ETL source
-    // @param websocketPort port where ETL source accepts websocket connections
+    /// Add an ETL source without gRPC support. This source will send messages
+    /// on the ledgers and transactions_proposed streams, but will not be able
+    /// to handle the gRPC requests that are used for ETL
+    /// @param host host or ip of ETL source
+    /// @param websocketPort port where ETL source accepts websocket connections
     void
     add(std::string& host, std::string& websocketPort);
 
-    // Load the initial ledger, writing data to the queue
-    // @param sequence sequence of ledger to download
-    // @param writeQueue queue to push downloaded data to
+    /// Load the initial ledger, writing data to the queue
+    /// @param sequence sequence of ledger to download
+    /// @param writeQueue queue to push downloaded data to
     void
     loadInitialLedger(
         uint32_t sequence,
         ThreadSafeQueue<std::shared_ptr<SLE>>& writeQueue);
 
-    // Fetch data for a specific ledger. This function will continuously try
-    // to fetch data for the specified ledger until the fetch succeeds, the
-    // ledger is found in the database, or the server is shutting down.
-    // @param ledgerSequence sequence of ledger to fetch data for
-    // @param getObjects if true, fetch diff between specified ledger and
-    // previous
-    // @return the extracted data, if extraction was successful. If the ledger
-    // was found in the database or the server is shutting down, the optional
-    // will be empty
+    /// Fetch data for a specific ledger. This function will continuously try
+    /// to fetch data for the specified ledger until the fetch succeeds, the
+    /// ledger is found in the database, or the server is shutting down.
+    /// @param ledgerSequence sequence of ledger to fetch data for
+    /// @param getObjects if true, fetch diff between specified ledger and
+    /// previous
+    /// @return the extracted data, if extraction was successful. If the ledger
+    /// was found in the database or the server is shutting down, the optional
+    /// will be empty
     std::optional<org::xrpl::rpc::v1::GetLedgerResponse>
     fetchLedger(
         uint32_t ledgerSequence,
         bool getObjects);
 
-    // Setup all of the ETL sources and subscribe to the necessary streams
+    /// Setup all of the ETL sources and subscribe to the necessary streams
     void
     start();
 
     void
     stop();
 
-    // Determine whether messages received on the transactions_proposed stream
-    // should be forwarded to subscribing clients. The server subscribes to
-    // transactions_proposed on multiple ETLSources, yet only forwards messages
-    // from one source at any given time (to avoid sending duplicate messages to
-    // clients).
-    // @param in ETLSource in question
-    // @return true if messages should be forwarded
+    /// Determine whether messages received on the transactions_proposed stream
+    /// should be forwarded to subscribing clients. The server subscribes to
+    /// transactions_proposed on multiple ETLSources, yet only forwards messages
+    /// from one source at any given time (to avoid sending duplicate messages to
+    /// clients).
+    /// @param in ETLSource in question
+    /// @return true if messages should be forwarded
     bool
     shouldPropagateTxnStream(ETLSource* in)
     {
@@ -414,29 +413,28 @@ public:
         return ret;
     }
 
-    // Randomly select a p2p node to forward a gRPC request to
-    // @param context context of the request
-    // @return gRPC stub to forward requests to p2p node
+    /// Randomly select a p2p node to forward a gRPC request to
+    /// @return gRPC stub to forward requests to p2p node
     std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
-    getP2pForwardingStub(RPC::Context& context);
+    getP2pForwardingStub();
 
-    // Forward a JSON RPC request to a randomly selected p2p node
-    // @param context context of the request
-    // @return response received from p2p node
+    /// Forward a JSON RPC request to a randomly selected p2p node
+    /// @param context context of the request
+    /// @return response received from p2p node
     Json::Value
     forwardToP2p(RPC::JsonContext& context);
 
 private:
-    // f is a function that takes an ETLSource as an argument and returns a
-    // bool. Attempt to execute f for one randomly chosen ETLSource that has
-    // the specified ledger. If f returns false, another randomly chosen
-    // ETLSource is used. The process repeats until f returns true.
-    // @param f function to execute. This function takes the ETL source as an
-    // argument, and returns a bool.
-    // @param ledgerSequence f is executed for each ETLSource that has this
-    // ledger
-    // @return true if f was eventually executed successfully. false if the
-    // ledger was found in the database or the server is shutting down
+    /// f is a function that takes an ETLSource as an argument and returns a
+    /// bool. Attempt to execute f for one randomly chosen ETLSource that has
+    /// the specified ledger. If f returns false, another randomly chosen
+    /// ETLSource is used. The process repeats until f returns true.
+    /// @param f function to execute. This function takes the ETL source as an
+    /// argument, and returns a bool.
+    /// @param ledgerSequence f is executed for each ETLSource that has this
+    /// ledger
+    /// @return true if f was eventually executed successfully. false if the
+    /// ledger was found in the database or the server is shutting down
     template <class Func>
     bool
     execute(Func f, uint32_t ledgerSequence);

@@ -27,6 +27,8 @@
 
 namespace ripple {
 
+/// Struct used to keep track of what to write to transactions and
+/// account_transactions tables in Postgres
 struct AccountTransactionsData
 {
     boost::container::flat_set<AccountID> accounts;
@@ -57,6 +59,12 @@ struct AccountTransactionsData
     }
 };
 
+/// Write new ledger and transaction data to Postgres
+/// @param info Ledger Info to write
+/// @param accountTxData transaction data to write
+/// @param pgPool pool of Postgres connections
+/// @param j journal (for logging)
+/// @return whether the write succeeded
 bool
 writeToPostgres(
     LedgerInfo const& info,

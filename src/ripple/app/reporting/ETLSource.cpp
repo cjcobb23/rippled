@@ -683,7 +683,7 @@ ETLLoadBalancer::fetchLedger(
 }
 
 std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
-ETLLoadBalancer::getP2pForwardingStub(RPC::Context& context)
+ETLLoadBalancer::getP2pForwardingStub()
 {
     if (sources_.size() == 0)
         return nullptr;
@@ -692,7 +692,7 @@ ETLLoadBalancer::getP2pForwardingStub(RPC::Context& context)
     auto numAttempts = 0;
     while (numAttempts < sources_.size())
     {
-        auto stub = sources_[sourceIdx]->getP2pForwardingStub(context);
+        auto stub = sources_[sourceIdx]->getP2pForwardingStub();
         if (!stub)
         {
             sourceIdx = (sourceIdx + 1) % sources_.size();
@@ -730,7 +730,7 @@ ETLLoadBalancer::forwardToP2p(RPC::JsonContext& context)
 }
 
 std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
-ETLSource::getP2pForwardingStub(RPC::Context& context)
+ETLSource::getP2pForwardingStub()
 {
     if (!connected_)
         return nullptr;

@@ -88,10 +88,6 @@ ReportingETL::insertTransactions(
     return accountTxData;
 }
 
-// Downloads ledger in full from network. Returns empty shared_ptr on error
-// @param sequence of ledger to download
-// @return the full ledger. All data has been written to the database (key-value
-// and relational). Empty shared_ptr on error
 std::shared_ptr<Ledger>
 ReportingETL::loadInitialLedger(uint32_t startingSequence)
 {

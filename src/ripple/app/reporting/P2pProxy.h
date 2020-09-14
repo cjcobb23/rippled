@@ -30,9 +30,15 @@
 #include <grpcpp/grpcpp.h>
 
 namespace ripple {
+/// Forward a JSON request to a p2p node and return the response
+/// @param context context of the request
+/// @return response from p2p node
 Json::Value
 forwardToP2p(RPC::JsonContext& context);
 
+/// Whether a request should be forwarded, based on request parameters
+/// @param context context of the request
+/// @return true if should be forwarded
 bool
 shouldForwardToP2p(RPC::JsonContext& context);
 
@@ -49,6 +55,10 @@ struct SpecifiesLedger
         std::is_same<T, org::xrpl::rpc::v1::GetLedgerDataRequest>::value;
 };
 
+
+/// Whether a request needs the current or closed ledger
+/// @param context context of the request
+/// @return true if the request needs the current or closed ledger
 template <
     class Request,
     typename std::enable_if<!SpecifiesLedger<Request>::value, Request>::type* =
@@ -59,6 +69,9 @@ needCurrentOrClosed(RPC::GRPCContext<Request>& context)
     return false;
 }
 
+/// Whether a request needs the current or closed ledger
+/// @param context context of the request
+/// @return true if the request needs the current or closed ledger
 template <
     class Request,
     typename std::enable_if<SpecifiesLedger<Request>::value, Request>::type* =
@@ -76,6 +89,11 @@ needCurrentOrClosed(RPC::GRPCContext<Request>& context)
     return false;
 }
 
+
+/// Whether a request should be forwarded, based on request parameters
+/// @param context context of the request
+/// @condition required condition for the request
+/// @return true if should be forwarded
 template <class Request>
 bool
 shouldForwardToP2p(RPC::GRPCContext<Request>& context, RPC::Condition condition)
@@ -89,6 +107,9 @@ shouldForwardToP2p(RPC::GRPCContext<Request>& context, RPC::Condition condition)
     return needCurrentOrClosed(context);
 }
 
+/// Get stub used to forward gRPC requests to a p2p node
+/// @param context context of the request
+/// @return stub to forward requests
 std::unique_ptr<org::xrpl::rpc::v1::XRPLedgerAPIService::Stub>
 getP2pForwardingStub(RPC::Context& context);
 
