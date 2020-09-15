@@ -35,12 +35,21 @@ service XRPLedgerAPIService {
   // Get all validated transactions associated with a given account
   rpc GetAccountTransactionHistory(GetAccountTransactionHistoryRequest) returns (GetAccountTransactionHistoryResponse);
 
+  /////////////////////////////////////////////////////////////////////////////
+  // The below methods do not mimic the JSON API exactly, and are mostly binary
+
+  // Get a specific ledger, optionally including transactions and any modified,
+  // added or deleted ledger objects
   rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse);
 
+  // Get a specific ledger object from a specific ledger
   rpc GetLedgerEntry(GetLedgerEntryRequest) returns (GetLedgerEntryResponse);
 
+  // Iterate through all ledger objects in a specific ledger
   rpc GetLedgerData(GetLedgerDataRequest) returns (GetLedgerDataResponse);
 
+  // Get all ledger objects that are different between the two specified
+  // ledgers. Note, this method has no JSON equivalent.
   rpc GetLedgerDiff(GetLedgerDiffRequest) returns (GetLedgerDiffResponse);
 
 }
