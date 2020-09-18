@@ -15,11 +15,6 @@ endif ()
 
 find_package(PostgreSQL REQUIRED)
 
-if (reporting)
-  find_library(cassandra NAMES cassandra cassandra-cpp-driver REQUIRED)
-  find_path(cassandra_includes NAMES cassandra.h REQUIRED)
-endif()
-
 #[===============================[
     beast/legacy FILES:
     TODO: review these sources for removal or replacement
@@ -133,9 +128,6 @@ target_include_directories (xrpl_core
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/beast/extras>
     $<INSTALL_INTERFACE:include>)
 
-if (reporting)
-  target_include_directories (xrpl_core PUBLIC ${cassandra_includes})
-endif()
 
 target_compile_definitions(xrpl_core
   PUBLIC
@@ -154,9 +146,6 @@ target_link_libraries (xrpl_core
     NIH::ed25519-donna
     date::date
     Ripple::opts)
-if (reporting)
-    target_link_libraries (xrpl_core PUBLIC ${cassandra})
-endif()
 #[=================================[
    main/core headers installation
 #]=================================]
