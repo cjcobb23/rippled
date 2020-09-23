@@ -60,6 +60,8 @@ void
 writeCallback(CassFuture* fut, void* cbData);
 void
 readCallback(CassFuture* fut, void* cbData);
+void
+logCallback(const CassLogMessage*, void* data);
 
 class CassandraBackend : public Backend
 {
@@ -142,6 +144,7 @@ public:
     ~CassandraBackend() override
     {
         close();
+        //cass_log_cleanup();
     }
 
     std::string
@@ -164,6 +167,9 @@ public:
         }
 
         std::lock_guard<std::mutex> lock(mutex_);
+
+        cass_log_set_callback(logCallback, static_cast<void *>(const_cast<beast::Journal*>(&j_)));
+        cass_log_set_level(CASS_LOG_DEBUG);
         CassCluster* cluster = cass_cluster_new();
         assert(cluster);
 
@@ -937,6 +943,14 @@ writeCallback(CassFuture* fut, void* cbData)
             backend.syncCv_.notify_all();
         delete &requestParams;
     }
+}
+
+void logCallback(const CassLogMessage* msg, void* data)
+{
+    beast::Journal& j = *static_cast<beast::Journal*>(data);
+    JLOG(j.debug()) << "CassDriverLog - Severity : " << msg->severity
+        << " - Function : " << msg->function
+        << " - Message : " << msg->message;
 }
 
 //------------------------------------------------------------------------------
