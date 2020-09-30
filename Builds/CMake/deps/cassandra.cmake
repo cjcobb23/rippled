@@ -6,26 +6,58 @@ message("**************************************** HEY")
 #endif()
 
 
-find_library(cassandra NAMES cassandra REQUIRED)
+find_library(cassandra NAMES cassandra)
 message(${cassandra})
 if(NOT cassandra)
 
 
+    find_library(zlib NAMES zlib1g-dev zlib-devel zlib z)
+    message(zlib)
+    message(${zlib})
+    if(NOT zlib)
+        add_library(zlib SHARED IMPORTED GLOBAL)
+        ExternalProject_Add(zlib_src
+            PREFIX ${nih_cache_path}
+            GIT_REPOSITORY https://github.com/madler/zlib.git
+            GIT_TAG master
+            INSTALL_COMMAND ""
+            )
+
+
+        ExternalProject_Get_Property (zlib_src SOURCE_DIR)
+        ExternalProject_Get_Property (zlib_src BINARY_DIR)
+        set (zlib_src_SOURCE_DIR "${SOURCE_DIR}")
+        file (MAKE_DIRECTORY ${zlib_src_SOURCE_DIR}/include)
+        message(${BINARY_DIR})
+        message(${ep_lib_prefix})
+        message(${ep_lib_suffix})
+
+        set_target_properties (zlib PROPERTIES
+            IMPORTED_LOCATION
+              ${BINARY_DIR}/${ep_lib_prefix}z.so
+            INTERFACE_INCLUDE_DIRECTORIES
+              ${SOURCE_DIR}/include)
+        add_dependencies(zlib zlib_src)
+
+        file(TO_CMAKE_PATH "${zlib_src_SOURCE_DIR}" zlib_src_SOURCE_DIR)
+        target_include_directories (zlib INTERFACE ${zlib_src_SOURCE_DIR}/include)
+    endif()
 
 
 
-    find_library(krb5 NAMES krb5 krb5-dev libkrb5 libkrb5-dev HINTS ${nih_cache_path}/src/krb5_src/lib/ REQUIRED)
+
+    find_library(krb5 NAMES krb5-dev libkrb5-dev)
     message(${nih_cache_path})
     message(${krb5})
     message(krb5)
 
     if(NOT krb5)
-        set(krb5found FALSE)
         add_library(krb5 SHARED IMPORTED GLOBAL)
         ExternalProject_Add(krb5_src
             PREFIX ${nih_cache_path}
             GIT_REPOSITORY https://github.com/krb5/krb5.git
             GIT_TAG master
+            UPDATE_COMMAND ""
             CONFIGURE_COMMAND autoreconf src && ./src/configure
             BUILD_IN_SOURCE 1
             BUILD_COMMAND make
@@ -48,13 +80,11 @@ if(NOT cassandra)
 
         file(TO_CMAKE_PATH "${krb5_src_SOURCE_DIR}" krb5_src_SOURCE_DIR)
         target_include_directories (krb5 INTERFACE ${krb5_src_SOURCE_DIR}/include)
-    else()
-        set(krbfound TRUE)
     endif()
 
 
     message("NOT")
-    find_library(libuv1 NAMES uv1 libuv1 liubuv1-dev libuv1:amd64 REQUIRED)
+    find_library(libuv1 NAMES uv1 libuv1 liubuv1-dev libuv1:amd64)
 
     message(${libuv1})
 
@@ -115,24 +145,30 @@ if(NOT cassandra)
         INTERFACE_INCLUDE_DIRECTORIES
           ${SOURCE_DIR}/include)
     add_dependencies(cassandra cassandra_src)
-    ExternalProject_Add_StepDependencies(cassandra_src build libuv1)
+
+    if(NOT libuv1)
+        ExternalProject_Add_StepDependencies(cassandra_src build libuv1)
+        target_link_libraries(cassandra INTERFACE libuv1)
+    else()
+        target_link_libraries(cassandra INTERFACE ${libuv1})
+    endif()
+    if(NOT krb5)
+
+        ExternalProject_Add_StepDependencies(cassandra_src build krb5)
+        target_link_libraries(cassandra INTERFACE krb5)
+    else()
+        target_link_libraries(cassandra INTERFACE ${krb5})
+    endif()
+
+    if(NOT zlib)
+        ExternalProject_Add_StepDependencies(cassandra_src build zlib)
+        target_link_libraries(cassandra INTERFACE zlib)
+    else()
+        target_link_libraries(cassandra INTERFACE ${zlib})
+    endif()
 
     file(TO_CMAKE_PATH "${cassandra_src_SOURCE_DIR}" cassandra_src_SOURCE_DIR)
     target_include_directories (cassandra INTERFACE ${cassandra_src_SOURCE_DIR}/include)
-    target_link_libraries(cassandra INTERFACE libuv1)
-    if(${krb5} STREQUAL "krb5-NOT_FOUND")
-        message("krb5 not found")
-        target_link_libraries(cassandra INTERFACE krb5)
-    else()
-        message("krb5 found")
-        target_link_libraries(cassandra INTERFACE ${krb5})
-    endif()
-    if(NOT krb5)
-        ExternalProject_Add_StepDependencies(cassandra_src build krb5)
-    endif()
-    if(NOT zlib)
-        ExternalProject_Add_StepDependencies(cassandra_src build zlib)
-    endif()
     target_link_libraries(ripple_libs INTERFACE cassandra)
 else()
 
