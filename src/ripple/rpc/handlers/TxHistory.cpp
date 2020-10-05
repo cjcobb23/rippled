@@ -50,7 +50,7 @@ doTxHistoryReporting(RPC::JsonContext& context)
         return rpcError(rpcNO_PERMISSION);
 
     std::string sql = boost::str(
-        boost::format("SELECT nodestore_hash "
+        boost::format("SELECT nodestore_hash, ledger_seq "
                       "  FROM transactions"
                       " ORDER BY ledger_seq DESC LIMIT 20 "
                       "OFFSET %u;") %
@@ -87,7 +87,7 @@ doTxHistoryReporting(RPC::JsonContext& context)
     }
     else if (res.ntuples() > 0)
     {
-        if (res.nfields() != 1)
+        if (res.nfields() != 2)
         {
             JLOG(context.j.error()) << __func__
                                     << " : Wrong number of fields in Postgres "
@@ -104,9 +104,11 @@ doTxHistoryReporting(RPC::JsonContext& context)
     Json::Value txs;
 
     std::vector<uint256> nodestoreHashes;
+    std::vector<uint32_t> ledgerSequences;
     for (size_t i = 0; i < res.ntuples(); ++i)
     {
         nodestoreHashes.push_back(from_hex_text<uint256>(res.c_str(i, 0) + 2));
+        ledgerSequences.push_back(res.asBigInt(i, 1));
     }
 
     auto objs = context.app.getNodeFamily().db().fetchBatch(nodestoreHashes);
@@ -147,7 +149,11 @@ doTxHistoryReporting(RPC::JsonContext& context)
                 return ret;
             }
 
-            txs.append(sttx->getJson(JsonOptions::none));
+            std::string reason;
+            auto txn = std::make_shared<Transaction>(sttx, reason, context.app);
+            txn->setLedger(ledgerSequences[i]);
+            txn->setStatus(COMMITTED);
+            txs.append(txn->getJson(JsonOptions::none));
         }
         else
         {

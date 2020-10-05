@@ -327,6 +327,8 @@ flatFetchTransactions(
                     std::string reason;
                     auto txnRet =
                         std::make_shared<Transaction>(txn, reason, context.app);
+                    txnRet->setLedger(ledgerSequences[i]);
+                    txnRet->setStatus(COMMITTED);
                     auto txMeta = std::make_shared<TxMeta>(
                         txnRet->getID(), ledgerSequences[i], *meta);
                     transactions.push_back(std::make_pair(txnRet, txMeta));

@@ -125,7 +125,7 @@ Transaction::load(
     return load(id, app, op{range}, ec);
 }
 
-Transaction::Locator
+Json::Value
 Transaction::locate(uint256 const& id, Application& app)
 {
     auto baseCmd = boost::format(R"(SELECT tx('%s');)");
@@ -176,21 +176,9 @@ Transaction::locate(uint256 const& id, Application& app)
     bool success = reader.parse(resultStr, resultStr + strlen(resultStr), v);
     if (success)
     {
-        if (v.isMember("nodestore_hash"))
-        {
-            uint256 nodestoreHash = from_hex_text<uint256>(
-                v["nodestore_hash"].asString().substr(2));
-            if (nodestoreHash.isNonZero())
-                return {nodestoreHash};
-        }
-        if (v.isMember("min_seq") && v.isMember("max_seq"))
-        {
-            return {
-                std::make_pair(v["min_seq"].asUInt(), v["max_seq"].asUInt())};
-        }
+        return v;
     }
-    // Shouldn' happen. Postgres should return the ledger range searched if
-    // the transaction was not found
+    // Shouldn't happen
     assert(false);
     return {};
 }

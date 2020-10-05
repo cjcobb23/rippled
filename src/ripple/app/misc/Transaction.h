@@ -300,25 +300,7 @@ public:
     Json::Value
     getJson(JsonOptions options, bool binary = false) const;
 
-    struct Locator
-    {
-        std::variant<std::monostate, uint256, std::pair<uint32_t, uint32_t>>
-            locator;
-
-        uint256*
-        getNodestoreHash()
-        {
-            return std::get_if<uint256>(&locator);
-        }
-
-        std::pair<uint32_t, uint32_t>*
-        getLedgerRange()
-        {
-            return std::get_if<std::pair<uint32_t, uint32_t>>(&locator);
-        }
-    };
-
-    static Locator
+    static Json::Value
     locate(uint256 const& id, Application& app);
 
     static pointer

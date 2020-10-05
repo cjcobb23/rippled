@@ -118,21 +118,24 @@ doTxPostgres(RPC::Context& context, TxArgs const& args)
     }
 
     JLOG(context.j.debug()) << "Fetching from postgres";
-    Transaction::Locator locator = Transaction::locate(args.hash, context.app);
+    Json::Value locator = Transaction::locate(args.hash, context.app);
 
     std::pair<std::shared_ptr<STTx const>, std::shared_ptr<STObject const>>
         pair;
     // database returned the nodestore hash. Fetch the txn directly from the
     // nodestore. Don't traverse the transaction SHAMap
-    if (uint256* nodestoreHash = locator.getNodestoreHash())
+    if (locator.isMember("nodestore_hash") && locator.isMember("ledger_seq"))
     {
+        uint256 nodestoreHash = from_hex_text<uint256>(
+            locator["nodestore_hash"].asString().substr(2));
+        uint32_t ledgerSequence = locator["ledger_seq"].asUInt();
         auto start = std::chrono::system_clock::now();
         // The second argument of fetch is ignored when not using shards
-        if (auto obj =
-                context.app.getNodeFamily().db().fetch(*nodestoreHash, 0))
+        if (auto obj = context.app.getNodeFamily().db().fetch(
+                nodestoreHash, ledgerSequence))
         {
             auto node = SHAMapAbstractNode::makeFromPrefix(
-                makeSlice(obj->getData()), SHAMapHash{*nodestoreHash});
+                makeSlice(obj->getData()), SHAMapHash{nodestoreHash});
             if (!node)
             {
                 assert(false);
@@ -155,6 +158,9 @@ doTxPostgres(RPC::Context& context, TxArgs const& args)
             }
             std::string reason;
             res.txn = std::make_shared<Transaction>(sttx, reason, context.app);
+            res.txn->setLedger(ledgerSequence);
+            res.txn->setStatus(COMMITTED);
+
             if (args.binary)
             {
                 SerialIter it(item->slice());
@@ -182,13 +188,14 @@ doTxPostgres(RPC::Context& context, TxArgs const& args)
     }
     // database did not find the transaction, and returned the ledger range
     // that was searched
-    else if (std::pair<uint32_t, uint32_t>* range = locator.getLedgerRange())
+    else if (locator.isMember("min_seq") && locator.isMember("max_seq"))
     {
         if (args.ledgerRange)
         {
             auto min = args.ledgerRange->first;
             auto max = args.ledgerRange->second;
-            if (min >= range->first && max <= range->second)
+            if (min >= locator["min_seq"].asUInt() &&
+                max <= locator["max_seq"].asUInt())
             {
                 res.searchedAll = SearchedAll::yes;
             }
