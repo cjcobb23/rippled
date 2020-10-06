@@ -33,25 +33,21 @@ if(NOT postgres)
     message(${BINARY_DIR}/${ep_lib_prefix}pq.so)
     message("SOURCE DIR: ")
     message(${SOURCE_DIR})
+    list(APPEND INCLUDE_DIRS ${SOURCE_DIR}/src/include)
+    list(APPEND INCLUDE_DIRS ${SOURCE_DIR}/src/interfaces/libpq)
+
 
     set_target_properties (postgres PROPERTIES
         IMPORTED_LOCATION
           ${BINARY_DIR}/src/interfaces/libpq/${ep_lib_prefix}pq.so
         INTERFACE_INCLUDE_DIRECTORIES
-          ${SOURCE_DIR}/src/include)
+          "${INCLUDE_DIRS}")
     add_dependencies(postgres postgres_src)
     message("postgres_src_SOURCE_DIR:")
     message(${postgres_src_SOURCE_DIR})
 
     file(TO_CMAKE_PATH "${postgres_src_SOURCE_DIR}" postgres_src_SOURCE_DIR)
     message(${postgres_src_SOURCE_DIR})
-
-    target_include_directories (postgres INTERFACE ${postgres_src_SOURCE_DIR}/src/include)
-    target_include_directories (postgres INTERFACE ${postgres_src_SOURCE_DIR}/src)
-    target_include_directories (postgres INTERFACE ${postgres_src_SOURCE_DIR}/src/backend)
-
-    target_include_directories (postgres INTERFACE ${postgres_src_SOURCE_DIR})
-    target_include_directories(postgres INTERFACE ${postgres_src_SOURCE_DIR}/src/interfaces/libpq)
 
     target_link_libraries(ripple_libs INTERFACE postgres)
 endif()

@@ -40,7 +40,6 @@ if(NOT cassandra)
         add_dependencies(zlib zlib_src)
 
         file(TO_CMAKE_PATH "${zlib_src_SOURCE_DIR}" zlib_src_SOURCE_DIR)
-        target_include_directories (zlib INTERFACE ${zlib_src_SOURCE_DIR}/include)
     endif()
 
 
@@ -79,7 +78,6 @@ if(NOT cassandra)
         add_dependencies(krb5 krb5_src)
 
         file(TO_CMAKE_PATH "${krb5_src_SOURCE_DIR}" krb5_src_SOURCE_DIR)
-        target_include_directories (krb5 INTERFACE ${krb5_src_SOURCE_DIR}/include)
     endif()
 
 
@@ -114,7 +112,6 @@ if(NOT cassandra)
         add_dependencies(libuv1 libuv_src)
 
         file(TO_CMAKE_PATH "${libuv_src_SOURCE_DIR}" libuv_src_SOURCE_DIR)
-        target_include_directories (libuv1 INTERFACE ${libuv_src_SOURCE_DIR}/include)
     endif()
 
     add_library (cassandra SHARED IMPORTED GLOBAL)
@@ -168,7 +165,6 @@ if(NOT cassandra)
     endif()
 
     file(TO_CMAKE_PATH "${cassandra_src_SOURCE_DIR}" cassandra_src_SOURCE_DIR)
-    target_include_directories (cassandra INTERFACE ${cassandra_src_SOURCE_DIR}/include)
     target_link_libraries(ripple_libs INTERFACE cassandra)
 else()
 
