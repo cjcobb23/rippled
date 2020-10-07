@@ -8,7 +8,7 @@ if(reporting)
 
     message(postgres)
     message(${postgres})
-    if(NOT ${PostgreSQL})
+    if(NOT PostgreSQL)
         message("NOT POSTGRES")
 
         add_library(postgres SHARED IMPORTED GLOBAL)
