@@ -164,7 +164,9 @@ public:
     // Required by the SHAMapStore
     TransactionMaster m_txMaster;
 
+#ifdef RIPPLED_REPORTING
     std::unique_ptr<PgPool> pgPool_;
+#endif
     NodeStoreScheduler m_nodeStoreScheduler;
     std::unique_ptr<SHAMapStore> m_shaMapStore;
     PendingSaves pendingSaves_;
@@ -277,11 +279,13 @@ public:
               [this]() { signalStop(); }))
 
         , m_txMaster(*this)
+#ifdef RIPPLED_REPORTING
         , pgPool_(
               config_->reporting() ? make_PgPool(
                                          config_->section("ledger_tx_tables"),
                                          logs_->journal("PgPool"))
                                    : nullptr)
+#endif
 
         , m_nodeStoreScheduler(*this)
         , m_shaMapStore(make_SHAMapStore(
@@ -846,12 +850,14 @@ public:
         return *mLedgerDB;
     }
 
+#ifdef RIPPLED_REPORTING
     PgPool&
     getPgPool() override
     {
         assert(pgPool_);
         return *pgPool_;
     }
+#endif
 
     DatabaseCon&
     getWalletDB() override
@@ -945,7 +951,9 @@ public:
             }
             else if (!config_->reportingReadOnly())  // use pg
             {
+#ifdef RIPPLED_REPORTING
                 initSchema(*pgPool_);
+#endif
             }
 
             // wallet database
@@ -1267,8 +1275,10 @@ public:
         m_acceptedLedgerCache.sweep();
         cachedSLEs_.expire();
 
+#ifdef RIPPLED_REPORTING
         if (config().reporting())
             pgPool_->idleSweeper();
+#endif
 
         // Set timer to do another sweep later.
         setSweepTimer();
@@ -2269,9 +2279,11 @@ ApplicationImp::setMaxDisallowedLedger()
 {
     if (config().reporting())
     {
+#ifdef RIPPLED_REPORTING
         auto seq = PgQuery(*pgPool_)("SELECT max_ledger()");
         if (seq && !seq.isNull())
             maxDisallowedLedger_ = seq.asBigInt();
+#endif
     }
     else
     {

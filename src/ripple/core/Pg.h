@@ -17,6 +17,7 @@
 */
 //==============================================================================
 
+#ifdef RIPPLED_REPORTING
 #ifndef RIPPLE_CORE_PG_H_INCLUDED
 #define RIPPLE_CORE_PG_H_INCLUDED
 
@@ -501,3 +502,4 @@ initSchema(PgPool& pool);
 }  // namespace ripple
 
 #endif  // RIPPLE_CORE_PG_H_INCLUDED
+#endif  // RIPPLED_REPORTING

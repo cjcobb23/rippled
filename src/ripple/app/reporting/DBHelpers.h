@@ -62,6 +62,7 @@ struct AccountTransactionsData
     }
 };
 
+#ifdef RIPPLED_REPORTING
 /// Write new ledger and transaction data to Postgres
 /// @param info Ledger Info to write
 /// @param accountTxData transaction data to write
@@ -75,5 +76,6 @@ writeToPostgres(
     PgPool& pgPool,
     beast::Journal& j);
 
+#endif
 }  // namespace ripple
 #endif
