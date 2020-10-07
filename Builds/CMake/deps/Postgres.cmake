@@ -4,7 +4,7 @@ if(reporting)
 
 
     # This command attempts to find the library, REQUIRED argument is optional
-    find_package(PostgreSQL REQUIRED)
+    find_package(PostgreSQL)
 
     message(postgres)
     message(${postgres})
