@@ -3699,7 +3699,7 @@ NetworkOPsImp::getBookPage(
     auto const rate = transferRate(view, book.out.account);
     auto viewJ = app_.journal("View");
 
-    while (!bDone && iLimit-- > 0)
+    while (!bDone)
     {
         if (bDirectAdvance)
         {
