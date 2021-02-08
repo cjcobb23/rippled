@@ -194,6 +194,12 @@ doBookOffers(RPC::JsonContext& context)
         limit,
         jvMarker,
         jvResult);
+    for (auto& x : jvResult["offers"])
+    {
+        auto key = x["index"];
+        x = {};
+        x["index"] = key;
+    }
 
     context.loadType = Resource::feeMediumBurdenRPC;
 
