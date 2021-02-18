@@ -2366,6 +2366,7 @@ LedgerMaster::minSqlSeq()
         *db << "SELECT MIN(LedgerSeq) FROM Ledgers", soci::into(seq);
         return seq;
     }
+    return {};
 }
 
 }  // namespace ripple
