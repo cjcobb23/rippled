@@ -903,6 +903,9 @@ ServerHandlerImp::processRequest(
             reply.append(std::move(r));
         else
             reply = std::move(r);
+
+	if(reply.isMember(jss::result) && reply[jss::result].isMember(jss::result))
+		reply = reply[jss::result];
     }
     auto response = to_string(reply);
 
