@@ -273,7 +273,7 @@ LedgerMaster::getValidatedLedgerAge()
 
 #ifdef RIPPLED_REPORTING
     if (app_.config().reporting())
-        return dynamic_cast<RelationalDBInterfacePostgres*>(
+        return static_cast<RelationalDBInterfacePostgres*>(
                    &app_.getRelationalDBInterface())
             ->getValidatedLedgerAge();
 #endif
@@ -299,7 +299,7 @@ LedgerMaster::isCaughtUp(std::string& reason)
 
 #ifdef RIPPLED_REPORTING
     if (app_.config().reporting())
-        return dynamic_cast<RelationalDBInterfacePostgres*>(
+        return static_cast<RelationalDBInterfacePostgres*>(
                    &app_.getRelationalDBInterface())
             ->isCaughtUp(reason);
 #endif
@@ -1650,7 +1650,7 @@ LedgerMaster::getCompleteLedgers()
 {
 #ifdef RIPPLED_REPORTING
     if (app_.config().reporting())
-        return dynamic_cast<RelationalDBInterfacePostgres*>(
+        return static_cast<RelationalDBInterfacePostgres*>(
                    &app_.getRelationalDBInterface())
             ->getCompleteLedgers();
 #endif
