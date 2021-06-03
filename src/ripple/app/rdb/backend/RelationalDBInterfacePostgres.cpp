@@ -278,6 +278,7 @@ getRelationalDBInterfacePostgres(
 bool
 RelationalDBInterfacePostgresImp::isCaughtUp(std::string& reason)
 {
+#ifdef RIPPLED_REPORTING
     using namespace std::chrono_literals;
     auto age = PgQuery(pgPool_)("SELECT age()");
     if (!age || age.isNull())
@@ -290,6 +291,7 @@ RelationalDBInterfacePostgresImp::isCaughtUp(std::string& reason)
         reason = "No recently-published ledger";
         return false;
     }
+#endif
     return true;
 }
 
